@@ -1,0 +1,11 @@
+{
+    "display_name": "D&D 5e Lite",
+    "loading_order": 101,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Shaderx",
+    "version": "1.0.0",
+    "homePage": "https://github.com/Shaderx/rpg-dnd5e-lite"
+}
