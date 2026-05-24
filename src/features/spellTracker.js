@@ -1,7 +1,8 @@
 /**
  * D&D 5e Lite - Spell Tracker
  * Parses chat messages for "cast [Spell Name]" patterns and builds a chronological
- * spell log retained for the current RPG day + 1 day prior.
+ * spell log. Scans the last 50 LLM messages and retains entries from the last 2
+ * long-rest periods.
  */
 
 import { getContext } from '../../../../../extensions.js';
@@ -13,6 +14,34 @@ import { parseHeader } from './headerParser.js';
 const CAST_BRACKET_REGEX = /cast(?:s|ed|ing)?\s*\[([^\]]+)\]/gi;
 // Unbracketed form: "cast Fireball", "casts Shield" — captures the first word after cast
 const CAST_BARE_REGEX = /cast(?:s|ed|ing)?\s+([A-Z][a-zA-Z''-]*)/g;
+
+/**
+ * Aggressively normalize a date string for comparison.
+ * Strips all punctuation, ordinal suffixes, articles, and extra whitespace
+ * so that minor LLM formatting differences don't cause false day-changes.
+ * e.g. "Day 3, 15th of Mirtul — Year 1492" → "day 3 15 of mirtul year 1492"
+ */
+function normalizeDate(dateStr) {
+    if (!dateStr) return '';
+    return dateStr
+        .toLowerCase()
+        .replace(/(\d+)(?:st|nd|rd|th)\b/g, '$1')
+        .replace(/\b(?:the|a|an)\b/g, '')
+        .replace(/[,.\-—–:;!?'"()[\]{}]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+/**
+ * Extract day-significant tokens from a date string (numbers and key nouns).
+ * Used as a secondary check: if the sorted token sets differ, the date changed.
+ */
+function dateDayTokens(dateStr) {
+    if (!dateStr) return '';
+    const norm = normalizeDate(dateStr);
+    const tokens = norm.split(' ').filter(t => t.length > 0);
+    return tokens.sort().join(' ');
+}
 
 /**
  * Extract all spell names from a message body.
@@ -50,56 +79,100 @@ function extractSpellCasts(text) {
 }
 
 /**
- * Given an array of all entries, trim to only the last 2 unique dates.
+ * Trim entries to only those after the 2nd-to-last long rest.
+ * Keeps everything from the current rest period plus one prior rest period,
+ * regardless of date string formatting. Much more robust than date comparison.
  */
-function trimToTwoDays(entries) {
-    const uniqueDates = [];
-    for (const e of entries) {
-        if (e.date && !uniqueDates.includes(e.date)) {
-            uniqueDates.push(e.date);
-        }
+function trimToTwoLongRests(entries) {
+    const restIndices = [];
+    for (let i = 0; i < entries.length; i++) {
+        if (entries[i].type === 'rest') restIndices.push(i);
     }
-    if (uniqueDates.length <= 2) return entries;
-    const keep = new Set(uniqueDates.slice(-2));
-    return entries.filter(e => keep.has(e.date));
+    if (restIndices.length <= 1) return entries;
+    const cutoff = restIndices[restIndices.length - 2];
+    return entries.slice(cutoff);
 }
 
 /**
- * Build a unique key for a cast entry to support deduplication against manual edits.
+ * Build a unique key for an entry to support deduplication during merge.
  */
-function castKey(entry) {
-    return `${entry.spell}|${entry.time || ''}|${entry.date || ''}|${entry.msgIndex ?? ''}`;
+function entryKey(entry) {
+    if (entry.type === 'cast') {
+        return `cast|${entry.spell}|${entry.time || ''}|${entry.date || ''}|${entry.msgIndex ?? ''}`;
+    }
+    return `${entry.type}|${entry.date || ''}`;
 }
 
+/** Max number of LLM (assistant) messages to look back through when scanning for spells. */
+const SPELL_LOG_LOOKBACK = 50;
+
 /**
- * Full chat scan: rebuild the spell log from all messages, preserving manual edits.
- * AI messages provide the running date/time via header parsing.
- * User messages are scanned for "cast [Spell Name]" patterns.
+ * Scan chat messages and return an array of parsed spell/rest entries.
+ * Does NOT modify state or persist — purely a read operation.
+ * @param {object} [options]
+ * @param {boolean} [options.skipLastAssistant] - Exclude the last assistant message from the scan
  */
-export function refreshSpellLog() {
+function scanChatForSpells({ skipLastAssistant = false } = {}) {
     const context = getContext();
     const chat = context.chat;
-    if (!chat || chat.length === 0) {
-        setSpellLog([]);
-        saveSpellLog([]);
-        return;
+    if (!chat || chat.length === 0) return [];
+
+    let lastAssistantIdx = -1;
+    if (skipLastAssistant) {
+        for (let i = chat.length - 1; i >= 0; i--) {
+            if (!chat[i].is_user && !chat[i].is_system) {
+                lastAssistantIdx = i;
+                break;
+            }
+        }
+    }
+
+    let scanStart = 0;
+    let llmCount = 0;
+    for (let i = chat.length - 1; i >= 0; i--) {
+        if (!chat[i].is_user && !chat[i].is_system) {
+            llmCount++;
+            if (llmCount >= SPELL_LOG_LOOKBACK) {
+                scanStart = i;
+                break;
+            }
+        }
     }
 
     const userName = context.name1 || 'User';
     const parsed = [];
     let lastDate = null;
+    let lastDateNorm = null;
+    let lastDateTokens = null;
     let lastTime = null;
 
-    for (let i = 0; i < chat.length; i++) {
+    for (let i = 0; i < scanStart; i++) {
+        const msg = chat[i];
+        if (msg.is_system || msg.is_user) continue;
+        const header = parseHeader(msg.mes);
+        if (header?.date) {
+            lastDate = header.date;
+            lastDateNorm = normalizeDate(header.date);
+            lastDateTokens = dateDayTokens(header.date);
+        }
+        if (header?.time) lastTime = header.time;
+    }
+
+    for (let i = scanStart; i < chat.length; i++) {
         const msg = chat[i];
         if (msg.is_system) continue;
+        if (skipLastAssistant && i === lastAssistantIdx) continue;
 
-        // AI messages: update the running date/time from header, check for day change
         if (!msg.is_user) {
             const header = parseHeader(msg.mes);
             if (header?.date) {
                 const newDate = header.date;
-                if (lastDate && newDate !== lastDate) {
+                const newDateNorm = normalizeDate(newDate);
+                const newDateTokens = dateDayTokens(newDate);
+                const dateChanged = lastDateNorm
+                    && newDateNorm !== lastDateNorm
+                    && newDateTokens !== lastDateTokens;
+                if (dateChanged) {
                     parsed.push({
                         type: 'rest',
                         date: newDate,
@@ -107,12 +180,13 @@ export function refreshSpellLog() {
                     });
                 }
                 lastDate = newDate;
+                lastDateNorm = newDateNorm;
+                lastDateTokens = newDateTokens;
             }
             if (header?.time) lastTime = header.time;
             continue;
         }
 
-        // User messages: scan for spell casts, tagged with the most recent AI date/time
         const spells = extractSpellCasts(msg.mes);
         for (const spell of spells) {
             parsed.push({
@@ -125,26 +199,60 @@ export function refreshSpellLog() {
         }
     }
 
-    const trimmed = trimToTwoDays(parsed);
+    return parsed;
+}
 
-    // Preserve manual edits: match existing entries by key and keep edited text
-    const oldByKey = new Map();
+/**
+ * Merge mode: scan chat and add only NEW entries not already in the stored spell log.
+ * Existing entries (including those from truncated/older chat) are preserved.
+ * Used by the top refresh button and automated events (MESSAGE_RECEIVED, etc.).
+ * @param {object} [options]
+ * @param {boolean} [options.skipLastAssistant] - Exclude the last assistant message from the scan
+ */
+export function refreshSpellLog({ skipLastAssistant = false } = {}) {
+    const context = getContext();
+    const chat = context.chat;
+    if (!chat || chat.length === 0) return;
+
+    const parsed = scanChatForSpells({ skipLastAssistant });
+
+    const existingKeys = new Set();
     for (const entry of spellLog) {
-        if (entry.type === 'cast') {
-            oldByKey.set(castKey(entry), entry);
+        if (!entry._manual) {
+            existingKeys.add(entryKey(entry));
         }
     }
 
-    for (const entry of trimmed) {
-        if (entry.type === 'cast') {
-            const old = oldByKey.get(castKey(entry));
-            if (old && old._edited) {
-                entry.spell = old.spell;
-                entry._edited = true;
-            }
-        }
+    const newEntries = parsed.filter(e => !existingKeys.has(entryKey(e)));
+
+    if (newEntries.length > 0) {
+        const merged = [...spellLog, ...newEntries];
+        const trimmed = trimToTwoLongRests(merged);
+        setSpellLog(trimmed);
+        saveSpellLog(trimmed);
+    }
+}
+
+/**
+ * Hard refresh: wipe the spell log and rebuild entirely from visible chat.
+ * Preserves manually added entries (_manual flag).
+ * Used by the spell log's own refresh button.
+ */
+export function hardRefreshSpellLog() {
+    const context = getContext();
+    const chat = context.chat;
+    if (!chat || chat.length === 0) {
+        const manualOnly = spellLog.filter(e => e._manual);
+        setSpellLog(manualOnly);
+        saveSpellLog(manualOnly);
+        return;
     }
 
+    const manualEntries = spellLog.filter(e => e._manual);
+    const parsed = scanChatForSpells();
+    parsed.push(...manualEntries);
+
+    const trimmed = trimToTwoLongRests(parsed);
     setSpellLog(trimmed);
     saveSpellLog(trimmed);
 }
@@ -176,9 +284,10 @@ export function addManualSpellCast(spellName) {
         date: currentDate,
         msgIndex: null,
         _edited: true,
+        _manual: true,
     });
 
-    const trimmed = trimToTwoDays(spellLog);
+    const trimmed = trimToTwoLongRests(spellLog);
     setSpellLog(trimmed);
     saveSpellLog(trimmed);
 }
@@ -205,9 +314,40 @@ export function addManualRest() {
         date: currentDate,
         text: `${userName} full rested here recovering all spell slots.`,
         _edited: true,
+        _manual: true,
     });
 
-    const trimmed = trimToTwoDays(spellLog);
+    const trimmed = trimToTwoLongRests(spellLog);
+    setSpellLog(trimmed);
+    saveSpellLog(trimmed);
+}
+
+/**
+ * Manually add a short rest entry at the current header date.
+ */
+export function addManualShortRest() {
+    const context = getContext();
+    const userName = context.name1 || 'User';
+
+    let currentDate = null;
+    const chat = context.chat;
+    if (chat) {
+        for (let i = chat.length - 1; i >= 0; i--) {
+            if (chat[i].is_user) continue;
+            const header = parseHeader(chat[i].mes);
+            if (header?.date) { currentDate = header.date; break; }
+        }
+    }
+
+    spellLog.push({
+        type: 'short-rest',
+        date: currentDate,
+        text: `${userName} short rested here restoring half of sorcery points.`,
+        _edited: true,
+        _manual: true,
+    });
+
+    const trimmed = trimToTwoLongRests(spellLog);
     setSpellLog(trimmed);
     saveSpellLog(trimmed);
 }

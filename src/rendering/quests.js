@@ -55,7 +55,7 @@ export function renderQuests() {
 
     for (const { q, i } of activeQuests) {
         const pClass = q.priority >= 1 ? ` dnd-priority-${q.priority}` : '';
-        html += `<div class="dnd-quest-item${pClass}" data-idx="${i}" draggable="true">
+        html += `<div class="dnd-quest-item${pClass}" data-idx="${i}">
             <span class="dnd-quest-drag-handle" title="Drag to reorder"><i class="fa-solid fa-grip-vertical"></i></span>
             <button class="dnd-quest-star-btn" data-idx="${i}" title="${PRIORITY_LABELS[q.priority || 0]} — click to cycle">
                 ${starHtml(q.priority)}
@@ -144,10 +144,21 @@ function bindQuestEvents(container) {
         });
     });
 
-    // Drag-and-drop reorder (active quests only)
-    const draggables = container.querySelectorAll('.dnd-quest-item[draggable="true"]');
-    draggables.forEach(item => {
+    // Drag-and-drop reorder (active quests only, initiated from handle)
+    container.querySelectorAll('.dnd-quest-drag-handle').forEach(handle => {
+        handle.addEventListener('mousedown', () => {
+            const item = handle.closest('.dnd-quest-item');
+            if (item) item.setAttribute('draggable', 'true');
+        });
+    });
+
+    const items = container.querySelectorAll('.dnd-quest-item');
+    items.forEach(item => {
         item.addEventListener('dragstart', (e) => {
+            if (item.getAttribute('draggable') !== 'true') {
+                e.preventDefault();
+                return;
+            }
             dragSrcIdx = parseInt(item.dataset.idx);
             item.classList.add('dnd-quest-dragging');
             e.dataTransfer.effectAllowed = 'move';
@@ -155,6 +166,7 @@ function bindQuestEvents(container) {
 
         item.addEventListener('dragend', () => {
             item.classList.remove('dnd-quest-dragging');
+            item.removeAttribute('draggable');
             container.querySelectorAll('.dnd-quest-drag-over')
                 .forEach(el => el.classList.remove('dnd-quest-drag-over'));
         });

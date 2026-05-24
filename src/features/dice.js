@@ -36,14 +36,20 @@ export function executeRoll(count, sides) {
 }
 
 /**
- * Roll a d20, store as pending, and save to settings.
+ * Roll 4d20 (2 player + 2 NPC for advantage/disadvantage checks), store as pending, and save to settings.
  */
 export function rollD20() {
-    const result = executeRoll(1, 20);
+    const r1 = secureRoll(20);
+    const r2 = secureRoll(20);
+    const npc1 = secureRoll(20);
+    const npc2 = secureRoll(20);
     const rollData = {
-        formula: '1d20',
-        total: result.total,
-        rolls: result.rolls,
+        formula: '4d20',
+        roll1: r1,
+        roll2: r2,
+        npcRoll1: npc1,
+        npcRoll2: npc2,
+        rolls: [r1, r2, npc1, npc2],
         timestamp: Date.now()
     };
     setPendingDiceRoll(rollData);
@@ -65,19 +71,28 @@ export function saveDiceRoll() {
 }
 
 /**
- * Update the inline dice display in the expanded panel.
+ * Update the inline dice display in the expanded panel (player + NPC rolls).
  */
 export function updateDiceDisplay() {
     const roll = extensionSettings.lastDiceRoll;
     const $result = $('#dnd-roll-result');
-    const $value = $('#dnd-roll-value');
+    const $val1 = $('#dnd-roll-value-1');
+    const $val2 = $('#dnd-roll-value-2');
+    const $npc1 = $('#dnd-roll-npc-1');
+    const $npc2 = $('#dnd-roll-npc-2');
 
     if (roll) {
-        $value.text(`${roll.total}`).attr('title', `${roll.formula}: ${roll.total}`);
+        $val1.text(`${roll.roll1}`).attr('title', `Player 1st: ${roll.roll1}`);
+        $val2.text(`${roll.roll2}`).attr('title', `Player 2nd: ${roll.roll2}`);
+        $npc1.text(`${roll.npcRoll1 ?? '--'}`).attr('title', `NPC 1st: ${roll.npcRoll1 ?? '--'}`);
+        $npc2.text(`${roll.npcRoll2 ?? '--'}`).attr('title', `NPC 2nd: ${roll.npcRoll2 ?? '--'}`);
         $result.show();
     } else {
         $result.hide();
-        $value.text('');
+        $val1.text('');
+        $val2.text('');
+        $npc1.text('');
+        $npc2.text('');
     }
 }
 

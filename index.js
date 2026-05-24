@@ -5,11 +5,12 @@
 
 import { getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { eventSource, event_types } from '../../../../script.js';
-import { extensionName, extensionSettings } from './src/core/state.js';
-import { saveSettings, loadSettings, loadQuests, loadSpellLog } from './src/core/persistence.js';
+import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled } from './src/core/state.js';
+import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled } from './src/core/persistence.js';
 import { onGenerationStarted, clearExtensionPrompts } from './src/generation/injector.js';
 import { renderQuests, addQuestFromInput } from './src/rendering/quests.js';
-import { renderSpellLog, addSpellFromInput, addRestFromButton } from './src/rendering/spellLog.js';
+import { renderInventory, addInventoryItemFromInput } from './src/rendering/inventory.js';
+import { renderSpellLog, addSpellFromInput, addRestFromButton, addShortRestFromButton, hardRefreshSpellLogFromButton } from './src/rendering/spellLog.js';
 import { refreshSpellLog } from './src/features/spellTracker.js';
 import { rollD20, updateDiceDisplay, clearDiceRoll } from './src/features/dice.js';
 import { refreshHeaderFromChat, updateHeaderFromMessage } from './src/features/headerParser.js';
@@ -45,13 +46,48 @@ function togglePower() {
         destroyWeatherVisuals();
     } else {
         loadQuests();
+        loadInventory();
+        loadSpellTrackerDisabled();
         refreshHeaderFromChat();
-        refreshSpellLog();
+        if (!spellTrackerDisabled) refreshSpellLog();
         renderQuests();
-        renderSpellLog();
+        renderInventory();
+        if (!spellTrackerDisabled) renderSpellLog();
         updateHeaderWidgets();
         updateStripWidgets();
         updateDiceDisplay();
+        updateSpellTrackerToggleUI();
+    }
+}
+
+// ─── Spell tracker per-chat toggle ───────────────────────────
+
+function updateSpellTrackerToggleUI() {
+    const $btn = $('#dnd-spell-tracker-toggle');
+    const $container = $('.dnd-spell-log-container');
+    if (spellTrackerDisabled) {
+        $btn.attr('title', 'Enable spell tracker for this chat')
+            .html('<i class="fa-solid fa-toggle-off"></i>')
+            .addClass('dnd-spell-tracker-off');
+        $container.addClass('dnd-spell-tracker-disabled');
+    } else {
+        $btn.attr('title', 'Disable spell tracker for this chat')
+            .html('<i class="fa-solid fa-toggle-on"></i>')
+            .removeClass('dnd-spell-tracker-off');
+        $container.removeClass('dnd-spell-tracker-disabled');
+    }
+}
+
+function toggleSpellTracker() {
+    setSpellTrackerDisabled(!spellTrackerDisabled);
+    saveSpellTrackerDisabled(spellTrackerDisabled);
+    updateSpellTrackerToggleUI();
+    if (spellTrackerDisabled) {
+        toastr.info('Spell tracker disabled for this chat');
+    } else {
+        refreshSpellLog();
+        renderSpellLog();
+        toastr.success('Spell tracker enabled for this chat');
     }
 }
 
@@ -61,11 +97,13 @@ function handleRefreshFromChat() {
     if (!extensionSettings.enabled || extensionSettings.softDisabled) return;
 
     loadQuests();
+    loadInventory();
     const headerResult = refreshHeaderFromChat();
-    refreshSpellLog();
+    if (!spellTrackerDisabled) refreshSpellLog();
 
     renderQuests();
-    renderSpellLog();
+    renderInventory();
+    if (!spellTrackerDisabled) renderSpellLog();
     updateHeaderWidgets();
     updateStripWidgets();
     updateDiceDisplay();
@@ -86,15 +124,38 @@ function onMessageReceived(messageIndex) {
     const message = context.chat?.[messageIndex];
     if (!message || message.is_user) return;
 
-    // Try to parse header from the new message
+    // Auto-reset dice roll after every LLM reply so old rolls don't carry over
+    clearDiceRoll();
+    updateStripWidgets();
+
     const result = updateHeaderFromMessage(message.mes);
     if (result) {
         updateHeaderWidgets();
         updateStripWidgets();
     }
 
-    refreshSpellLog();
-    renderSpellLog();
+    if (!spellTrackerDisabled) {
+        refreshSpellLog();
+        renderSpellLog();
+    }
+}
+
+// ─── Message swiped (refresh state from newly visible swipe) ─
+
+function onMessageSwiped(messageIndex) {
+    if (!extensionSettings.enabled || extensionSettings.softDisabled) return;
+
+    const context = getContext();
+    const message = context.chat?.[messageIndex];
+    if (!message || message.is_user) return;
+
+    refreshHeaderFromChat();
+    if (!spellTrackerDisabled) refreshSpellLog();
+
+    updateHeaderWidgets();
+    updateStripWidgets();
+    if (!spellTrackerDisabled) renderSpellLog();
+    applyWeatherVisuals();
 }
 
 // ─── Chat changed ───────────────────────────────────────────
@@ -102,44 +163,99 @@ function onMessageReceived(messageIndex) {
 function onChatChanged() {
     if (!extensionSettings.enabled) return;
 
+    loadAttributes();
     loadQuests();
+    loadInventory();
+    loadSpellTrackerDisabled();
     loadSpellLog();
     refreshHeaderFromChat();
-    refreshSpellLog();
+    if (!spellTrackerDisabled) refreshSpellLog();
 
     renderQuests();
-    renderSpellLog();
+    renderInventory();
+    if (!spellTrackerDisabled) renderSpellLog();
     updateHeaderWidgets();
     updateStripWidgets();
     updateDiceDisplay();
     updatePowerButtonState();
+    updateSpellTrackerToggleUI();
 }
 
 // ─── Attribute editor ───────────────────────────────────────
 
 function populateAttrEditor() {
-    const grid = document.getElementById('dnd-attr-editor-grid');
-    if (!grid) return;
-    const attrs = extensionSettings.attributes;
-    const labels = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
-    const keys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-    grid.innerHTML = keys.map((k, i) =>
-        `<div class="dnd-editor-attr">
-            <label>${labels[i]}</label>
-            <input type="number" data-attr="${k}" value="${attrs[k]}" min="1" max="30" />
+    const list = document.getElementById('dnd-attr-editor-list');
+    if (!list) return;
+
+    const schema = chatAttributeSchema;
+    const attrs = chatAttributes;
+
+    list.innerHTML = schema.map((s, i) =>
+        `<div class="dnd-attr-row" data-index="${i}">
+            <input type="text" class="dnd-attr-label-input" data-field="label" value="${s.label}" placeholder="Name" maxlength="16" />
+            <input type="number" class="dnd-attr-value-input" data-field="value" data-key="${s.key}" value="${attrs[s.key] ?? 10}" min="1" max="30" />
+            <button class="dnd-attr-remove-btn" title="Remove attribute"><i class="fa-solid fa-trash-can"></i></button>
+        </div>`
+    ).join('');
+}
+
+function addAttrRow() {
+    const list = document.getElementById('dnd-attr-editor-list');
+    if (!list) return;
+    const idx = list.children.length;
+    const key = `attr_${Date.now()}`;
+    const row = document.createElement('div');
+    row.className = 'dnd-attr-row';
+    row.dataset.index = String(idx);
+    row.innerHTML = `
+        <input type="text" class="dnd-attr-label-input" data-field="label" value="" placeholder="Name" maxlength="16" />
+        <input type="number" class="dnd-attr-value-input" data-field="value" data-key="${key}" value="10" min="1" max="30" />
+        <button class="dnd-attr-remove-btn" title="Remove attribute"><i class="fa-solid fa-trash-can"></i></button>
+    `;
+    list.appendChild(row);
+}
+
+function resetAttrDefaults() {
+    const list = document.getElementById('dnd-attr-editor-list');
+    if (!list) return;
+
+    const defaults = buildDefaultAttributes(defaultAttributeSchema);
+    list.innerHTML = defaultAttributeSchema.map((s, i) =>
+        `<div class="dnd-attr-row" data-index="${i}">
+            <input type="text" class="dnd-attr-label-input" data-field="label" value="${s.label}" placeholder="Name" maxlength="16" />
+            <input type="number" class="dnd-attr-value-input" data-field="value" data-key="${s.key}" value="${defaults[s.key]}" min="1" max="30" />
+            <button class="dnd-attr-remove-btn" title="Remove attribute"><i class="fa-solid fa-trash-can"></i></button>
         </div>`
     ).join('');
 }
 
 function saveAttrEditor() {
-    const inputs = /** @type {NodeListOf<HTMLInputElement>} */ (
-        document.querySelectorAll('#dnd-attr-editor-grid input[data-attr]')
-    );
-    inputs.forEach(inp => {
-        const key = inp.dataset.attr;
-        extensionSettings.attributes[key] = parseInt(inp.value) || 10;
+    const rows = document.querySelectorAll('#dnd-attr-editor-list .dnd-attr-row');
+    const schema = [];
+    const attrs = {};
+
+    rows.forEach(row => {
+        const labelInput = /** @type {HTMLInputElement} */ (row.querySelector('.dnd-attr-label-input'));
+        const valueInput = /** @type {HTMLInputElement} */ (row.querySelector('.dnd-attr-value-input'));
+        const label = (labelInput.value || '').trim();
+        if (!label) return;
+
+        const key = label.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        schema.push({ key, label });
+        attrs[key] = parseInt(valueInput.value) || 10;
     });
-    saveSettings();
+
+    Object.assign(chatAttributes, attrs);
+    // Remove keys that are no longer in the schema
+    const validKeys = new Set(schema.map(s => s.key));
+    for (const k of Object.keys(chatAttributes)) {
+        if (!validKeys.has(k)) delete chatAttributes[k];
+    }
+
+    chatAttributeSchema.length = 0;
+    chatAttributeSchema.push(...schema);
+
+    saveAttributes(schema, chatAttributes);
 }
 
 // ─── UI init / teardown ─────────────────────────────────────
@@ -159,16 +275,20 @@ async function initUI() {
 
     // Load data and render
     loadQuests();
+    loadInventory();
+    loadSpellTrackerDisabled();
     loadSpellLog();
     refreshHeaderFromChat();
-    refreshSpellLog();
+    if (!spellTrackerDisabled) refreshSpellLog();
 
     renderQuests();
-    renderSpellLog();
+    renderInventory();
+    if (!spellTrackerDisabled) renderSpellLog();
     updateHeaderWidgets();
     updateDiceDisplay();
     updateStripWidgets();
     updatePowerButtonState();
+    updateSpellTrackerToggleUI();
 
     // ─── Event bindings ─────────────────────────────────
 
@@ -201,6 +321,17 @@ async function initUI() {
         }
     });
 
+    // Inventory — inline add
+    $('#dnd-add-inventory-btn').on('click', () => {
+        addInventoryItemFromInput();
+    });
+    $('#dnd-add-inventory-input').on('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addInventoryItemFromInput();
+        }
+    });
+
     // Spell log — inline add spell + rest
     $('#dnd-add-spell-btn').on('click', () => {
         addSpellFromInput();
@@ -211,9 +342,22 @@ async function initUI() {
             addSpellFromInput();
         }
     });
+    $('#dnd-add-short-rest-btn').on('click', () => {
+        addShortRestFromButton();
+    });
     $('#dnd-add-rest-btn').on('click', () => {
         addRestFromButton();
     });
+
+    // Spell log — dedicated refresh (wipe + rebuild from chat)
+    $('#dnd-spell-log-refresh').on('click', () => {
+        hardRefreshSpellLogFromButton();
+        toastr.success('Spell log rebuilt from chat');
+    });
+
+    // Spell tracker — per-chat disable toggle
+    $('#dnd-spell-tracker-toggle').on('click', toggleSpellTracker);
+    updateSpellTrackerToggleUI();
 
     // Attribute editor modal
     $('#dnd-open-attr-editor').on('click', () => {
@@ -225,6 +369,11 @@ async function initUI() {
         saveAttrEditor();
         $('#dnd-attr-editor-popup').hide();
         toastr.success('Attributes saved');
+    });
+    $('#dnd-attr-add').on('click', addAttrRow);
+    $('#dnd-attr-reset-defaults').on('click', resetAttrDefaults);
+    $(document).on('click', '.dnd-attr-remove-btn', function () {
+        $(this).closest('.dnd-attr-row').remove();
     });
 
     // Settings modal
@@ -348,6 +497,7 @@ jQuery(async () => {
     // SillyTavern events
     eventSource.on(event_types.GENERATION_STARTED, onGenerationStarted);
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
+    eventSource.on(event_types.MESSAGE_SWIPED, onMessageSwiped);
     eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
 
     console.log('[D&D 5e Lite] Extension loaded');

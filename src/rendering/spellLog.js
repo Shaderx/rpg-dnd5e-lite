@@ -6,7 +6,7 @@
 
 import { spellLog } from '../core/state.js';
 import { saveSpellLog } from '../core/persistence.js';
-import { addManualSpellCast, addManualRest } from '../features/spellTracker.js';
+import { addManualSpellCast, addManualRest, addManualShortRest, hardRefreshSpellLog } from '../features/spellTracker.js';
 
 let dragSrcIdx = null;
 
@@ -46,18 +46,34 @@ export function renderSpellLog() {
         const i = di;
         const entry = spellLog[i];
         const isRest = entry.type === 'rest';
-        const typeClass = isRest ? 'dnd-spell-log-rest' : 'dnd-spell-log-cast';
-        const icon = isRest ? 'fa-bed' : 'fa-wand-sparkles';
-        const iconClass = isRest ? 'dnd-spell-log-icon-rest' : 'dnd-spell-log-icon-cast';
-        const label = isRest ? escapeHtml(entry.text) : `Cast <strong>${escapeHtml(entry.spell)}</strong>`;
+        const isShortRest = entry.type === 'short-rest';
+        const isAnyRest = isRest || isShortRest;
+        let typeClass, icon, iconClass, label;
+        if (isShortRest) {
+            typeClass = 'dnd-spell-log-short-rest';
+            icon = 'fa-mug-hot';
+            iconClass = 'dnd-spell-log-icon-short-rest';
+            label = escapeHtml(entry.text);
+        } else if (isRest) {
+            typeClass = 'dnd-spell-log-rest';
+            icon = 'fa-bed';
+            iconClass = 'dnd-spell-log-icon-rest';
+            label = escapeHtml(entry.text);
+        } else {
+            typeClass = 'dnd-spell-log-cast';
+            icon = 'fa-wand-sparkles';
+            iconClass = 'dnd-spell-log-icon-cast';
+            label = `Cast <strong>${escapeHtml(entry.spell)}</strong>`;
+        }
         const timestamp = formatTimestamp(entry);
+        const manualTag = entry._manual ? '<span class="dnd-spell-log-manual-tag">manual</span>' : '';
 
         html += `<div class="dnd-spell-log-item ${typeClass}" data-idx="${i}" draggable="true">
             <span class="dnd-spell-log-drag-handle" title="Drag to reorder"><i class="fa-solid fa-grip-vertical"></i></span>
             <div class="dnd-spell-log-icon ${iconClass}"><i class="fa-solid ${icon}"></i></div>
             <div class="dnd-spell-log-body">
                 <span class="dnd-spell-log-name" contenteditable="true" data-idx="${i}">${label}</span>
-                ${timestamp ? `<span class="dnd-spell-log-timestamp">${escapeHtml(timestamp)}</span>` : ''}
+                <span class="dnd-spell-log-timestamp">${timestamp ? escapeHtml(timestamp) : ''}${manualTag}</span>
             </div>
             <button class="dnd-spell-log-delete" data-idx="${i}" title="Delete entry">
                 <i class="fa-solid fa-xmark"></i>
@@ -167,5 +183,21 @@ export function addSpellFromInput() {
  */
 export function addRestFromButton() {
     addManualRest();
+    renderSpellLog();
+}
+
+/**
+ * Add a short rest entry from the UI button.
+ */
+export function addShortRestFromButton() {
+    addManualShortRest();
+    renderSpellLog();
+}
+
+/**
+ * Hard-refresh the spell log: wipe stored entries and rebuild from visible chat.
+ */
+export function hardRefreshSpellLogFromButton() {
+    hardRefreshSpellLog();
     renderSpellLog();
 }

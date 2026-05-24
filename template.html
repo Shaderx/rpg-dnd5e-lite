@@ -52,12 +52,18 @@
         <!-- Strip: omni extras (dynamically populated) -->
         <div class="dnd-strip-extras-container"></div>
 
-        <!-- Strip dice roller -->
+        <!-- Strip dice roller (4d20: 2 player + 2 NPC) -->
         <div class="dnd-strip-widget dnd-strip-widget-dice">
-            <button class="dnd-strip-dice-roll" title="Roll d20">
+            <button class="dnd-strip-dice-roll" title="Roll d20 (Player + NPC)">
                 <i class="fa-solid fa-dice-d20"></i>
             </button>
-            <span class="dnd-strip-dice-result">--</span>
+            <span class="dnd-strip-dice-result dnd-strip-dice-r1">--</span>
+            <span class="dnd-strip-dice-sep">/</span>
+            <span class="dnd-strip-dice-result dnd-strip-dice-r2">--</span>
+            <span class="dnd-strip-dice-sep dnd-strip-dice-npc-sep">|</span>
+            <span class="dnd-strip-dice-result dnd-strip-dice-npc dnd-strip-dice-npc1">--</span>
+            <span class="dnd-strip-dice-sep dnd-strip-dice-npc-sep">/</span>
+            <span class="dnd-strip-dice-result dnd-strip-dice-npc dnd-strip-dice-npc2">--</span>
             <button class="dnd-strip-dice-clear" title="Clear roll" style="display:none;">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -131,7 +137,17 @@
                     </div>
                 </div>
 
-                <!-- Currency (half or hidden; spell slots expands when no currency) -->
+                <!-- Spell slots & sorcery points per-level display -->
+                <div class="dnd-info-widget dnd-widget-spells dnd-widget-wide" id="dnd-spells-widget">
+                    <div class="dnd-widget-content">
+                        <span class="dnd-widget-label">Spell Slots</span>
+                        <div class="dnd-spell-levels" id="dnd-spell-levels"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Currency (col 1) + omni extras (col 2) -->
+            <div class="dnd-secondary-widgets" id="dnd-secondary-widgets">
                 <div class="dnd-info-widget dnd-widget-currency" id="dnd-currency-widget">
                     <span class="dnd-currency-icon">💰</span>
                     <div class="dnd-widget-content">
@@ -143,27 +159,38 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Spell slots per-level display -->
-                <div class="dnd-info-widget dnd-widget-spells dnd-widget-wide" id="dnd-spells-widget">
-                    <div class="dnd-widget-content">
-                        <span class="dnd-widget-label">Spell Slots</span>
-                        <div class="dnd-spell-levels" id="dnd-spell-levels"></div>
-                    </div>
-                </div>
+                <div class="dnd-omni-widgets" id="dnd-omni-widgets"></div>
             </div>
 
-            <!-- Omni / extra widgets (dynamically populated) -->
-            <div class="dnd-omni-widgets" id="dnd-omni-widgets"></div>
-
-            <!-- Dice roller -->
+            <!-- Dice roller (4d20: 2 player + 2 NPC for advantage/disadvantage) -->
             <div class="dnd-dice-section">
-                <button id="dnd-roll-btn" class="dnd-roll-btn" title="Roll d20">
+                <button id="dnd-roll-btn" class="dnd-roll-btn" title="Roll 4d20 (Player + NPC)">
                     <i class="fa-solid fa-dice-d20"></i>
                     <span>Roll d20</span>
                 </button>
                 <div class="dnd-roll-result" id="dnd-roll-result" style="display:none;">
-                    <span class="dnd-roll-value" id="dnd-roll-value"></span>
+                    <div class="dnd-roll-group dnd-roll-group-player">
+                        <span class="dnd-roll-group-label">Player</span>
+                        <div class="dnd-roll-pair">
+                            <span class="dnd-roll-label">1st</span>
+                            <span class="dnd-roll-value" id="dnd-roll-value-1"></span>
+                        </div>
+                        <div class="dnd-roll-pair">
+                            <span class="dnd-roll-label">2nd</span>
+                            <span class="dnd-roll-value" id="dnd-roll-value-2"></span>
+                        </div>
+                    </div>
+                    <div class="dnd-roll-group dnd-roll-group-npc">
+                        <span class="dnd-roll-group-label">NPC</span>
+                        <div class="dnd-roll-pair">
+                            <span class="dnd-roll-label">1st</span>
+                            <span class="dnd-roll-value dnd-roll-npc" id="dnd-roll-npc-1"></span>
+                        </div>
+                        <div class="dnd-roll-pair">
+                            <span class="dnd-roll-label">2nd</span>
+                            <span class="dnd-roll-value dnd-roll-npc" id="dnd-roll-npc-2"></span>
+                        </div>
+                    </div>
                     <button id="dnd-clear-roll" class="dnd-clear-roll-btn" title="Clear roll">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
@@ -186,11 +213,33 @@
                 </div>
             </div>
 
+            <!-- Content box: Inventory -->
+            <div class="dnd-content-box">
+                <div id="dnd-inventory" class="dnd-section">
+                    <div class="dnd-section-header">Inventory</div>
+                    <div id="dnd-inventory-list" class="dnd-inventory-list">
+                        <div class="dnd-empty-state">No items yet</div>
+                    </div>
+                    <div class="dnd-add-inventory-row">
+                        <input type="text" id="dnd-add-inventory-input" class="dnd-add-inventory-input" placeholder="New item..." />
+                        <button id="dnd-add-inventory-btn" class="dnd-btn-small" title="Add item">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Spell Log (own container) -->
             <div class="dnd-spell-log-container">
                 <div class="dnd-spell-log-header">
                     <i class="fa-solid fa-wand-sparkles"></i>
                     <span>Spell Log</span>
+                    <button id="dnd-spell-tracker-toggle" class="dnd-spell-log-toggle-btn" title="Disable spell tracker for this chat">
+                        <i class="fa-solid fa-toggle-on"></i>
+                    </button>
+                    <button id="dnd-spell-log-refresh" class="dnd-spell-log-refresh-btn" title="Re-scan chat and rebuild spell log">
+                        <i class="fa-solid fa-rotate"></i>
+                    </button>
                 </div>
                 <div id="dnd-spell-log-list" class="dnd-spell-log-list">
                     <div class="dnd-spell-log-empty">No spells tracked</div>
@@ -199,6 +248,9 @@
                     <input type="text" id="dnd-add-spell-input" class="dnd-spell-log-input" placeholder="Spell name..." />
                     <button id="dnd-add-spell-btn" class="dnd-spell-log-action-btn" title="Add spell cast">
                         <i class="fa-solid fa-wand-sparkles"></i>
+                    </button>
+                    <button id="dnd-add-short-rest-btn" class="dnd-spell-log-action-btn dnd-spell-log-short-rest-btn" title="Add short rest">
+                        <i class="fa-solid fa-mug-hot"></i>
                     </button>
                     <button id="dnd-add-rest-btn" class="dnd-spell-log-action-btn dnd-spell-log-rest-btn" title="Add long rest">
                         <i class="fa-solid fa-bed"></i>
@@ -226,13 +278,21 @@
 
 <!-- Attribute Editor Modal -->
 <div id="dnd-attr-editor-popup" class="dnd-modal-overlay" style="display:none;">
-    <div class="dnd-modal">
+    <div class="dnd-modal dnd-modal-attr-editor">
         <div class="dnd-modal-header">
             <span>Edit Attributes</span>
             <button class="dnd-modal-close" id="dnd-attr-editor-close"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="dnd-modal-body">
-            <div class="dnd-editor-grid" id="dnd-attr-editor-grid"></div>
+            <div class="dnd-attr-editor-list" id="dnd-attr-editor-list"></div>
+            <div class="dnd-attr-editor-actions">
+                <button id="dnd-attr-add" class="dnd-btn dnd-btn-small" title="Add attribute">
+                    <i class="fa-solid fa-plus"></i> Add Attribute
+                </button>
+                <button id="dnd-attr-reset-defaults" class="dnd-btn dnd-btn-small dnd-btn-muted" title="Reset to D&D 5e defaults">
+                    <i class="fa-solid fa-rotate-left"></i> D&D Defaults
+                </button>
+            </div>
         </div>
         <div class="dnd-modal-footer">
             <button id="dnd-attr-editor-save" class="dnd-btn dnd-btn-primary">Save</button>

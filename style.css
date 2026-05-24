@@ -279,6 +279,92 @@
 .dnd-strip-widget-date.dnd-season-summer .dnd-strip-date-value { color: #ffb74d; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
 .dnd-strip-widget-date.dnd-season-autumn .dnd-strip-date-value { color: #ff8a65; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
 .dnd-strip-widget-date.dnd-season-winter .dnd-strip-date-value { color: #90caf9; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+
+/* ── Strip month overrides (Forgotten Realms calendar) ── */
+/* Hammer (1) - Deepwinter: heavy snow, frozen landscape */
+.dnd-strip-widget-date.dnd-month-hammer {
+    border-color: rgba(120,180,230,0.3);
+    background: rgba(120,180,230,0.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Cpath d='M0 30Q25 24 50 28Q75 32 100 26V40H0Z' fill='%23b3e5fc' opacity='.08'/%3E%3Cg stroke='%2390caf9' fill='none' stroke-width='.6'%3E%3Cline x1='20' y1='8' x2='20' y2='16' opacity='.22'/%3E%3Cline x1='16' y1='12' x2='24' y2='12' opacity='.22'/%3E%3Cline x1='18' y1='10' x2='22' y2='14' opacity='.15'/%3E%3Cline x1='22' y1='10' x2='18' y2='14' opacity='.15'/%3E%3C/g%3E%3Ccircle cx='55' cy='10' r='.8' fill='%23e0f7fa' opacity='.2'/%3E%3Ccircle cx='75' cy='14' r='.6' fill='%23e0f7fa' opacity='.18'/%3E%3Ccircle cx='40' cy='18' r='.7' fill='%23e0f7fa' opacity='.15'/%3E%3C/svg%3E") center/cover no-repeat;
+}
+.dnd-strip-widget-date.dnd-month-hammer .dnd-strip-date-value { color: #81d4fa; }
+
+/* Alturiak (2) - Claw of Winter: icy claws, bitter cold */
+.dnd-strip-widget-date.dnd-month-alturiak {
+    border-color: rgba(160,210,240,0.3);
+    background: rgba(160,210,240,0.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Cpath d='M0 32Q20 26 45 30Q70 34 100 28V40H0Z' fill='%23b3e5fc' opacity='.07'/%3E%3Cpath d='M60 8L63 14L66 8' fill='none' stroke='%2380cbc4' stroke-width='.7' opacity='.2'/%3E%3Cpath d='M30 10L33 16L36 10' fill='none' stroke='%2380cbc4' stroke-width='.7' opacity='.18'/%3E%3Ccircle cx='80' cy='12' r='3' fill='none' stroke='%2390caf9' stroke-width='.5' opacity='.12'/%3E%3Ccircle cx='80' cy='12' r='1' fill='%2390caf9' opacity='.15'/%3E%3C/svg%3E") center/cover no-repeat;
+}
+.dnd-strip-widget-date.dnd-month-alturiak .dnd-strip-date-value { color: #80deea; }
+
+/* Ches (3) - Claw of Sunsets: thawing, golden sunsets, early buds */
+.dnd-strip-widget-date.dnd-month-ches {
+    border-color: rgba(255,183,130,0.25);
+    background: rgba(255,183,130,0.05) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3CradialGradient id='cs' cx='.75' cy='.3' r='.4'%3E%3Cstop offset='0' stop-color='%23ffcc80' stop-opacity='.12'/%3E%3Cstop offset='1' stop-color='%23ffcc80' stop-opacity='0'/%3E%3C/radialGradient%3E%3Crect width='100' height='40' fill='url(%23cs)'/%3E%3Cpath d='M0 34Q30 28 60 32Q80 36 100 30V40H0Z' fill='%2381c995' opacity='.06'/%3E%3Ccircle cx='25' cy='16' r='1.5' fill='%23a5d6a7' opacity='.2'/%3E%3Ccircle cx='60' cy='14' r='1' fill='%23a5d6a7' opacity='.15'/%3E%3C/svg%3E") center/cover no-repeat;
+}
+.dnd-strip-widget-date.dnd-month-ches .dnd-strip-date-value { color: #ffcc80; }
+
+/* Tarsakh (4) - Claw of Storms: rain, lightning, dramatic skies */
+.dnd-strip-widget-date.dnd-month-tarsakh {
+    border-color: rgba(149,175,211,0.25);
+    background: rgba(149,175,211,0.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Cpath d='M10 8Q20 6 30 9Q40 12 55 8Q65 5 75 10Q85 14 95 9' fill='none' stroke='%2390a4ae' stroke-width='1.2' opacity='.15'/%3E%3Cpath d='M45 14L43 20L47 18L44 26' fill='none' stroke='%23ffd54f' stroke-width='.8' opacity='.3'/%3E%3Cpath d='M0 34Q30 28 60 32Q80 36 100 30V40H0Z' fill='%2381c995' opacity='.07'/%3E%3C/svg%3E") center/cover no-repeat;
+}
+.dnd-strip-widget-date.dnd-month-tarsakh .dnd-strip-date-value { color: #a5d6a7; }
+
+/* Mirtul (5) - The Melting: lush growth, flowers blooming, warm rain */
+.dnd-strip-widget-date.dnd-month-mirtul {
+    border-color: rgba(129,201,149,0.3);
+    background: rgba(129,201,149,0.07) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Cpath d='M0 30Q25 22 50 28Q75 34 100 26V40H0Z' fill='%2381c995' opacity='.12'/%3E%3Ccircle cx='20' cy='10' r='2' fill='%23f48fb1' opacity='.35'/%3E%3Ccircle cx='50' cy='8' r='1.8' fill='%23ce93d8' opacity='.3'/%3E%3Ccircle cx='75' cy='12' r='1.5' fill='%23f48fb1' opacity='.28'/%3E%3Ccircle cx='35' cy='16' r='1' fill='%23fff176' opacity='.25'/%3E%3Ccircle cx='85' cy='8' r='1.2' fill='%23ce93d8' opacity='.22'/%3E%3C/svg%3E") center/cover no-repeat;
+}
+.dnd-strip-widget-date.dnd-month-mirtul .dnd-strip-date-value { color: #81c995; }
+
+/* Kythorn (6) - Time of Flowers: meadows in full bloom, butterflies */
+.dnd-strip-widget-date.dnd-month-kythorn {
+    border-color: rgba(240,150,200,0.25);
+    background: rgba(240,150,200,0.05) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Cpath d='M0 32Q30 26 60 30Q80 34 100 28V40H0Z' fill='%2366bb6a' opacity='.08'/%3E%3Ccircle cx='15' cy='12' r='2.5' fill='%23f48fb1' opacity='.3'/%3E%3Ccircle cx='15' cy='12' r='1' fill='%23fff9c4' opacity='.35'/%3E%3Ccircle cx='45' cy='10' r='2' fill='%23ce93d8' opacity='.25'/%3E%3Ccircle cx='45' cy='10' r='.8' fill='%23fff9c4' opacity='.3'/%3E%3Ccircle cx='72' cy='14' r='2.2' fill='%23ef9a9a' opacity='.25'/%3E%3Ccircle cx='72' cy='14' r='.9' fill='%23fff9c4' opacity='.3'/%3E%3Ccircle cx='90' cy='8' r='1.5' fill='%23f48fb1' opacity='.2'/%3E%3C/svg%3E") center/cover no-repeat;
+}
+.dnd-strip-widget-date.dnd-month-kythorn .dnd-strip-date-value { color: #f48fb1; }
+
+/* Flamerule (7) - Summertide: blazing heat, bright sun, dry fields */
+.dnd-strip-widget-date.dnd-month-flamerule {
+    border-color: rgba(255,160,60,0.3);
+    background: rgba(255,160,60,0.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3CradialGradient id='fs' cx='.8' cy='.2' r='.35'%3E%3Cstop offset='0' stop-color='%23fff176' stop-opacity='.18'/%3E%3Cstop offset='1' stop-color='%23ff8a65' stop-opacity='0'/%3E%3C/radialGradient%3E%3Crect width='100' height='40' fill='url(%23fs)'/%3E%3Ccircle cx='82' cy='8' r='5' fill='%23fff176' opacity='.14'/%3E%3Cpath d='M0 34Q30 28 60 32Q80 36 100 30V40H0Z' fill='%23ffb74d' opacity='.1'/%3E%3Cpath d='M20 30Q22 26 24 30' fill='none' stroke='%23ff8a65' stroke-width='.6' opacity='.2'/%3E%3Cpath d='M60 28Q62 24 64 28' fill='none' stroke='%23ff8a65' stroke-width='.6' opacity='.18'/%3E%3C/svg%3E") center/cover no-repeat;
+}
+.dnd-strip-widget-date.dnd-month-flamerule .dnd-strip-date-value { color: #ff8a65; }
+
+/* Eleasis (8) - Highsun: peak summer, golden harvests starting */
+.dnd-strip-widget-date.dnd-month-eleasis {
+    border-color: rgba(255,213,79,0.25);
+    background: rgba(255,213,79,0.05) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3CradialGradient id='es' cx='.5' cy='.15' r='.5'%3E%3Cstop offset='0' stop-color='%23ffd54f' stop-opacity='.1'/%3E%3Cstop offset='1' stop-color='%23ffd54f' stop-opacity='0'/%3E%3C/radialGradient%3E%3Crect width='100' height='40' fill='url(%23es)'/%3E%3Cpath d='M0 32Q25 26 50 30Q75 34 100 28V40H0Z' fill='%23ffd54f' opacity='.08'/%3E%3Cpath d='M25 26L25 34' stroke='%23c8a44c' stroke-width='.6' opacity='.2'/%3E%3Cpath d='M27 27L27 33' stroke='%23c8a44c' stroke-width='.5' opacity='.15'/%3E%3Cpath d='M65 24L65 34' stroke='%23c8a44c' stroke-width='.6' opacity='.2'/%3E%3Cpath d='M67 25L67 33' stroke='%23c8a44c' stroke-width='.5' opacity='.15'/%3E%3C/svg%3E") center/cover no-repeat;
+}
+.dnd-strip-widget-date.dnd-month-eleasis .dnd-strip-date-value { color: #ffd54f; }
+
+/* Eleint (9) - The Fading: first leaves turning, harvest moon */
+.dnd-strip-widget-date.dnd-month-eleint {
+    border-color: rgba(220,170,80,0.25);
+    background: rgba(220,170,80,0.05) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Cpath d='M0 32Q30 24 60 30Q80 36 100 28V40H0Z' fill='%238d6e63' opacity='.08'/%3E%3Ccircle cx='80' cy='10' r='4' fill='%23ffd54f' opacity='.08'/%3E%3Ccircle cx='80' cy='10' r='2.5' fill='%23ffd54f' opacity='.06'/%3E%3Cpath d='M30 14L32 10L34 14L32 12Z' fill='%23ffb74d' opacity='.22'/%3E%3Cpath d='M55 12L57 8L59 12L57 10Z' fill='%23ff8a65' opacity='.18'/%3E%3C/svg%3E") center/cover no-repeat;
+}
+.dnd-strip-widget-date.dnd-month-eleint .dnd-strip-date-value { color: #ffb74d; }
+
+/* Marpenoth (10) - Leaffall: vibrant reds/oranges, leaves cascading */
+.dnd-strip-widget-date.dnd-month-marpenoth {
+    border-color: rgba(255,138,101,0.3);
+    background: rgba(255,138,101,0.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Cpath d='M0 32Q30 24 60 30Q80 36 100 28V40H0Z' fill='%238d6e63' opacity='.1'/%3E%3Cpath d='M20 10L22 6L25 10L22 8Z' fill='%23e53935' opacity='.25'/%3E%3Cpath d='M40 14L42 10L45 14L42 12Z' fill='%23ff8a65' opacity='.22'/%3E%3Cpath d='M60 8L62 4L65 8L62 6Z' fill='%23ffb74d' opacity='.2'/%3E%3Cpath d='M80 12L82 8L85 12L82 10Z' fill='%23e53935' opacity='.2'/%3E%3Cpath d='M50 18L52 14L54 18L52 16Z' fill='%23d4e157' opacity='.15'/%3E%3C/svg%3E") center/cover no-repeat;
+}
+.dnd-strip-widget-date.dnd-month-marpenoth .dnd-strip-date-value { color: #ff8a65; }
+
+/* Uktar (11) - The Rotting: grey skies, decay, bare branches */
+.dnd-strip-widget-date.dnd-month-uktar {
+    border-color: rgba(161,136,127,0.25);
+    background: rgba(161,136,127,0.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Cpath d='M0 34Q30 28 60 32Q80 36 100 30V40H0Z' fill='%238d6e63' opacity='.08'/%3E%3Cline x1='35' y1='14' x2='35' y2='34' stroke='%23795548' stroke-width='1' opacity='.1'/%3E%3Cline x1='30' y1='20' x2='35' y2='17' stroke='%23795548' stroke-width='.7' opacity='.08'/%3E%3Cline x1='40' y1='22' x2='35' y2='19' stroke='%23795548' stroke-width='.7' opacity='.08'/%3E%3Cline x1='70' y1='16' x2='70' y2='34' stroke='%23795548' stroke-width='1' opacity='.1'/%3E%3Ccircle cx='15' cy='20' r='.6' fill='%23bdbdbd' opacity='.12'/%3E%3Ccircle cx='85' cy='18' r='.5' fill='%23bdbdbd' opacity='.1'/%3E%3C/svg%3E") center/cover no-repeat;
+}
+.dnd-strip-widget-date.dnd-month-uktar .dnd-strip-date-value { color: #a1887f; }
+
+/* Nightal (12) - The Drawing Down: first snows, long nights, aurora */
+.dnd-strip-widget-date.dnd-month-nightal {
+    border-color: rgba(130,140,200,0.25);
+    background: rgba(130,140,200,0.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Cpath d='M0 30Q25 24 50 28Q75 32 100 26V40H0Z' fill='%23e0f7fa' opacity='.07'/%3E%3ClinearGradient id='ns' x1='0' y1='.2' x2='1' y2='.2'%3E%3Cstop offset='0' stop-color='%23b39ddb' stop-opacity='.12'/%3E%3Cstop offset='.5' stop-color='%2380cbc4' stop-opacity='.08'/%3E%3Cstop offset='1' stop-color='%23b39ddb' stop-opacity='.12'/%3E%3C/linearGradient%3E%3Crect x='10' y='6' width='80' height='4' rx='2' fill='url(%23ns)'/%3E%3Ccircle cx='30' cy='18' r='.7' fill='%23e0f7fa' opacity='.18'/%3E%3Ccircle cx='70' cy='16' r='.6' fill='%23e0f7fa' opacity='.15'/%3E%3Ccircle cx='50' cy='22' r='.5' fill='%23e0f7fa' opacity='.12'/%3E%3C/svg%3E") center/cover no-repeat;
+}
+.dnd-strip-widget-date.dnd-month-nightal .dnd-strip-date-value { color: #b39ddb; }
+
 /* (strip spell cubes replaced by per-level display — see .dnd-strip-spell-levels) */
 
 /* Strip dice widget */
@@ -311,6 +397,11 @@
     min-width: 1.2em;
     text-align: center;
 }
+.dnd-strip-dice-sep {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.25);
+    margin: 0 1px;
+}
 .dnd-strip-dice-clear {
     background: none;
     border: none;
@@ -320,6 +411,12 @@
     padding: 1px;
 }
 .dnd-strip-dice-clear:hover { color: #f44336; }
+.dnd-strip-dice-npc {
+    color: #e57373;
+}
+.dnd-strip-dice-npc-sep {
+    color: rgba(255,255,255,0.15);
+}
 
 /* Strip quest summary */
 .dnd-strip-quests-list {
@@ -540,6 +637,117 @@
 .dnd-widget-date.dnd-season-winter .dnd-widget-label { color: #90caf9; }
 .dnd-widget-date.dnd-season-winter .dnd-widget-value { text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
 
+/* ── Hammer (1): Deepwinter — heavy snow drifts, frozen landscape, blizzard feel ── */
+.dnd-widget-date.dnd-month-hammer { border-color: rgba(120,180,230,0.3); }
+.dnd-widget-date.dnd-month-hammer .dnd-season-overlay {
+    opacity: 1;
+    background-color: rgba(120,180,230,0.06);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3ClinearGradient id='hmg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%2390caf9' stop-opacity='.04'/%3E%3Cstop offset='1' stop-color='%23b3e5fc' stop-opacity='.1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='80' fill='url(%23hmg)'/%3E%3Cpath d='M0 55Q30 45 60 52Q90 59 120 50Q150 41 180 53Q195 58 200 54V80H0Z' fill='%23e0f7fa' opacity='.1'/%3E%3Cpath d='M0 65Q50 58 100 63Q150 68 200 62V80H0Z' fill='%23e0f7fa' opacity='.06'/%3E%3Cg fill='%2390caf9'%3E%3Cline x1='30' y1='15' x2='30' y2='27' stroke='%2390caf9' stroke-opacity='.22' stroke-width='.8'/%3E%3Cline x1='25' y1='21' x2='35' y2='21' stroke='%2390caf9' stroke-opacity='.22' stroke-width='.8'/%3E%3Cline x1='27' y1='17' x2='33' y2='25' stroke='%2390caf9' stroke-opacity='.16' stroke-width='.6'/%3E%3Cline x1='33' y1='17' x2='27' y2='25' stroke='%2390caf9' stroke-opacity='.16' stroke-width='.6'/%3E%3C/g%3E%3Cg fill='%2390caf9'%3E%3Cline x1='100' y1='10' x2='100' y2='20' stroke='%2390caf9' stroke-opacity='.18' stroke-width='.6'/%3E%3Cline x1='96' y1='15' x2='104' y2='15' stroke='%2390caf9' stroke-opacity='.18' stroke-width='.6'/%3E%3Cline x1='97' y1='12' x2='103' y2='18' stroke='%2390caf9' stroke-opacity='.12' stroke-width='.5'/%3E%3Cline x1='103' y1='12' x2='97' y2='18' stroke='%2390caf9' stroke-opacity='.12' stroke-width='.5'/%3E%3C/g%3E%3Cg fill='%2390caf9'%3E%3Cline x1='160' y1='18' x2='160' y2='28' stroke='%2390caf9' stroke-opacity='.2' stroke-width='.7'/%3E%3Cline x1='156' y1='23' x2='164' y2='23' stroke='%2390caf9' stroke-opacity='.2' stroke-width='.7'/%3E%3Cline x1='157' y1='20' x2='163' y2='26' stroke='%2390caf9' stroke-opacity='.14' stroke-width='.5'/%3E%3Cline x1='163' y1='20' x2='157' y2='26' stroke='%2390caf9' stroke-opacity='.14' stroke-width='.5'/%3E%3C/g%3E%3Ccircle cx='55' cy='30' r='1' fill='%23e0f7fa' opacity='.22'/%3E%3Ccircle cx='80' cy='25' r='.8' fill='%23e0f7fa' opacity='.18'/%3E%3Ccircle cx='130' cy='28' r='1' fill='%23e0f7fa' opacity='.2'/%3E%3Ccircle cx='175' cy='35' r='.8' fill='%23e0f7fa' opacity='.15'/%3E%3Ccircle cx='20' cy='40' r='.7' fill='%23e0f7fa' opacity='.18'/%3E%3Ccircle cx='70' cy='42' r='.6' fill='%23e0f7fa' opacity='.12'/%3E%3Ccircle cx='145' cy='38' r='.9' fill='%23e0f7fa' opacity='.16'/%3E%3C/svg%3E");
+}
+.dnd-widget-date.dnd-month-hammer .dnd-widget-label { color: #81d4fa; }
+
+/* ── Alturiak (2): Claw of Winter — ice crystals, jagged frost, bitter wind ── */
+.dnd-widget-date.dnd-month-alturiak { border-color: rgba(160,210,240,0.3); }
+.dnd-widget-date.dnd-month-alturiak .dnd-season-overlay {
+    opacity: 1;
+    background-color: rgba(160,210,240,0.06);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3ClinearGradient id='alg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%2380deea' stop-opacity='.03'/%3E%3Cstop offset='1' stop-color='%23b2ebf2' stop-opacity='.08'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='80' fill='url(%23alg)'/%3E%3Cpath d='M0 58Q35 48 70 55Q105 62 140 52Q170 44 200 56V80H0Z' fill='%23b2ebf2' opacity='.08'/%3E%3Cpath d='M0 68Q50 62 100 66Q150 70 200 64V80H0Z' fill='%23e0f7fa' opacity='.05'/%3E%3Cpath d='M40 16L44 28L48 16' fill='none' stroke='%2380cbc4' stroke-width='1' opacity='.2'/%3E%3Cpath d='M36 22L52 22' fill='none' stroke='%2380cbc4' stroke-width='.7' opacity='.15'/%3E%3Cpath d='M120 12L124 24L128 12' fill='none' stroke='%2380cbc4' stroke-width='1' opacity='.18'/%3E%3Cpath d='M116 18L132 18' fill='none' stroke='%2380cbc4' stroke-width='.7' opacity='.12'/%3E%3Ccircle cx='85' cy='20' r='5' fill='none' stroke='%2390caf9' stroke-width='.6' opacity='.12'/%3E%3Ccircle cx='85' cy='20' r='2' fill='%2390caf9' opacity='.08'/%3E%3Ccircle cx='170' cy='25' r='4' fill='none' stroke='%2390caf9' stroke-width='.5' opacity='.1'/%3E%3Ccircle cx='170' cy='25' r='1.5' fill='%2390caf9' opacity='.06'/%3E%3C/svg%3E");
+}
+.dnd-widget-date.dnd-month-alturiak .dnd-widget-label { color: #80deea; }
+
+/* ── Ches (3): Claw of Sunsets — golden thaw, sunset glow, early green buds ── */
+.dnd-widget-date.dnd-month-ches { border-color: rgba(255,183,130,0.25); }
+.dnd-widget-date.dnd-month-ches .dnd-season-overlay {
+    opacity: 1;
+    background-color: rgba(255,183,130,0.05);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3ClinearGradient id='chg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ffcc80' stop-opacity='.08'/%3E%3Cstop offset='.6' stop-color='%23ff8a65' stop-opacity='.04'/%3E%3Cstop offset='1' stop-color='%23a5d6a7' stop-opacity='.06'/%3E%3C/linearGradient%3E%3CradialGradient id='chsun' cx='.8' cy='.25' r='.35'%3E%3Cstop offset='0' stop-color='%23ffcc80' stop-opacity='.15'/%3E%3Cstop offset='.6' stop-color='%23ff8a65' stop-opacity='.06'/%3E%3Cstop offset='1' stop-color='%23ff8a65' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='200' height='80' fill='url(%23chg)'/%3E%3Crect width='200' height='80' fill='url(%23chsun)'/%3E%3Cpath d='M0 62Q40 52 80 58Q120 64 160 55Q185 50 200 56V80H0Z' fill='%23a5d6a7' opacity='.08'/%3E%3Cpath d='M0 72Q50 66 100 70Q150 74 200 68V80H0Z' fill='%23a5d6a7' opacity='.05'/%3E%3Ccircle cx='40' cy='30' r='2' fill='%23a5d6a7' opacity='.2'/%3E%3Ccircle cx='100' cy='35' r='1.5' fill='%23a5d6a7' opacity='.15'/%3E%3Ccircle cx='150' cy='32' r='1.8' fill='%23a5d6a7' opacity='.18'/%3E%3C/svg%3E");
+}
+.dnd-widget-date.dnd-month-ches .dnd-widget-label { color: #ffcc80; }
+
+/* ── Tarsakh (4): Claw of Storms — dark clouds, lightning, spring rains ── */
+.dnd-widget-date.dnd-month-tarsakh { border-color: rgba(149,175,211,0.25); }
+.dnd-widget-date.dnd-month-tarsakh .dnd-season-overlay {
+    opacity: 1;
+    background-color: rgba(149,175,211,0.06);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3ClinearGradient id='tsg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%2390a4ae' stop-opacity='.06'/%3E%3Cstop offset='1' stop-color='%2381c995' stop-opacity='.06'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='80' fill='url(%23tsg)'/%3E%3Cpath d='M15 14Q35 8 55 15Q75 22 100 14Q120 7 145 16Q160 22 185 14' fill='none' stroke='%2390a4ae' stroke-width='2' opacity='.12'/%3E%3Cpath d='M30 18Q50 12 70 19Q90 26 115 18' fill='none' stroke='%2390a4ae' stroke-width='1.5' opacity='.08'/%3E%3Cpath d='M85 24L82 34L87 30L83 42' fill='none' stroke='%23ffd54f' stroke-width='1.2' opacity='.3'/%3E%3Cpath d='M150 20L148 28L152 25L149 34' fill='none' stroke='%23ffd54f' stroke-width='1' opacity='.2'/%3E%3Cpath d='M0 64Q40 55 80 60Q120 65 160 58Q185 54 200 60V80H0Z' fill='%2381c995' opacity='.08'/%3E%3Cpath d='M0 72Q50 66 100 70Q150 74 200 68V80H0Z' fill='%2381c995' opacity='.05'/%3E%3Cline x1='40' y1='32' x2='40' y2='46' stroke='%2390a4ae' stroke-width='.5' opacity='.1'/%3E%3Cline x1='60' y1='28' x2='60' y2='44' stroke='%2390a4ae' stroke-width='.5' opacity='.08'/%3E%3Cline x1='130' y1='30' x2='130' y2='48' stroke='%2390a4ae' stroke-width='.5' opacity='.1'/%3E%3C/svg%3E");
+}
+.dnd-widget-date.dnd-month-tarsakh .dnd-widget-label { color: #a5d6a7; }
+
+/* ── Mirtul (5): The Melting — lush growth, abundant flowers, warm rain ── */
+.dnd-widget-date.dnd-month-mirtul { border-color: rgba(129,201,149,0.3); }
+.dnd-widget-date.dnd-month-mirtul .dnd-season-overlay {
+    opacity: 1;
+    background-color: rgba(129,201,149,0.07);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3ClinearGradient id='mrg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%2381c995' stop-opacity='.02'/%3E%3Cstop offset='1' stop-color='%2381c995' stop-opacity='.1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='80' fill='url(%23mrg)'/%3E%3Cpath d='M0 58Q30 48 60 55Q90 62 120 52Q150 42 180 54Q195 60 200 56V80H0Z' fill='%2381c995' opacity='.12'/%3E%3Cpath d='M0 68Q40 60 80 66Q120 72 160 64Q185 60 200 65V80H0Z' fill='%2381c995' opacity='.07'/%3E%3Ccircle cx='35' cy='25' r='3.5' fill='%23f48fb1' opacity='.3'/%3E%3Ccircle cx='42' cy='19' r='2.5' fill='%23f48fb1' opacity='.22'/%3E%3Ccircle cx='28' cy='21' r='2' fill='%23ce93d8' opacity='.25'/%3E%3Ccircle cx='155' cy='28' r='3' fill='%23f48fb1' opacity='.28'/%3E%3Ccircle cx='162' cy='22' r='2' fill='%23ce93d8' opacity='.2'/%3E%3Ccircle cx='90' cy='18' r='2.5' fill='%23fff176' opacity='.2'/%3E%3Ccircle cx='96' cy='14' r='2' fill='%23f48fb1' opacity='.18'/%3E%3Ccircle cx='120' cy='30' r='1.5' fill='%23ce93d8' opacity='.15'/%3E%3Cpath d='M55 50C55 43 63 43 59 37C55 43 47 43 55 50Z' fill='%2381c995' opacity='.1'/%3E%3Cpath d='M140 46C140 39 148 39 144 33C140 39 132 39 140 46Z' fill='%2381c995' opacity='.08'/%3E%3C/svg%3E");
+}
+.dnd-widget-date.dnd-month-mirtul .dnd-widget-label { color: #81c995; }
+
+/* ── Kythorn (6): Time of Flowers — meadows ablaze with color, butterflies ── */
+.dnd-widget-date.dnd-month-kythorn { border-color: rgba(240,150,200,0.25); }
+.dnd-widget-date.dnd-month-kythorn .dnd-season-overlay {
+    opacity: 1;
+    background-color: rgba(240,150,200,0.05);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3ClinearGradient id='kyg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23f48fb1' stop-opacity='.03'/%3E%3Cstop offset='1' stop-color='%2366bb6a' stop-opacity='.08'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='80' fill='url(%23kyg)'/%3E%3Cpath d='M0 60Q40 50 80 56Q120 62 160 54Q185 50 200 56V80H0Z' fill='%2366bb6a' opacity='.1'/%3E%3Cpath d='M0 70Q50 64 100 68Q150 72 200 66V80H0Z' fill='%2366bb6a' opacity='.06'/%3E%3Ccircle cx='30' cy='24' r='4' fill='%23f48fb1' opacity='.28'/%3E%3Ccircle cx='30' cy='24' r='1.5' fill='%23fff9c4' opacity='.35'/%3E%3Ccircle cx='80' cy='20' r='3.5' fill='%23ce93d8' opacity='.25'/%3E%3Ccircle cx='80' cy='20' r='1.2' fill='%23fff9c4' opacity='.3'/%3E%3Ccircle cx='130' cy='26' r='3.8' fill='%23ef9a9a' opacity='.22'/%3E%3Ccircle cx='130' cy='26' r='1.4' fill='%23fff9c4' opacity='.3'/%3E%3Ccircle cx='170' cy='18' r='3' fill='%23f48fb1' opacity='.2'/%3E%3Ccircle cx='170' cy='18' r='1' fill='%23fff9c4' opacity='.25'/%3E%3Ccircle cx='55' cy='34' r='2.5' fill='%23fff176' opacity='.18'/%3E%3Ccircle cx='55' cy='34' r='1' fill='%23fff9c4' opacity='.25'/%3E%3Cpath d='M105 42C105 36 112 36 108 31C105 36 98 36 105 42Z' fill='%2366bb6a' opacity='.1'/%3E%3C/svg%3E");
+}
+.dnd-widget-date.dnd-month-kythorn .dnd-widget-label { color: #f48fb1; }
+
+/* ── Flamerule (7): Summertide — blazing heat, scorched earth, searing sun ── */
+.dnd-widget-date.dnd-month-flamerule { border-color: rgba(255,160,60,0.3); }
+.dnd-widget-date.dnd-month-flamerule .dnd-season-overlay {
+    opacity: 1;
+    background-color: rgba(255,160,60,0.06);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3ClinearGradient id='flg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ff8a65' stop-opacity='.08'/%3E%3Cstop offset='.5' stop-color='%23ffb74d' stop-opacity='.04'/%3E%3Cstop offset='1' stop-color='%23ff8a65' stop-opacity='.08'/%3E%3C/linearGradient%3E%3CradialGradient id='flsun' cx='.78' cy='.18' r='.35'%3E%3Cstop offset='0' stop-color='%23fff176' stop-opacity='.22'/%3E%3Cstop offset='.4' stop-color='%23ffb74d' stop-opacity='.1'/%3E%3Cstop offset='1' stop-color='%23ff8a65' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='200' height='80' fill='url(%23flg)'/%3E%3Crect width='200' height='80' fill='url(%23flsun)'/%3E%3Ccircle cx='156' cy='14' r='10' fill='%23fff176' opacity='.12'/%3E%3Ccircle cx='156' cy='14' r='6' fill='%23fff176' opacity='.08'/%3E%3Cline x1='156' y1='0' x2='156' y2='5' stroke='%23fff176' stroke-opacity='.12' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='171' y1='14' x2='166' y2='14' stroke='%23fff176' stroke-opacity='.12' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='167' y1='5' x2='163' y2='9' stroke='%23fff176' stroke-opacity='.1' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='145' y1='5' x2='149' y2='9' stroke='%23fff176' stroke-opacity='.1' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M0 66Q30 58 70 64Q110 70 150 62Q180 56 200 63V80H0Z' fill='%23ffb74d' opacity='.08'/%3E%3Cpath d='M0 74Q50 68 100 72Q150 76 200 70V80H0Z' fill='%23ff8a65' opacity='.06'/%3E%3Cpath d='M40 56Q43 48 46 56' fill='none' stroke='%23ff8a65' stroke-width='.8' opacity='.15'/%3E%3Cpath d='M100 52Q103 44 106 52' fill='none' stroke='%23ff8a65' stroke-width='.8' opacity='.12'/%3E%3C/svg%3E");
+}
+.dnd-widget-date.dnd-month-flamerule .dnd-widget-label { color: #ff8a65; }
+
+/* ── Eleasis (8): Highsun — golden harvest fields, warm amber light ── */
+.dnd-widget-date.dnd-month-eleasis { border-color: rgba(255,213,79,0.25); }
+.dnd-widget-date.dnd-month-eleasis .dnd-season-overlay {
+    opacity: 1;
+    background-color: rgba(255,213,79,0.05);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3ClinearGradient id='elg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ffd54f' stop-opacity='.06'/%3E%3Cstop offset='1' stop-color='%23ffb74d' stop-opacity='.08'/%3E%3C/linearGradient%3E%3CradialGradient id='elsun' cx='.5' cy='.15' r='.5'%3E%3Cstop offset='0' stop-color='%23ffd54f' stop-opacity='.12'/%3E%3Cstop offset='1' stop-color='%23ffd54f' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='200' height='80' fill='url(%23elg)'/%3E%3Crect width='200' height='80' fill='url(%23elsun)'/%3E%3Cpath d='M0 60Q30 52 60 58Q90 64 120 56Q150 48 180 57Q195 62 200 58V80H0Z' fill='%23ffd54f' opacity='.08'/%3E%3Cpath d='M0 70Q50 64 100 68Q150 72 200 66V80H0Z' fill='%23ffb74d' opacity='.05'/%3E%3Cg stroke='%23c8a44c' stroke-linecap='round'%3E%3Cline x1='40' y1='40' x2='40' y2='62' stroke-width='.8' opacity='.18'/%3E%3Cline x1='43' y1='42' x2='43' y2='60' stroke-width='.6' opacity='.14'/%3E%3Cline x1='46' y1='44' x2='46' y2='60' stroke-width='.5' opacity='.1'/%3E%3Cline x1='90' y1='38' x2='90' y2='62' stroke-width='.8' opacity='.18'/%3E%3Cline x1='93' y1='40' x2='93' y2='60' stroke-width='.6' opacity='.14'/%3E%3Cline x1='140' y1='42' x2='140' y2='62' stroke-width='.8' opacity='.16'/%3E%3Cline x1='143' y1='44' x2='143' y2='60' stroke-width='.6' opacity='.12'/%3E%3Cline x1='175' y1='40' x2='175' y2='62' stroke-width='.7' opacity='.15'/%3E%3C/g%3E%3C/svg%3E");
+}
+.dnd-widget-date.dnd-month-eleasis .dnd-widget-label { color: #ffd54f; }
+
+/* ── Eleint (9): The Fading — first leaves turning gold/orange, harvest moon ── */
+.dnd-widget-date.dnd-month-eleint { border-color: rgba(220,170,80,0.25); }
+.dnd-widget-date.dnd-month-eleint .dnd-season-overlay {
+    opacity: 1;
+    background-color: rgba(220,170,80,0.05);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3ClinearGradient id='eig' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ffb74d' stop-opacity='.03'/%3E%3Cstop offset='1' stop-color='%238d6e63' stop-opacity='.08'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='80' fill='url(%23eig)'/%3E%3Cpath d='M0 62Q30 52 60 58Q90 64 120 55Q150 46 180 58Q195 64 200 60V80H0Z' fill='%238d6e63' opacity='.08'/%3E%3Cpath d='M0 72Q50 66 100 70Q150 74 200 68V80H0Z' fill='%238d6e63' opacity='.05'/%3E%3Ccircle cx='165' cy='18' r='8' fill='%23ffd54f' opacity='.08'/%3E%3Ccircle cx='165' cy='18' r='5' fill='%23ffd54f' opacity='.06'/%3E%3Cpath d='M40 28L43 22L46 28L43 25Z' fill='%23ffb74d' opacity='.22'/%3E%3Cpath d='M75 24L78 18L81 24L78 21Z' fill='%23ff8a65' opacity='.18'/%3E%3Cpath d='M110 30L113 24L116 30L113 27Z' fill='%23d4e157' opacity='.15'/%3E%3Cpath d='M145 34L148 28L151 34L148 31Z' fill='%23ffb74d' opacity='.16'/%3E%3C/svg%3E");
+}
+.dnd-widget-date.dnd-month-eleint .dnd-widget-label { color: #ffb74d; }
+
+/* ── Marpenoth (10): Leaffall — peak autumn, cascading red/orange leaves ── */
+.dnd-widget-date.dnd-month-marpenoth { border-color: rgba(255,138,101,0.3); }
+.dnd-widget-date.dnd-month-marpenoth .dnd-season-overlay {
+    opacity: 1;
+    background-color: rgba(255,138,101,0.06);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3ClinearGradient id='mpg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ff8a65' stop-opacity='.02'/%3E%3Cstop offset='1' stop-color='%238d6e63' stop-opacity='.1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='80' fill='url(%23mpg)'/%3E%3Cpath d='M0 60Q30 50 60 56Q90 62 120 52Q150 42 180 55Q195 62 200 58V80H0Z' fill='%238d6e63' opacity='.1'/%3E%3Cpath d='M0 70Q50 63 100 68Q150 73 200 66V80H0Z' fill='%238d6e63' opacity='.06'/%3E%3Cpath d='M30 22L34 14L38 22L34 18Z' fill='%23e53935' opacity='.25'/%3E%3Cpath d='M55 30L58 24L62 30L58 27Z' fill='%23ff8a65' opacity='.22'/%3E%3Cpath d='M80 18L83 12L87 18L83 15Z' fill='%23ffb74d' opacity='.2'/%3E%3Cpath d='M110 26L113 20L117 26L113 23Z' fill='%23e53935' opacity='.2'/%3E%3Cpath d='M140 22L143 16L147 22L143 19Z' fill='%23d4e157' opacity='.15'/%3E%3Cpath d='M165 28L168 22L172 28L168 25Z' fill='%23ff8a65' opacity='.18'/%3E%3Cpath d='M45 38L48 32L52 38L48 35Z' fill='%23ffb74d' opacity='.14'/%3E%3Cpath d='M125 34L128 28L132 34L128 31Z' fill='%23e53935' opacity='.16'/%3E%3Cline x1='70' y1='30' x2='70' y2='62' stroke='%238d6e63' stroke-opacity='.08' stroke-width='1.5'/%3E%3Cline x1='64' y1='38' x2='70' y2='34' stroke='%238d6e63' stroke-opacity='.06' stroke-width='1'/%3E%3Cline x1='76' y1='40' x2='70' y2='36' stroke='%238d6e63' stroke-opacity='.06' stroke-width='1'/%3E%3C/svg%3E");
+}
+.dnd-widget-date.dnd-month-marpenoth .dnd-widget-label { color: #ff8a65; }
+
+/* ── Uktar (11): The Rotting — grey decay, bare branches, mist ── */
+.dnd-widget-date.dnd-month-uktar { border-color: rgba(161,136,127,0.25); }
+.dnd-widget-date.dnd-month-uktar .dnd-season-overlay {
+    opacity: 1;
+    background-color: rgba(161,136,127,0.06);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3ClinearGradient id='ukg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23bdbdbd' stop-opacity='.04'/%3E%3Cstop offset='1' stop-color='%23795548' stop-opacity='.08'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='80' fill='url(%23ukg)'/%3E%3Cpath d='M0 62Q35 54 70 60Q105 66 140 58Q175 52 200 60V80H0Z' fill='%23795548' opacity='.08'/%3E%3Cpath d='M0 72Q50 66 100 70Q150 74 200 68V80H0Z' fill='%23795548' opacity='.04'/%3E%3Cline x1='50' y1='20' x2='50' y2='62' stroke='%23795548' stroke-width='1.5' opacity='.1'/%3E%3Cline x1='42' y1='30' x2='50' y2='25' stroke='%23795548' stroke-width='1' opacity='.07'/%3E%3Cline x1='58' y1='32' x2='50' y2='27' stroke='%23795548' stroke-width='1' opacity='.07'/%3E%3Cline x1='44' y1='40' x2='50' y2='36' stroke='%23795548' stroke-width='.8' opacity='.06'/%3E%3Cline x1='130' y1='24' x2='130' y2='62' stroke='%23795548' stroke-width='1.5' opacity='.1'/%3E%3Cline x1='122' y1='34' x2='130' y2='28' stroke='%23795548' stroke-width='1' opacity='.07'/%3E%3Cline x1='138' y1='36' x2='130' y2='30' stroke='%23795548' stroke-width='1' opacity='.07'/%3E%3Ccircle cx='25' cy='45' r='1' fill='%23bdbdbd' opacity='.12'/%3E%3Ccircle cx='85' cy='40' r='.8' fill='%23bdbdbd' opacity='.1'/%3E%3Ccircle cx='160' cy='42' r='.9' fill='%23bdbdbd' opacity='.1'/%3E%3Ccircle cx='180' cy='50' r='.7' fill='%23bdbdbd' opacity='.08'/%3E%3C/svg%3E");
+}
+.dnd-widget-date.dnd-month-uktar .dnd-widget-label { color: #a1887f; }
+
+/* ── Nightal (12): The Drawing Down — first snows, long nights, aurora borealis ── */
+.dnd-widget-date.dnd-month-nightal { border-color: rgba(130,140,200,0.3); }
+.dnd-widget-date.dnd-month-nightal .dnd-season-overlay {
+    opacity: 1;
+    background-color: rgba(130,140,200,0.06);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3ClinearGradient id='ntg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23303f9f' stop-opacity='.06'/%3E%3Cstop offset='1' stop-color='%23e0f7fa' stop-opacity='.06'/%3E%3C/linearGradient%3E%3ClinearGradient id='aur' x1='0' y1='.2' x2='1' y2='.2'%3E%3Cstop offset='0' stop-color='%23b39ddb' stop-opacity='.15'/%3E%3Cstop offset='.3' stop-color='%2380cbc4' stop-opacity='.1'/%3E%3Cstop offset='.6' stop-color='%2381d4fa' stop-opacity='.12'/%3E%3Cstop offset='1' stop-color='%23b39ddb' stop-opacity='.15'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='80' fill='url(%23ntg)'/%3E%3Crect x='10' y='8' width='180' height='8' rx='4' fill='url(%23aur)' opacity='.8'/%3E%3Crect x='30' y='14' width='140' height='5' rx='2.5' fill='url(%23aur)' opacity='.4'/%3E%3Cpath d='M0 58Q30 50 60 56Q90 62 120 54Q150 46 180 56Q195 62 200 58V80H0Z' fill='%23e0f7fa' opacity='.07'/%3E%3Cpath d='M0 68Q50 62 100 66Q150 70 200 64V80H0Z' fill='%23e0f7fa' opacity='.04'/%3E%3Ccircle cx='45' cy='32' r='1' fill='%23e0f7fa' opacity='.2'/%3E%3Ccircle cx='90' cy='28' r='.8' fill='%23e0f7fa' opacity='.15'/%3E%3Ccircle cx='140' cy='34' r='.9' fill='%23e0f7fa' opacity='.18'/%3E%3Ccircle cx='170' cy='40' r='.7' fill='%23e0f7fa' opacity='.12'/%3E%3Ccircle cx='25' cy='44' r='.6' fill='%23e0f7fa' opacity='.14'/%3E%3Cg fill='%2390caf9'%3E%3Cline x1='60' y1='38' x2='60' y2='44' stroke='%2390caf9' stroke-opacity='.12' stroke-width='.5'/%3E%3Cline x1='57' y1='41' x2='63' y2='41' stroke='%2390caf9' stroke-opacity='.12' stroke-width='.5'/%3E%3C/g%3E%3C/svg%3E");
+}
+.dnd-widget-date.dnd-month-nightal .dnd-widget-label { color: #b39ddb; }
+
+/* All months: ensure value text has drop shadow for readability */
+.dnd-widget-date[class*='dnd-month-'] .dnd-widget-value { text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+
 /* Weather widget: large emoji focal point */
 .dnd-weather-emoji {
     font-size: 2em;
@@ -581,7 +789,7 @@
     height: 8px;
     border-radius: 2px;
     border: 1px solid rgba(221,160,221,0.3);
-    transition: background 0.2s, box-shadow 0.2s;
+    transition: background 0.3s, box-shadow 0.3s, border-color 0.3s, opacity 0.3s, transform 0.3s;
 }
 .dnd-spell-cube.dnd-spell-filled {
     background: rgba(221,160,221,0.55);
@@ -598,6 +806,158 @@
     min-width: 2.2em;
     text-align: right;
     font-variant-numeric: tabular-nums;
+}
+
+/* Sorcery Points: circle indicators (instead of square cubes) */
+.dnd-spell-circle {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,193,7,0.4);
+    transition: background 0.3s, box-shadow 0.3s, border-color 0.3s, opacity 0.3s, transform 0.3s;
+}
+.dnd-spell-circle.dnd-spell-filled {
+    background: rgba(255,193,7,0.6);
+    box-shadow: 0 0 3px rgba(255,193,7,0.5);
+    border-color: rgba(255,193,7,0.6);
+}
+.dnd-spell-circle.dnd-spell-empty {
+    background: rgba(255,193,7,0.06);
+    border-color: rgba(255,193,7,0.15);
+}
+
+/* ── Spell slot/point spend & restore animations ── */
+
+/* Spend: cube/circle dissolves — flash bright, shrink, fade out, then settle into empty state */
+.dnd-anim-spend {
+    animation: dnd-slot-spend 0.5s ease-out both;
+}
+@keyframes dnd-slot-spend {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+        filter: brightness(1);
+    }
+    15% {
+        transform: scale(1.4);
+        opacity: 1;
+        filter: brightness(2);
+        box-shadow: 0 0 8px rgba(255,100,100,0.6);
+    }
+    50% {
+        transform: scale(0.3);
+        opacity: 0.3;
+        filter: brightness(0.5);
+    }
+    75% {
+        transform: scale(0.1) rotate(45deg);
+        opacity: 0.1;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+        filter: brightness(1);
+    }
+}
+
+/* Restore: cube/circle reforms — pop in from nothing with a bright glow */
+.dnd-anim-restore {
+    animation: dnd-slot-restore 0.55s ease-out both;
+}
+@keyframes dnd-slot-restore {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+        filter: brightness(0.5);
+    }
+    30% {
+        transform: scale(0.4);
+        opacity: 0.4;
+        filter: brightness(1.5);
+    }
+    60% {
+        transform: scale(1.3);
+        opacity: 1;
+        filter: brightness(2.5);
+        box-shadow: 0 0 10px rgba(160,220,255,0.7);
+    }
+    80% {
+        transform: scale(0.95);
+        filter: brightness(1.3);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+        filter: brightness(1);
+        box-shadow: none;
+    }
+}
+
+/* Sorcery point variants — warmer glow colors */
+.dnd-spell-sorcery-row .dnd-anim-spend {
+    animation-name: dnd-sp-spend;
+}
+@keyframes dnd-sp-spend {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+        filter: brightness(1);
+    }
+    15% {
+        transform: scale(1.4);
+        opacity: 1;
+        filter: brightness(2);
+        box-shadow: 0 0 8px rgba(255,193,7,0.7);
+    }
+    50% {
+        transform: scale(0.3);
+        opacity: 0.3;
+        filter: brightness(0.5);
+    }
+    75% {
+        transform: scale(0.1) rotate(45deg);
+        opacity: 0.1;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+        filter: brightness(1);
+    }
+}
+
+.dnd-spell-sorcery-row .dnd-anim-restore {
+    animation-name: dnd-sp-restore;
+}
+@keyframes dnd-sp-restore {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+        filter: brightness(0.5);
+    }
+    30% {
+        transform: scale(0.4);
+        opacity: 0.4;
+        filter: brightness(1.5);
+    }
+    60% {
+        transform: scale(1.3);
+        opacity: 1;
+        filter: brightness(2.5);
+        box-shadow: 0 0 10px rgba(255,215,0,0.7);
+    }
+    80% {
+        transform: scale(0.95);
+        filter: brightness(1.3);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+        filter: brightness(1);
+        box-shadow: none;
+    }
+}
+.dnd-spell-sorcery-row .dnd-spell-level-label {
+    color: rgba(255,193,7,0.9);
 }
 
 /* Strip: per-level spell slots */
@@ -617,6 +977,28 @@
 .dnd-strip-spell-level .dnd-strip-spell-full { color: rgba(221,160,221,0.8); }
 .dnd-strip-spell-level .dnd-strip-spell-partial { color: #ffb74d; }
 .dnd-strip-spell-level .dnd-strip-spell-depleted { color: rgba(255,255,255,0.2); }
+.dnd-strip-spell-sorcery .dnd-strip-spell-full { color: rgba(255,193,7,0.85); }
+.dnd-strip-spell-sorcery .dnd-strip-spell-partial { color: #ffc107; }
+.dnd-strip-spell-sorcery .dnd-strip-spell-depleted { color: rgba(255,193,7,0.2); }
+
+/* Currency + omni: two columns below spell slots (currency col 1, omni col 2) */
+.dnd-secondary-widgets {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.4em;
+    margin-bottom: 0.5em;
+    align-items: start;
+}
+.dnd-secondary-widgets.dnd-secondary-hidden {
+    display: none;
+}
+/* Omni children participate in the same 2-col grid (currency occupies first cell) */
+.dnd-secondary-widgets .dnd-omni-widgets {
+    display: contents;
+}
+.dnd-secondary-widgets .dnd-omni-widget.dnd-omni-wide {
+    grid-column: span 2;
+}
 
 /* Currency widget (expanded panel) */
 .dnd-currency-icon {
@@ -643,12 +1025,7 @@
 .dnd-coin-silver .dnd-coin-val { color: #c0c0c0; }
 .dnd-coin-copper .dnd-coin-val { color: #cd7f32; }
 
-/* Omni / extra widgets (expanded panel) */
-.dnd-omni-widgets {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.4em;
-}
+/* Omni / extra widgets (expanded panel; grid via .dnd-secondary-widgets when present) */
 .dnd-omni-widgets:empty { display: none; }
 .dnd-omni-widget {
     display: flex;
@@ -757,12 +1134,48 @@
 .dnd-roll-result {
     display: flex;
     align-items: center;
+    gap: 0.5em;
+}
+.dnd-roll-group {
+    display: flex;
+    align-items: center;
     gap: 0.4em;
+}
+.dnd-roll-group-label {
+    font-size: 0.55em;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.35);
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    line-height: 1;
+}
+.dnd-roll-group-npc {
+    margin-left: 0.3em;
+    padding-left: 0.5em;
+    border-left: 1px solid rgba(255,255,255,0.1);
+}
+.dnd-roll-pair {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+}
+.dnd-roll-label {
+    font-size: 0.6em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255,255,255,0.4);
+    line-height: 1;
 }
 .dnd-roll-value {
     font-size: 1.6em;
     font-weight: 700;
     color: var(--dnd-gold);
+    line-height: 1.1;
+}
+.dnd-roll-npc {
+    color: #e57373;
 }
 .dnd-clear-roll-btn {
     background: none;
@@ -834,7 +1247,7 @@
     flex-shrink: 0;
 }
 .dnd-quest-drag-handle:hover { color: rgba(255,255,255,0.4); }
-.dnd-quest-item[draggable="true"]:active .dnd-quest-drag-handle { cursor: grabbing; }
+.dnd-quest-item:active .dnd-quest-drag-handle { cursor: grabbing; }
 .dnd-quest-dragging { opacity: 0.35; }
 .dnd-quest-drag-over { border-color: var(--dnd-highlight) !important; background: rgba(138,180,248,0.06) !important; }
 
@@ -943,6 +1356,178 @@
 }
 .dnd-add-quest-input::placeholder { opacity: 0.35; }
 
+/* ─── Inventory list ────────────────────────────────── */
+
+.dnd-inventory-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15em;
+}
+.dnd-inventory-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+    padding: 0.25em 0.3em;
+    border-radius: 0.25em;
+    font-size: 0.8em;
+    transition: background 0.15s, border-color 0.15s, opacity 0.2s;
+    border: 1px solid transparent;
+}
+.dnd-inventory-item:hover { background: rgba(255,255,255,0.03); }
+
+/* Drag handle */
+.dnd-inventory-drag-handle {
+    cursor: grab;
+    color: rgba(255,255,255,0.15);
+    font-size: 0.7em;
+    padding: 0 2px;
+    transition: color 0.15s;
+    flex-shrink: 0;
+}
+.dnd-inventory-drag-handle:hover { color: rgba(255,255,255,0.4); }
+.dnd-inventory-item:active .dnd-inventory-drag-handle { cursor: grabbing; }
+.dnd-inventory-dragging { opacity: 0.35; }
+.dnd-inventory-drag-over { border-color: var(--dnd-highlight) !important; background: rgba(138,180,248,0.06) !important; }
+
+/* Rarity button — gem icon, color-coded by tier */
+.dnd-inventory-rarity-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8em;
+    padding: 0 1px;
+    width: 1.2em;
+    text-align: center;
+    color: rgba(255,255,255,0.18);
+    transition: color 0.15s, filter 0.15s;
+    flex-shrink: 0;
+}
+.dnd-inventory-rarity-btn:hover { color: #81c784; }
+.dnd-rarity-1 .dnd-inventory-rarity-btn { color: #81c784; opacity: 0.8; }
+.dnd-rarity-2 .dnd-inventory-rarity-btn { color: #64b5f6; opacity: 1; }
+.dnd-rarity-3 .dnd-inventory-rarity-btn { color: #ce93d8; filter: drop-shadow(0 0 4px rgba(206,147,216,0.5)); }
+
+/* Rarity row tinting */
+.dnd-rarity-1 { border-left: 2px solid rgba(129,199,132,0.3); }
+.dnd-rarity-2 { border-left: 2px solid rgba(100,181,246,0.4); }
+.dnd-rarity-3 { border-left: 2px solid rgba(206,147,216,0.4); background: rgba(206,147,216,0.03); }
+
+/* Item text */
+.dnd-inventory-text {
+    flex: 1;
+    cursor: text;
+    padding: 0.1em 0.2em;
+    border-radius: 0.15em;
+    min-height: 1.2em;
+    word-break: break-word;
+}
+.dnd-inventory-text:focus {
+    outline: 1px solid var(--dnd-highlight);
+    background: rgba(255,255,255,0.04);
+}
+
+/* Quantity badge */
+.dnd-inventory-qty {
+    font-size: 0.75em;
+    color: rgba(255,255,255,0.45);
+    background: rgba(255,255,255,0.05);
+    padding: 0.1em 0.35em;
+    border-radius: 0.2em;
+    cursor: pointer;
+    min-width: 1.5em;
+    text-align: center;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.dnd-inventory-qty:hover {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.7);
+}
+.dnd-inventory-qty-input {
+    width: 3em;
+    padding: 0.1em 0.2em;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--dnd-highlight);
+    border-radius: 0.2em;
+    color: var(--dnd-text);
+    font-size: 1em;
+    text-align: center;
+}
+
+/* Move button (equip/store toggle) */
+.dnd-inventory-move-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.75em;
+    padding: 0 2px;
+    color: rgba(255,255,255,0.2);
+    transition: color 0.15s;
+    flex-shrink: 0;
+}
+.dnd-inventory-move-btn:hover { color: #8ab4f8; }
+
+/* Delete */
+.dnd-inventory-delete {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.7em;
+    padding: 0 2px;
+    color: rgba(255,255,255,0.15);
+    transition: color 0.15s;
+    flex-shrink: 0;
+}
+.dnd-inventory-delete:hover { color: #f44336; }
+
+/* Section dividers */
+.dnd-inventory-section-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin: 0.4em 0 0.2em;
+    padding: 0;
+}
+.dnd-inventory-section-divider::before,
+.dnd-inventory-section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.08);
+}
+.dnd-inventory-section-divider span {
+    font-size: 0.6em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.25);
+    white-space: nowrap;
+}
+
+/* Empty sub-section hint */
+.dnd-inventory-empty-sub {
+    font-size: 0.7em;
+    color: rgba(255,255,255,0.2);
+    padding: 0.2em 0.4em;
+    font-style: italic;
+}
+
+/* Add item row */
+.dnd-add-inventory-row {
+    display: flex;
+    gap: 0.3em;
+    margin-top: 0.3em;
+}
+.dnd-add-inventory-input {
+    flex: 1;
+    padding: 0.25em 0.4em;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--dnd-border);
+    border-radius: 0.25em;
+    color: var(--dnd-text);
+    font-size: 0.8em;
+}
+.dnd-add-inventory-input::placeholder { opacity: 0.35; }
+
 /* ─── Spell Log Container ───────────────────────────── */
 
 .dnd-spell-log-container {
@@ -970,6 +1555,57 @@
 .dnd-spell-log-header i {
     font-size: 0.85em;
     opacity: 0.7;
+}
+
+/* Spell tracker toggle button */
+.dnd-spell-log-toggle-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: rgba(100,200,120,0.7);
+    cursor: pointer;
+    padding: 0.15em 0.3em;
+    font-size: 1em;
+    line-height: 1;
+    border-radius: 0.25em;
+    transition: color 0.15s, background 0.15s;
+}
+.dnd-spell-log-toggle-btn:hover {
+    color: rgba(100,200,120,1);
+    background: rgba(100,200,120,0.1);
+}
+.dnd-spell-log-toggle-btn.dnd-spell-tracker-off {
+    color: rgba(255,255,255,0.25);
+}
+.dnd-spell-log-toggle-btn.dnd-spell-tracker-off:hover {
+    color: rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.05);
+}
+
+/* Disabled state: collapse the spell log body */
+.dnd-spell-log-container.dnd-spell-tracker-disabled #dnd-spell-log-list,
+.dnd-spell-log-container.dnd-spell-tracker-disabled .dnd-spell-log-actions {
+    display: none;
+}
+
+.dnd-spell-log-refresh-btn {
+    margin-left: 0;
+    background: none;
+    border: none;
+    color: rgba(180,150,255,0.45);
+    cursor: pointer;
+    padding: 0.15em 0.3em;
+    font-size: 1em;
+    line-height: 1;
+    border-radius: 0.3em;
+    transition: color 0.18s, background 0.18s;
+}
+.dnd-spell-log-refresh-btn:hover {
+    color: rgba(180,150,255,0.85);
+    background: rgba(140,100,220,0.12);
+}
+.dnd-spell-log-refresh-btn i {
+    opacity: 1;
 }
 
 /* ─── Spell Log List ────────────────────────────────── */
@@ -1015,6 +1651,9 @@
 .dnd-spell-log-rest {
     border-left: 2px solid rgba(100,200,160,0.3);
 }
+.dnd-spell-log-short-rest {
+    border-left: 2px solid rgba(200,170,80,0.3);
+}
 
 /* Icon column */
 .dnd-spell-log-icon {
@@ -1035,6 +1674,10 @@
 .dnd-spell-log-icon-rest {
     background: rgba(100,200,160,0.1);
     color: rgba(120,210,170,0.7);
+}
+.dnd-spell-log-icon-short-rest {
+    background: rgba(200,170,80,0.1);
+    color: rgba(210,180,90,0.7);
 }
 
 /* Body: 2-line stack */
@@ -1068,6 +1711,11 @@
     font-weight: 400;
     font-style: italic;
 }
+.dnd-spell-log-short-rest .dnd-spell-log-name {
+    color: rgba(210,185,100,0.85);
+    font-weight: 400;
+    font-style: italic;
+}
 .dnd-spell-log-name:focus {
     white-space: normal;
     background: rgba(255,255,255,0.04);
@@ -1083,6 +1731,17 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.dnd-spell-log-manual-tag {
+    display: inline-block;
+    font-size: 0.85em;
+    color: rgba(255,200,100,0.55);
+    border: 1px solid rgba(255,200,100,0.2);
+    border-radius: 3px;
+    padding: 0 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.03em;
 }
 
 /* Drag handle */
@@ -1182,6 +1841,16 @@
     background: rgba(100,200,160,0.12);
     color: rgba(140,225,185,0.9);
     border-color: rgba(100,200,160,0.25);
+}
+.dnd-spell-log-short-rest-btn {
+    background: rgba(200,170,80,0.06);
+    border-color: rgba(200,170,80,0.12);
+    color: rgba(210,180,90,0.5);
+}
+.dnd-spell-log-short-rest-btn:hover {
+    background: rgba(200,170,80,0.12);
+    color: rgba(220,195,110,0.9);
+    border-color: rgba(200,170,80,0.25);
 }
 
 /* ─── Feature toggles ────────────────────────────────── */
@@ -1292,31 +1961,66 @@
 }
 
 /* Attribute editor grid */
-.dnd-editor-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.4em;
+.dnd-modal-attr-editor .dnd-modal-body {
+    max-height: 60vh;
+    overflow-y: auto;
 }
-.dnd-editor-attr {
+.dnd-attr-editor-list {
     display: flex;
     flex-direction: column;
+    gap: 0.35em;
+}
+.dnd-attr-row {
+    display: flex;
     align-items: center;
-    gap: 0.15em;
+    gap: 0.4em;
 }
-.dnd-editor-attr label {
-    font-size: 0.7em;
-    font-weight: 700;
+.dnd-attr-label-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.3em 0.5em;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--dnd-border);
+    border-radius: 0.25em;
     color: var(--dnd-highlight);
+    font-size: 0.85em;
+    font-weight: 700;
+    text-transform: uppercase;
 }
-.dnd-editor-attr input {
-    padding: 0.25em 0.4em;
+.dnd-attr-value-input {
+    width: 3.8em;
+    padding: 0.3em 0.4em;
     background: rgba(255,255,255,0.05);
     border: 1px solid var(--dnd-border);
     border-radius: 0.25em;
     color: var(--dnd-text);
     font-size: 0.85em;
-    width: 3.5em;
     text-align: center;
+}
+.dnd-attr-remove-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.25);
+    cursor: pointer;
+    padding: 0.25em;
+    font-size: 0.8em;
+    transition: color 0.15s;
+}
+.dnd-attr-remove-btn:hover {
+    color: #ff6b6b;
+}
+.dnd-attr-editor-actions {
+    display: flex;
+    gap: 0.5em;
+    margin-top: 0.6em;
+    padding-top: 0.6em;
+    border-top: 1px solid var(--dnd-border);
+}
+.dnd-btn-muted {
+    opacity: 0.55;
+}
+.dnd-btn-muted:hover {
+    opacity: 0.85;
 }
 
 /* Settings modal */
@@ -1405,7 +2109,8 @@
     overflow: hidden;
     z-index: 1;
 }
-#dnd-weather-overlay {
+#dnd-weather-overlay,
+#dnd-weather-overlay-secondary {
     position: absolute;
     inset: 0;
     pointer-events: none;
@@ -1551,6 +2256,73 @@
     0%   { transform: translate3d(0, -10vh, 0); }
     50%  { transform: translate3d(2vw, 50vh, 0); }
     100% { transform: translate3d(-2vw, 120vh, 0); }
+}
+
+/* Wind particles — horizontal drift with rotation */
+.dnd-weather-wind-particle {
+    background: rgba(180, 160, 120, 0.7);
+    border-radius: 1px;
+    animation: dnd-weather-wind linear infinite;
+}
+@keyframes dnd-weather-wind {
+    0%   { transform: translate3d(110vw, 0, 0) rotate(0deg); }
+    25%  { transform: translate3d(75vw, 8vh, 0) rotate(90deg); }
+    50%  { transform: translate3d(40vw, -5vh, 0) rotate(180deg); }
+    75%  { transform: translate3d(15vw, 10vh, 0) rotate(270deg); }
+    100% { transform: translate3d(-10vw, 2vh, 0) rotate(360deg); }
+}
+
+/* Sandstorm particles — fast diagonal with blur */
+.dnd-weather-sandstorm-particle {
+    border-radius: 999px;
+    background: rgba(210, 180, 120, 0.8);
+    filter: blur(0.5px);
+    animation: dnd-weather-sandstorm linear infinite;
+}
+@keyframes dnd-weather-sandstorm {
+    from { transform: translate3d(30vw, -10vh, 0); }
+    to   { transform: translate3d(-30vw, 120vh, 0); }
+}
+
+/* Ash particles — slow upward float with rotation */
+.dnd-weather-ash-particle {
+    border-radius: 1px;
+    background: rgba(80, 60, 50, 0.7);
+    animation: dnd-weather-ash linear infinite;
+}
+@keyframes dnd-weather-ash {
+    0%   { transform: translate3d(0, 120vh, 0) rotate(0deg); }
+    50%  { transform: translate3d(3vw, 50vh, 0) rotate(180deg); }
+    100% { transform: translate3d(-2vw, -10vh, 0) rotate(360deg); }
+}
+
+/* Magical particles — gentle float with glow pulse, multi-color */
+.dnd-weather-magical-particle {
+    border-radius: 999px;
+    background: rgba(180, 130, 255, 0.8);
+    box-shadow: 0 0 8px rgba(180, 130, 255, 0.5), 0 0 16px rgba(180, 130, 255, 0.2);
+    animation-name: dnd-weather-magical, dnd-weather-magical-glow;
+    animation-timing-function: ease-in-out, ease-in-out;
+    animation-iteration-count: infinite, infinite;
+}
+.dnd-weather-magical-particle:nth-child(3n+1) {
+    background: rgba(100, 200, 255, 0.8);
+    box-shadow: 0 0 8px rgba(100, 200, 255, 0.5), 0 0 16px rgba(100, 200, 255, 0.2);
+}
+.dnd-weather-magical-particle:nth-child(3n+2) {
+    background: rgba(255, 180, 220, 0.8);
+    box-shadow: 0 0 8px rgba(255, 180, 220, 0.5), 0 0 16px rgba(255, 180, 220, 0.2);
+}
+@keyframes dnd-weather-magical {
+    0%   { transform: translate3d(0, 110vh, 0); }
+    25%  { transform: translate3d(3vw, 80vh, 0); }
+    50%  { transform: translate3d(-2vw, 45vh, 0); }
+    75%  { transform: translate3d(4vw, 15vh, 0); }
+    100% { transform: translate3d(0, -10vh, 0); }
+}
+@keyframes dnd-weather-magical-glow {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1; }
 }
 
 /* Mobile fog images */

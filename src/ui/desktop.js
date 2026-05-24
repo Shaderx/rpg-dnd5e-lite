@@ -4,6 +4,7 @@
  */
 
 import { extensionSettings, quests, headerInfo, setPendingDiceRoll } from '../core/state.js';
+import { hasCurrency, formatCurrencyStrip, formatCurrencyTitle } from '../features/currencyParser.js';
 import { executeRoll, saveDiceRoll, updateDiceDisplay, clearDiceRoll } from '../features/dice.js';
 import { applyWeatherVisuals } from '../features/weatherVisuals.js';
 
@@ -34,8 +35,35 @@ function setClockHands(hourEl, minuteEl, timeStr) {
     minuteEl.style.transform = `rotate(${minDeg}deg)`;
 }
 
+// Forgotten Realms calendar: 12 months mapped to season + month key
+const FR_MONTHS = {
+    hammer:    { num: 1,  season: 'winter', key: 'hammer' },
+    alturiak:  { num: 2,  season: 'winter', key: 'alturiak' },
+    ches:      { num: 3,  season: 'spring', key: 'ches' },
+    tarsakh:   { num: 4,  season: 'spring', key: 'tarsakh' },
+    mirtul:    { num: 5,  season: 'spring', key: 'mirtul' },
+    kythorn:   { num: 6,  season: 'summer', key: 'kythorn' },
+    flamerule: { num: 7,  season: 'summer', key: 'flamerule' },
+    eleasis:   { num: 8,  season: 'summer', key: 'eleasis' },
+    eleint:    { num: 9,  season: 'autumn', key: 'eleint' },
+    marpenoth: { num: 10, season: 'autumn', key: 'marpenoth' },
+    uktar:     { num: 11, season: 'autumn', key: 'uktar' },
+    nightal:   { num: 12, season: 'winter', key: 'nightal' },
+};
+
+function inferMonth(dateStr) {
+    if (!dateStr) return null;
+    const d = dateStr.toLowerCase();
+    for (const [name, info] of Object.entries(FR_MONTHS)) {
+        if (d.includes(name)) return info;
+    }
+    return null;
+}
+
 function inferSeason(dateStr) {
     if (!dateStr) return null;
+    const month = inferMonth(dateStr);
+    if (month) return month.season;
     const d = dateStr.toLowerCase();
     if (/spring/.test(d)) return 'spring';
     if (/summer/.test(d)) return 'summer';
@@ -49,13 +77,17 @@ function inferSeason(dateStr) {
 }
 
 const SEASON_CLASSES = ['dnd-season-spring', 'dnd-season-summer', 'dnd-season-autumn', 'dnd-season-winter'];
+const MONTH_CLASSES = Object.keys(FR_MONTHS).map(k => `dnd-month-${k}`);
+const ALL_THEME_CLASSES = [...SEASON_CLASSES, ...MONTH_CLASSES];
 
 function applySeason(el, dateStr) {
     if (!el) return;
     const $el = $(el);
-    $el.removeClass(SEASON_CLASSES.join(' '));
+    $el.removeClass(ALL_THEME_CLASSES.join(' '));
     const season = inferSeason(dateStr);
     if (season) $el.addClass(`dnd-season-${season}`);
+    const month = inferMonth(dateStr);
+    if (month) $el.addClass(`dnd-month-${month.key}`);
 }
 
 function inferLocationIcon(location) {
@@ -87,41 +119,166 @@ function inferLocationIcon(location) {
 
 const KEYCAP_EMOJIS = ['', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];
 
-function renderSpellLevels(container, spellSlots) {
+// Previous state for diff-based animation
+let _prevSlots = null;   // Map<level, { current, max }>
+let _prevSorcery = null; // { current, max }
+
+function snapshotSlotState(spellSlots, sorceryPoints) {
+    const map = new Map();
+    if (spellSlots && Array.isArray(spellSlots)) {
+        for (const s of spellSlots) map.set(s.level, { current: s.current, max: s.max });
+    }
+    return { slots: map, sorcery: sorceryPoints ? { ...sorceryPoints } : null };
+}
+
+const ANIM_STAGGER_MS = 120;
+
+/**
+ * Animate individual indicator elements within a row's .dnd-spell-level-cubes container.
+ * `oldCurrent`/`newCurrent` are the filled counts; elements are indexed left-to-right.
+ * Slots that change from filled->empty get a "spend" animation (sequenced right-to-left).
+ * Slots that change from empty->filled get a "restore" animation (sequenced left-to-right).
+ */
+function animateRowDiff(rowEl, oldCurrent, newCurrent, max) {
+    if (oldCurrent === newCurrent || !rowEl) return;
+
+    const cubesContainer = rowEl.querySelector('.dnd-spell-level-cubes');
+    if (!cubesContainer) return;
+    const indicators = cubesContainer.children;
+
+    if (newCurrent < oldCurrent) {
+        // Slots spent: indices [newCurrent .. oldCurrent-1] switched filled->empty
+        // Animate right-to-left (highest slot first)
+        const spent = [];
+        for (let i = oldCurrent - 1; i >= newCurrent; i--) {
+            if (indicators[i]) spent.push(indicators[i]);
+        }
+        spent.forEach((el, idx) => {
+            el.style.animationDelay = `${idx * ANIM_STAGGER_MS}ms`;
+            el.classList.add('dnd-anim-spend');
+            el.addEventListener('animationend', () => {
+                el.classList.remove('dnd-anim-spend');
+                el.style.animationDelay = '';
+            }, { once: true });
+        });
+    } else {
+        // Slots restored: indices [oldCurrent .. newCurrent-1] switched empty->filled
+        // Animate left-to-right (lowest slot first)
+        const restored = [];
+        for (let i = oldCurrent; i < newCurrent; i++) {
+            if (indicators[i]) restored.push(indicators[i]);
+        }
+        restored.forEach((el, idx) => {
+            el.style.animationDelay = `${idx * ANIM_STAGGER_MS}ms`;
+            el.classList.add('dnd-anim-restore');
+            el.addEventListener('animationend', () => {
+                el.classList.remove('dnd-anim-restore');
+                el.style.animationDelay = '';
+            }, { once: true });
+        });
+    }
+}
+
+function renderSpellLevels(container, spellSlots, sorceryPoints) {
     if (!container) return;
-    if (!spellSlots || !Array.isArray(spellSlots) || spellSlots.length === 0) {
+
+    const hasData = (spellSlots && Array.isArray(spellSlots) && spellSlots.length > 0) || sorceryPoints;
+    if (!hasData) {
+        _prevSlots = null;
+        _prevSorcery = null;
         container.innerHTML = '';
         return;
     }
-    container.innerHTML = spellSlots.map(s => {
-        const label = s.level > 0 ? KEYCAP_EMOJIS[s.level] : '🪄';
-        const filled = Math.max(0, Math.min(s.current, s.max));
-        const empty = Math.max(0, s.max - filled);
-        let cubes = '';
-        for (let i = 0; i < filled; i++) cubes += '<div class="dnd-spell-cube dnd-spell-filled"></div>';
-        for (let i = 0; i < empty; i++) cubes += '<div class="dnd-spell-cube dnd-spell-empty"></div>';
-        return `<div class="dnd-spell-level-row">
-            <span class="dnd-spell-level-label">${label}</span>
-            <div class="dnd-spell-level-cubes">${cubes}</div>
-            <span class="dnd-spell-level-count">${s.current}/${s.max}</span>
+
+    const oldSnap = { slots: _prevSlots, sorcery: _prevSorcery };
+    const newSnap = snapshotSlotState(spellSlots, sorceryPoints);
+
+    // Build the new HTML (always reflects latest state)
+    let html = '';
+    if (spellSlots && spellSlots.length > 0) {
+        html += spellSlots.map(s => {
+            const label = s.level > 0 ? KEYCAP_EMOJIS[s.level] : '🪄';
+            const filled = Math.max(0, Math.min(s.current, s.max));
+            const empty = Math.max(0, s.max - filled);
+            let cubes = '';
+            for (let i = 0; i < filled; i++) cubes += '<div class="dnd-spell-cube dnd-spell-filled"></div>';
+            for (let i = 0; i < empty; i++) cubes += '<div class="dnd-spell-cube dnd-spell-empty"></div>';
+            return `<div class="dnd-spell-level-row" data-spell-level="${s.level}">
+                <span class="dnd-spell-level-label">${label}</span>
+                <div class="dnd-spell-level-cubes">${cubes}</div>
+                <span class="dnd-spell-level-count">${s.current}/${s.max}</span>
+            </div>`;
+        }).join('');
+    }
+    if (sorceryPoints) {
+        const sp = sorceryPoints;
+        const filled = Math.max(0, Math.min(sp.current, sp.max));
+        const empty = Math.max(0, sp.max - filled);
+        let circles = '';
+        for (let i = 0; i < filled; i++) circles += '<div class="dnd-spell-circle dnd-spell-filled"></div>';
+        for (let i = 0; i < empty; i++) circles += '<div class="dnd-spell-circle dnd-spell-empty"></div>';
+        html += `<div class="dnd-spell-level-row dnd-spell-sorcery-row" data-spell-level="sp">
+            <span class="dnd-spell-level-label">⚡</span>
+            <div class="dnd-spell-level-cubes">${circles}</div>
+            <span class="dnd-spell-level-count">${sp.current}/${sp.max}</span>
         </div>`;
-    }).join('');
+    }
+
+    container.innerHTML = html;
+
+    // Animate diffs if we have a previous snapshot to compare against
+    if (oldSnap.slots) {
+        const rows = container.querySelectorAll('.dnd-spell-level-row[data-spell-level]');
+        for (const row of rows) {
+            const lvl = row.dataset.spellLevel;
+            if (lvl === 'sp') continue;
+            const level = parseInt(lvl);
+            const oldData = oldSnap.slots.get(level);
+            const newData = newSnap.slots.get(level);
+            if (oldData && newData && oldData.current !== newData.current) {
+                animateRowDiff(row, oldData.current, newData.current, newData.max);
+            }
+        }
+    }
+
+    // Sorcery points diff
+    if (oldSnap.sorcery && newSnap.sorcery && oldSnap.sorcery.current !== newSnap.sorcery.current) {
+        const spRow = container.querySelector('[data-spell-level="sp"]');
+        if (spRow) {
+            animateRowDiff(spRow, oldSnap.sorcery.current, newSnap.sorcery.current, newSnap.sorcery.max);
+        }
+    }
+
+    // Save current as previous for next diff
+    _prevSlots = newSnap.slots;
+    _prevSorcery = newSnap.sorcery;
 }
 
-function renderStripSpellLevels($container, spellSlots) {
+function renderStripSpellLevels($container, spellSlots, sorceryPoints) {
     const $el = $container.find('.dnd-strip-spell-levels');
     if (!$el.length) return;
-    if (!spellSlots || !Array.isArray(spellSlots) || spellSlots.length === 0) {
+    if ((!spellSlots || !Array.isArray(spellSlots) || spellSlots.length === 0) && !sorceryPoints) {
         $el.html('<span style="font-size:0.5em;opacity:0.3">--</span>');
         return;
     }
-    $el.html(spellSlots.map(s => {
-        const label = s.level > 0 ? KEYCAP_EMOJIS[s.level] : '🪄';
+    let html = '';
+    if (spellSlots && spellSlots.length > 0) {
+        html += spellSlots.map(s => {
+            const label = s.level > 0 ? KEYCAP_EMOJIS[s.level] : '🪄';
+            let cls = 'dnd-strip-spell-full';
+            if (s.current === 0) cls = 'dnd-strip-spell-depleted';
+            else if (s.current < s.max) cls = 'dnd-strip-spell-partial';
+            return `<span class="dnd-strip-spell-level"><span class="${cls}">${label}${s.current}/${s.max}</span></span>`;
+        }).join('');
+    }
+    if (sorceryPoints) {
+        const sp = sorceryPoints;
         let cls = 'dnd-strip-spell-full';
-        if (s.current === 0) cls = 'dnd-strip-spell-depleted';
-        else if (s.current < s.max) cls = 'dnd-strip-spell-partial';
-        return `<span class="dnd-strip-spell-level"><span class="${cls}">${label}${s.current}/${s.max}</span></span>`;
-    }).join(''));
+        if (sp.current === 0) cls = 'dnd-strip-spell-depleted';
+        else if (sp.current < sp.max) cls = 'dnd-strip-spell-partial';
+        html += `<span class="dnd-strip-spell-level dnd-strip-spell-sorcery"><span class="${cls}">⚡${sp.current}/${sp.max}</span></span>`;
+    }
+    $el.html(html);
 }
 
 // ─── Expanded panel header widgets ──────────────────────────
@@ -176,10 +333,10 @@ export function updateHeaderWidgets() {
     }
 
     // Spell slots per-level
-    renderSpellLevels(document.getElementById('dnd-spell-levels'), info.spellSlots);
+    renderSpellLevels(document.getElementById('dnd-spell-levels'), info.spellSlots, info.sorceryPoints);
     const $spellsWidget = $('#dnd-spells-widget');
     if ($spellsWidget.length) {
-        if (info.spellSlots && info.spellSlots.length > 0) {
+        if ((info.spellSlots && info.spellSlots.length > 0) || info.sorceryPoints) {
             $spellsWidget.show();
         } else {
             $spellsWidget.hide();
@@ -188,12 +345,13 @@ export function updateHeaderWidgets() {
 
     // Currency
     const $currencyWidget = $('#dnd-currency-widget');
+    const $secondaryRow = $('#dnd-secondary-widgets');
     const c = info.currency;
     if ($currencyWidget.length) {
-        if (c) {
-            $('#dnd-info-currency .dnd-coin-gold .dnd-coin-val').text(c.gold);
-            $('#dnd-info-currency .dnd-coin-silver .dnd-coin-val').text(c.silver);
-            $('#dnd-info-currency .dnd-coin-copper .dnd-coin-val').text(c.copper);
+        if (hasCurrency(c)) {
+            $('#dnd-info-currency .dnd-coin-gold .dnd-coin-val').text(c.gold ?? 0);
+            $('#dnd-info-currency .dnd-coin-silver .dnd-coin-val').text(c.silver ?? 0);
+            $('#dnd-info-currency .dnd-coin-copper .dnd-coin-val').text(c.copper ?? 0);
             $currencyWidget.show();
         } else {
             $currencyWidget.hide();
@@ -202,8 +360,9 @@ export function updateHeaderWidgets() {
 
     // Omni / extra widgets
     const $omni = $('#dnd-omni-widgets');
+    const hasOmni = info.extras && info.extras.length > 0;
     if ($omni.length) {
-        if (info.extras && info.extras.length > 0) {
+        if (hasOmni) {
             const html = info.extras.map(e => {
                 const wide = (e.text?.length || 0) > 30 ? ' dnd-omni-wide' : '';
                 const emojiHtml = e.emoji ? `<span class="dnd-omni-emoji">${escapeAttr(e.emoji)}</span>` : '';
@@ -216,6 +375,10 @@ export function updateHeaderWidgets() {
         } else {
             $omni.empty();
         }
+    }
+
+    if ($secondaryRow.length) {
+        $secondaryRow.toggleClass('dnd-secondary-hidden', !hasCurrency(c) && !hasOmni);
     }
 
     // Weather/time-of-day background visuals
@@ -249,14 +412,16 @@ function renderStripHeaderInfo($container) {
     $container.find('.dnd-strip-time-value')
         .text(info.time || '--:--').attr('title', info.time || '');
 
-    // Date with season styling
+    // Date with season + month styling
     const $dateWidget = $container.find('.dnd-strip-widget-date');
     const dateText = info.date || '---';
     const shortDate = dateText.length > 12 ? dateText.substring(0, 10) + '…' : dateText;
     $container.find('.dnd-strip-date-value').text(shortDate).attr('title', dateText);
-    $dateWidget.removeClass(SEASON_CLASSES.join(' '));
+    $dateWidget.removeClass(ALL_THEME_CLASSES.join(' '));
     const season = inferSeason(info.date);
     if (season) $dateWidget.addClass(`dnd-season-${season}`);
+    const stripMonth = inferMonth(info.date);
+    if (stripMonth) $dateWidget.addClass(`dnd-month-${stripMonth.key}`);
 
     // Location with dynamic icon
     const iconClass = inferLocationIcon(info.location);
@@ -273,16 +438,16 @@ function renderStripHeaderInfo($container) {
     $container.find('.dnd-strip-weather-value').text(shortWeather).attr('title', weatherText);
 
     // Spell slots per-level (strip)
-    renderStripSpellLevels($container, info.spellSlots);
+    renderStripSpellLevels($container, info.spellSlots, info.sorceryPoints);
 
     // Currency
     const $stripCurrency = $container.find('.dnd-strip-widget-currency');
     if ($stripCurrency.length) {
         const c = info.currency;
-        if (c) {
+        if (hasCurrency(c)) {
             $stripCurrency.find('.dnd-strip-currency-value')
-                .text(`${c.gold}🟡 ${c.silver}⚪ ${c.copper}🟤`)
-                .attr('title', `Gold: ${c.gold}  Silver: ${c.silver}  Copper: ${c.copper}`);
+                .text(formatCurrencyStrip(c))
+                .attr('title', formatCurrencyTitle(c));
             $stripCurrency.show();
         } else {
             $stripCurrency.hide();
@@ -310,23 +475,39 @@ function renderStripHeaderInfo($container) {
 
 function renderStripDice($container) {
     const $widget = $container.find('.dnd-strip-widget-dice');
-    const $result = $widget.find('.dnd-strip-dice-result');
+    const $r1 = $widget.find('.dnd-strip-dice-r1');
+    const $r2 = $widget.find('.dnd-strip-dice-r2');
+    const $npc1 = $widget.find('.dnd-strip-dice-npc1');
+    const $npc2 = $widget.find('.dnd-strip-dice-npc2');
     const $clearBtn = $widget.find('.dnd-strip-dice-clear');
     const $rollBtn = $widget.find('.dnd-strip-dice-roll');
 
     const roll = extensionSettings.lastDiceRoll;
     if (roll) {
-        $result.text(roll.total).attr('title', `${roll.formula}: ${roll.total}`);
+        $r1.text(roll.roll1).attr('title', `Player 1st: ${roll.roll1}`);
+        $r2.text(roll.roll2).attr('title', `Player 2nd: ${roll.roll2}`);
+        $npc1.text(roll.npcRoll1 ?? '--').attr('title', `NPC 1st: ${roll.npcRoll1 ?? '--'}`);
+        $npc2.text(roll.npcRoll2 ?? '--').attr('title', `NPC 2nd: ${roll.npcRoll2 ?? '--'}`);
         $clearBtn.show();
     } else {
-        $result.text('--').attr('title', '');
+        $r1.text('--').attr('title', '');
+        $r2.text('--').attr('title', '');
+        $npc1.text('--').attr('title', '');
+        $npc2.text('--').attr('title', '');
         $clearBtn.hide();
     }
 
     $rollBtn.off('click.stripRoll').on('click.stripRoll', () => {
-        const result = executeRoll(1, 20);
+        const r1 = executeRoll(1, 20);
+        const r2 = executeRoll(1, 20);
+        const npc1 = executeRoll(1, 20);
+        const npc2 = executeRoll(1, 20);
         setPendingDiceRoll({
-            formula: '1d20', total: result.total, rolls: result.rolls, timestamp: Date.now()
+            formula: '4d20',
+            roll1: r1.total, roll2: r2.total,
+            npcRoll1: npc1.total, npcRoll2: npc2.total,
+            rolls: [r1.total, r2.total, npc1.total, npc2.total],
+            timestamp: Date.now()
         });
         saveDiceRoll();
         updateStripWidgets();
