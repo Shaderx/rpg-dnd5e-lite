@@ -10,10 +10,59 @@ import { spellLog, setSpellLog } from '../core/state.js';
 import { saveSpellLog, loadSpellLog } from '../core/persistence.js';
 import { parseHeader } from './headerParser.js';
 
-// Bracketed form: "cast [Fireball]", "casts [Healing Word, Shield]" — captures full bracket content
-const CAST_BRACKET_REGEX = /cast(?:s|ed|ing)?\s*\[([^\]]+)\]/gi;
-// Unbracketed form: "cast Fireball", "casts Shield" — captures the first word after cast
-const CAST_BARE_REGEX = /cast(?:s|ed|ing)?\s+([A-Z][a-zA-Z''-]*)/g;
+// Any bracketed content: [Fireball, 3rd], [Shield], [Charm Person, 1st, Subtle, target]
+const BRACKET_REGEX = /\[([^\[\]]+)\]/g;
+// Short rest: "short rest", "takes a short rest", "short rested", "short resting"
+const SHORT_REST_REGEX = /\bshort\s+rest(?:s|ed|ing)?\b/i;
+
+/**
+ * Maps conjugated forms of action keywords back to their base verb.
+ * Only keywords rare enough to avoid false positives on normal "cast [Spell]" usage.
+ */
+const ACTION_KEYWORD_MAP = new Map([
+    ['activate', 'activate'], ['activates', 'activate'], ['activated', 'activate'], ['activating', 'activate'],
+    ['invoke', 'invoke'],     ['invokes', 'invoke'],     ['invoked', 'invoke'],     ['invoking', 'invoke'],
+    ['channel', 'channel'],   ['channels', 'channel'],   ['channeled', 'channel'],  ['channeling', 'channel'],
+    ['use', 'use'],           ['uses', 'use'],           ['used', 'use'],           ['using', 'use'],
+    ['drink', 'drink'],       ['drinks', 'drink'],       ['drank', 'drink'],        ['drinking', 'drink'],
+    ['consume', 'consume'],   ['consumes', 'consume'],   ['consumed', 'consume'],   ['consuming', 'consume'],
+    ['read', 'read'],         ['reads', 'read'],         ['reading', 'read'],
+    ['trigger', 'trigger'],   ['triggers', 'trigger'],   ['triggered', 'trigger'],  ['triggering', 'trigger'],
+    ['play', 'play'],         ['plays', 'play'],         ['played', 'play'],        ['playing', 'play'],
+]);
+
+const ACTION_LABELS = {
+    cast:     { present: 'Cast',     past: 'Casted' },
+    activate: { present: 'Activate', past: 'Activated' },
+    invoke:   { present: 'Invoke',   past: 'Invoked' },
+    channel:  { present: 'Channel',  past: 'Channeled' },
+    use:      { present: 'Use',      past: 'Used' },
+    drink:    { present: 'Drink',    past: 'Drank' },
+    consume:  { present: 'Consume',  past: 'Consumed' },
+    read:     { present: 'Read',     past: 'Read' },
+    trigger:  { present: 'Trigger',  past: 'Triggered' },
+    play:     { present: 'Play',     past: 'Played' },
+};
+
+/**
+ * Get display labels (present/past tense) for an action keyword.
+ * Falls back to 'cast' for unknown or missing actions (backward compat).
+ */
+export function actionLabels(action) {
+    return ACTION_LABELS[action] || ACTION_LABELS.cast;
+}
+
+/**
+ * Look at the word immediately before the bracket opening and return
+ * the base action keyword if it matches, otherwise 'cast'.
+ */
+function detectActionKeyword(text, bracketIndex) {
+    const before = text.slice(0, bracketIndex).trimEnd();
+    const wordMatch = before.match(/(\w+)$/);
+    if (!wordMatch) return 'cast';
+    const word = wordMatch[1].toLowerCase();
+    return ACTION_KEYWORD_MAP.get(word) || 'cast';
+}
 
 /**
  * Aggressively normalize a date string for comparison.
@@ -44,38 +93,27 @@ function dateDayTokens(dateStr) {
 }
 
 /**
- * Extract all spell names from a message body.
- * Bracketed [...] captures everything inside. Bare (no brackets) captures the first word.
- * @returns {string[]} Array of spell names found
+ * Extract spell casts from a user message.
+ * Finds any [...] brackets. Format: [SpellName, Level, ...extras]
+ * First token is always the spell name, second is level, rest is additional info
+ * (metamagic, target, upcast, etc.)
+ * Checks the word before the bracket to determine the action (cast, activate, use, etc.).
+ * @returns {{ spell: string, details: string, action: string }[]}
  */
-function extractSpellCasts(text) {
+export function extractSpellCasts(text) {
     if (!text) return [];
-    const spells = [];
-    const usedRanges = [];
-
-    // Pass 1: bracketed casts (higher priority, captures full content)
-    CAST_BRACKET_REGEX.lastIndex = 0;
+    const results = [];
+    BRACKET_REGEX.lastIndex = 0;
     let m;
-    while ((m = CAST_BRACKET_REGEX.exec(text)) !== null) {
-        const name = m[1].trim();
-        if (name) {
-            spells.push(name);
-            usedRanges.push([m.index, m.index + m[0].length]);
-        }
+    while ((m = BRACKET_REGEX.exec(text)) !== null) {
+        const tokens = m[1].split(',').map(t => t.trim()).filter(t => t.length > 0);
+        if (tokens.length === 0 || tokens[0].length < 2) continue;
+        const spell = tokens[0];
+        const details = tokens.slice(1).join(', ');
+        const action = detectActionKeyword(text, m.index);
+        results.push({ spell, details, action });
     }
-
-    // Pass 2: bare casts — skip any that overlap with a bracketed match
-    CAST_BARE_REGEX.lastIndex = 0;
-    while ((m = CAST_BARE_REGEX.exec(text)) !== null) {
-        const start = m.index;
-        const end = start + m[0].length;
-        const overlaps = usedRanges.some(([rs, re]) => start < re && end > rs);
-        if (overlaps) continue;
-        const name = m[1].trim();
-        if (name) spells.push(name);
-    }
-
-    return spells;
+    return results;
 }
 
 /**
@@ -98,7 +136,11 @@ function trimToTwoLongRests(entries) {
  */
 function entryKey(entry) {
     if (entry.type === 'cast') {
-        return `cast|${entry.spell}|${entry.time || ''}|${entry.date || ''}|${entry.msgIndex ?? ''}`;
+        const action = entry.action || 'cast';
+        return `${action}|${entry.spell}|${entry.details || ''}|${entry.time || ''}|${entry.date || ''}|${entry.msgIndex ?? ''}`;
+    }
+    if (entry.type === 'short-rest' && entry.msgIndex != null) {
+        return `short-rest|${entry.date || ''}|${entry.msgIndex}`;
     }
     return `${entry.type}|${entry.date || ''}`;
 }
@@ -187,11 +229,22 @@ function scanChatForSpells({ skipLastAssistant = false } = {}) {
             continue;
         }
 
-        const spells = extractSpellCasts(msg.mes);
-        for (const spell of spells) {
+        if (SHORT_REST_REGEX.test(msg.mes)) {
+            parsed.push({
+                type: 'short-rest',
+                date: lastDate,
+                text: `${userName} has short rested here for 1 hour.`,
+                msgIndex: i,
+            });
+        }
+
+        const casts = extractSpellCasts(msg.mes);
+        for (const { spell, details, action } of casts) {
             parsed.push({
                 type: 'cast',
                 spell,
+                action,
+                details: details || '',
                 time: lastTime,
                 date: lastDate,
                 msgIndex: i,
@@ -342,7 +395,7 @@ export function addManualShortRest() {
     spellLog.push({
         type: 'short-rest',
         date: currentDate,
-        text: `${userName} short rested here restoring half of sorcery points.`,
+        text: `${userName} has short rested here for 1 hour.`,
         _edited: true,
         _manual: true,
     });

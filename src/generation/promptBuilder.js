@@ -4,7 +4,9 @@
  */
 
 import { getContext } from '../../../../../extensions.js';
-import { extensionSettings, chatAttributes, chatAttributeSchema, quests, inventory, spellLog, headerInfo } from '../core/state.js';
+import { extensionSettings, chatAttributes, chatAttributeSchema, quests, inventory, spellLog, headerInfo, sendAttributesOnRoll, spellInjectEnabled, spellDataCache } from '../core/state.js';
+import { formatLevel, schoolName } from '../features/spellbook.js';
+import { extractSpellCasts, actionLabels } from '../features/spellTracker.js';
 
 export function getModifier(score) {
     const mod = Math.floor((score - 10) / 2);
@@ -19,9 +21,16 @@ function buildAttributesString() {
     }).join(' ');
 }
 
+const QUEST_EMOJIS = { 1: '📌', 2: '🛡️', 3: '👑' };
+
+function questTypeEmoji(priority) {
+    const p = priority >= 1 && priority <= 3 ? priority : 1;
+    return QUEST_EMOJIS[p];
+}
+
 /**
  * Build the quest injection prompt (sent every generation at AN depth).
- * Priority: 3=critical(★★★★★), 2=important(★★★), 1=minor(★), 0=unset.
+ * Types: 3=Main Quest(👑), 2=Side Errand(🛡️), 1=Reminder(📌).
  * Returns empty string if no quests.
  */
 export function buildQuestPrompt() {
@@ -32,28 +41,32 @@ export function buildQuestPrompt() {
 
     if (active.length === 0 && done.length === 0) return '';
 
-    const prioritized = active.filter(q => (q.priority || 0) >= 1);
-    const critical = prioritized.filter(q => q.priority === 3);
-    const important = prioritized.filter(q => q.priority === 2);
-    const minor = prioritized.filter(q => q.priority === 1);
+    const main = active.filter(q => q.priority === 3);
+    const side = active.filter(q => q.priority === 2);
+    const reminders = active.filter(q => (q.priority || 1) === 1);
 
-    const lines = [];
+    const userName = getContext().name1 || '{{User}}';
+    const lines = [`[${userName}'s Quest Log:]`];
 
-    if (critical.length > 0) {
-        lines.push('[{{User}} is focused on their ★★★★★ critical quest(s). The number of ★ denotes the importance of the quest to {{User}}. Let this shape the narrative direction — but complications, detours, and organic twists are still allowed.]');
-        lines.push('');
-    }
+    lines.push('[Quests are categorized by type:');
+    lines.push('  👑 Main Quest — central storyline objectives driving the narrative');
+    lines.push('  🛡️ Side Errand — optional tasks, favors, or diversions');
+    lines.push('  📌 Reminder — notes, things to remember, not necessarily a quest');
+    lines.push('');
 
-    if (prioritized.length > 0) {
+    if (active.length > 0) {
         lines.push('Active Quests:');
-        for (const q of critical)  lines.push(`★★★★★ ${q.text}`);
-        for (const q of important) lines.push(`★★★ ${q.text}`);
-        for (const q of minor)     lines.push(`★ ${q.text}`);
+        for (const q of main)      lines.push(`  👑 ${q.text}`);
+        for (const q of side)      lines.push(`  🛡️ ${q.text}`);
+        for (const q of reminders)  lines.push(`  📌 ${q.text}`);
     }
 
     if (done.length > 0) {
         lines.push('Completed:');
-        for (const q of done) lines.push(`  ✓ ${q.text}`);
+        for (const q of done) {
+            const emoji = questTypeEmoji(q.priority);
+            lines.push(`  ✓ ${emoji} ${q.text}`);
+        }
     }
 
     return lines.join('\n');
@@ -152,15 +165,20 @@ export function buildSpellLogPrompt() {
     if (casts.length === 0) return '';
 
     const userName = getContext().name1 || 'User';
-    const lines = [`[${userName} has already casted these spells — only track ${userName}, use this list as the correct authority for the tracker. This tracker does not take the next user message into account. Listed in chronological order:]`];
+    const lines = [
+        `[${userName}'s Spell Log:]`,
+        `[${userName} has already casted these spells — only track ${userName}, use this list as the correct authority for the tracker. This tracker does not take the next user message into account. Listed in chronological order:]`,
+    ];
 
     for (const entry of prior) {
         if (entry.type === 'rest' || entry.type === 'short-rest') {
             lines.push(`- ${entry.text}`);
         } else {
+            const { past } = actionLabels(entry.action);
+            const detailsPart = entry.details ? ` (${entry.details})` : '';
             const timePart = entry.time ? ` at ${entry.time}` : '';
             const datePart = entry.date ? `, ${entry.date}` : '';
-            lines.push(`- Casted ${entry.spell}${timePart}${datePart}`);
+            lines.push(`- ${past} ${entry.spell}${detailsPart}${timePart}${datePart}`);
         }
     }
 
@@ -175,23 +193,190 @@ export function buildSpellLogPrompt() {
 
 /**
  * Build the roll+attributes prompt (sent only when a roll is active).
- * Four d20 rolls are provided: 2 for the player and 2 for NPCs, each pair
- * supporting advantage/disadvantage rules independently.
+ * Six d20 rolls: 2 player, 2 ally, 2 enemy — each pair supports advantage/disadvantage independently.
  * Returns empty string if no roll.
  */
 export function buildRollPrompt() {
     const roll = extensionSettings.lastDiceRoll;
-    if (!roll) return '';
+    const dmg = extensionSettings.lastDamageRoll;
+    const favored = extensionSettings.lastFavoredRoll;
+    if (!roll && !dmg && !favored) return '';
 
     const userName = getContext().name1 || 'User';
-    let prompt = `${userName}'s attributes: ${buildAttributesString()}\n`;
-    prompt += `${userName} rolled two d20 dice — 1st roll: ${roll.roll1}, 2nd roll: ${roll.roll2}.\n`;
-    prompt += `If the situation grants advantage, use the higher roll. If it imposes disadvantage, use the lower roll. Otherwise use the 1st roll.\n`;
-    prompt += `The relevant ability modifier is calculated from their attributes above. Add the appropriate modifier to the chosen roll and compare against the DC to determine success or failure.\n\n`;
-    if (roll.npcRoll1 != null && roll.npcRoll2 != null) {
-        prompt += `This two additional roll is used only if you need to roll for the npc. Otherwise ignore the roll. — 1st roll: ${roll.npcRoll1}, 2nd roll: ${roll.npcRoll2}.\n`;
-        prompt += `Apply the same advantage/disadvantage logic for the NPC: use the higher if advantage, the lower if disadvantage, otherwise the 1st roll.\n`;
-        prompt += `Use these NPC rolls for any opposing checks, saves, attacks, or contested rolls the NPC must make this turn.`;
+    const includeAttrs = sendAttributesOnRoll;
+    let prompt = '';
+
+    if (roll) {
+        if (includeAttrs) {
+            prompt += `${userName}'s attributes: ${buildAttributesString()}\n`;
+        }
+        prompt += `${userName} rolled two d20 dice — 1st roll: ${roll.roll1}, 2nd roll: ${roll.roll2}.\n`;
+        prompt += `If the situation grants advantage, use the higher roll. If it imposes disadvantage, use the lower roll. Otherwise use the 1st roll.\n`;
+        if (includeAttrs) {
+            prompt += `The relevant ability modifier is calculated from their attributes above. Add the appropriate modifier to the chosen roll and compare against the DC to determine success or failure. Attack rolls are d20 + Modifier + Proficiency Bonus\n\n`;
+        } else {
+            prompt += `Compare the chosen roll against the DC to determine success or failure.\n\n`;
+        }
+        if (roll.allyRoll1 != null && roll.allyRoll2 != null) {
+            prompt += `Allied rolls (use only when an ally needs to roll this turn; otherwise ignore) — 1st roll: ${roll.allyRoll1}, 2nd roll: ${roll.allyRoll2}.\n`;
+            prompt += `Apply the same advantage/disadvantage logic for the ally: use the higher if advantage, the lower if disadvantage, otherwise the 1st roll.\n`;
+            prompt += `Use these ally rolls for any checks, saves, attacks, or contested rolls a friendly NPC or companion must make this turn.\n\n`;
+        }
+        if (roll.npcRoll1 != null && roll.npcRoll2 != null) {
+            prompt += `Enemy rolls (use only when an enemy needs to roll this turn; otherwise ignore) — 1st roll: ${roll.npcRoll1}, 2nd roll: ${roll.npcRoll2}.\n`;
+            prompt += `Apply the same advantage/disadvantage logic for the enemy: use the higher if advantage, the lower if disadvantage, otherwise the 1st roll.\n`;
+            prompt += `Use these enemy rolls for any opposing checks, saves, attacks, or contested rolls a hostile NPC must make this turn.\n`;
+        }
     }
+
+    if (dmg) {
+        if (prompt) prompt += '\n';
+        const diceList = dmg.dice
+            ? dmg.dice.map(d => `d${d.sides}→${d.result}`).join(', ')
+            : dmg.rolls.map(r => `d${dmg.sides}→${r}`).join(', ');
+        prompt += `${userName} also rolled dice: ${diceList}.\n`;
+        prompt += `Apply each die result to the relevant effect of the spell, ability, or attack used this turn (damage, healing, save penalty, duration, etc.).`;
+    }
+
+    if (favored) {
+        if (prompt) prompt += '\n';
+        prompt += `${userName} activates Favored by the Gods (Divine Soul, 1st level): `;
+        prompt += `If they failed a saving throw or missed with an attack roll, they may add 2d4 to the total, possibly changing the outcome. `;
+        prompt += `Rolled 2d4: ${favored.rolls.join(' + ')} = ${favored.total} to add.\n`;
+        prompt += `Once this feature is used, it cannot be used again until ${userName} finishes a short or long rest.`;
+    }
+
     return prompt;
+}
+
+/**
+ * Scan the last user message for [Spell Name, Level] references and build
+ * a prompt injecting matched spell descriptions from the spellbook cache.
+ */
+export function buildSpellInjectPrompt() {
+    if (!spellInjectEnabled) return '';
+
+    const chat = getContext().chat;
+    if (!chat?.length) return '';
+
+    let lastUserMsg = null;
+    for (let i = chat.length - 1; i >= 0; i--) {
+        if (chat[i].is_user) { lastUserMsg = chat[i].mes; break; }
+    }
+    if (!lastUserMsg) return '';
+
+    const casts = extractSpellCasts(lastUserMsg);
+    if (casts.length === 0) return '';
+
+    const seen = new Set();
+    const matched = [];
+    for (const { spell: name } of casts) {
+        const spell = findSpellInCache(name);
+        if (spell && !spell._fallback && !seen.has(spell.name)) {
+            seen.add(spell.name);
+            matched.push(spell);
+        }
+    }
+    if (matched.length === 0) return '';
+
+    const userName = getContext().name1 || '{{User}}';
+    const lines = [
+        `[${userName}'s Spell Details:]`,
+        `[${userName} is casting/referencing the following spell(s). Here are the full spell details for accurate narration:]`,
+    ];
+
+    for (const spell of matched) {
+        const levelSchool = spell.level === 0
+            ? `${schoolName(spell.school)} cantrip`
+            : `${formatLevel(spell.level)} ${schoolName(spell.school)}`;
+
+        lines.push('');
+        lines.push(`**${spell.name}** (${levelSchool})`);
+        lines.push(`Casting Time: ${fmtTime(spell.time)} | Range: ${fmtRange(spell.range)} | Duration: ${fmtDuration(spell.duration)}`);
+        lines.push(`Components: ${fmtComponents(spell.components)}`);
+
+        const desc = plainTextEntries(spell.entries);
+        if (desc) lines.push(desc);
+
+        if (spell.entriesHigherLevel?.length) {
+            const hl = plainTextEntries(spell.entriesHigherLevel);
+            if (hl) lines.push(`At Higher Levels: ${hl}`);
+        }
+    }
+
+    return lines.join('\n');
+}
+
+
+function findSpellInCache(name) {
+    const lower = name.toLowerCase();
+    for (const [, spell] of spellDataCache) {
+        if (spell.name?.toLowerCase() === lower) return spell;
+    }
+    return null;
+}
+
+function fmtTime(timeArr) {
+    if (!Array.isArray(timeArr) || !timeArr.length) return '—';
+    const t = timeArr[0];
+    return typeof t === 'string' ? t : `${t.number} ${t.unit}`;
+}
+
+function fmtRange(range) {
+    if (!range) return '—';
+    if (range.type === 'point') {
+        const d = range.distance;
+        if (!d || d.type === 'self') return 'Self';
+        if (d.type === 'touch') return 'Touch';
+        return `${d.amount} ${d.type}`;
+    }
+    if (range.type === 'special') return 'Special';
+    return '—';
+}
+
+function fmtDuration(durArr) {
+    if (!Array.isArray(durArr) || !durArr.length) return '—';
+    const d = durArr[0];
+    if (d.type === 'instant') return 'Instantaneous';
+    if (d.type === 'permanent') return 'Until dispelled';
+    if (d.type === 'timed') {
+        const conc = d.concentration ? 'Concentration, up to ' : '';
+        return `${conc}${d.duration.amount} ${d.duration.type}${d.duration.amount > 1 ? 's' : ''}`;
+    }
+    return '—';
+}
+
+function fmtComponents(comp) {
+    if (!comp) return '—';
+    const parts = [];
+    if (comp.v) parts.push('V');
+    if (comp.s) parts.push('S');
+    if (comp.m) {
+        const mText = typeof comp.m === 'object' ? comp.m.text : comp.m;
+        parts.push(mText ? `M (${mText})` : 'M');
+    }
+    return parts.join(', ') || '—';
+}
+
+function stripTags(str) {
+    if (typeof str !== 'string') return String(str ?? '');
+    return str.replace(/{@\w+ ([^}|]+)(?:\|[^}]*)?\}/g, '$1');
+}
+
+function plainTextEntries(entries) {
+    if (!Array.isArray(entries)) return '';
+    const parts = [];
+    for (const e of entries) {
+        if (typeof e === 'string') {
+            parts.push(stripTags(e));
+        } else if (e?.entries) {
+            if (e.name) parts.push(`${stripTags(e.name)}.`);
+            parts.push(plainTextEntries(e.entries));
+        } else if (e?.type === 'list' && Array.isArray(e.items)) {
+            for (const item of e.items) {
+                if (typeof item === 'string') parts.push(`- ${stripTags(item)}`);
+            }
+        }
+    }
+    return parts.join(' ');
 }

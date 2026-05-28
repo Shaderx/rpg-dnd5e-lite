@@ -3,9 +3,9 @@
  * Analog clock, season cards, dynamic location icons, weather emoji, spell cubes
  */
 
-import { extensionSettings, quests, headerInfo, setPendingDiceRoll } from '../core/state.js';
+import { extensionSettings, quests, headerInfo } from '../core/state.js';
 import { hasCurrency, formatCurrencyStrip, formatCurrencyTitle } from '../features/currencyParser.js';
-import { executeRoll, saveDiceRoll, updateDiceDisplay, clearDiceRoll } from '../features/dice.js';
+import { rollD20, updateDiceDisplay, clearDiceRoll, updateDamageDisplay } from '../features/dice.js';
 import { applyWeatherVisuals } from '../features/weatherVisuals.js';
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -477,6 +477,8 @@ function renderStripDice($container) {
     const $widget = $container.find('.dnd-strip-widget-dice');
     const $r1 = $widget.find('.dnd-strip-dice-r1');
     const $r2 = $widget.find('.dnd-strip-dice-r2');
+    const $ally1 = $widget.find('.dnd-strip-dice-ally1');
+    const $ally2 = $widget.find('.dnd-strip-dice-ally2');
     const $npc1 = $widget.find('.dnd-strip-dice-npc1');
     const $npc2 = $widget.find('.dnd-strip-dice-npc2');
     const $clearBtn = $widget.find('.dnd-strip-dice-clear');
@@ -486,30 +488,23 @@ function renderStripDice($container) {
     if (roll) {
         $r1.text(roll.roll1).attr('title', `Player 1st: ${roll.roll1}`);
         $r2.text(roll.roll2).attr('title', `Player 2nd: ${roll.roll2}`);
-        $npc1.text(roll.npcRoll1 ?? '--').attr('title', `NPC 1st: ${roll.npcRoll1 ?? '--'}`);
-        $npc2.text(roll.npcRoll2 ?? '--').attr('title', `NPC 2nd: ${roll.npcRoll2 ?? '--'}`);
+        $ally1.text(roll.allyRoll1 ?? '--').attr('title', `Ally 1st: ${roll.allyRoll1 ?? '--'}`);
+        $ally2.text(roll.allyRoll2 ?? '--').attr('title', `Ally 2nd: ${roll.allyRoll2 ?? '--'}`);
+        $npc1.text(roll.npcRoll1 ?? '--').attr('title', `Enemy 1st: ${roll.npcRoll1 ?? '--'}`);
+        $npc2.text(roll.npcRoll2 ?? '--').attr('title', `Enemy 2nd: ${roll.npcRoll2 ?? '--'}`);
         $clearBtn.show();
     } else {
         $r1.text('--').attr('title', '');
         $r2.text('--').attr('title', '');
+        $ally1.text('--').attr('title', '');
+        $ally2.text('--').attr('title', '');
         $npc1.text('--').attr('title', '');
         $npc2.text('--').attr('title', '');
         $clearBtn.hide();
     }
 
     $rollBtn.off('click.stripRoll').on('click.stripRoll', () => {
-        const r1 = executeRoll(1, 20);
-        const r2 = executeRoll(1, 20);
-        const npc1 = executeRoll(1, 20);
-        const npc2 = executeRoll(1, 20);
-        setPendingDiceRoll({
-            formula: '4d20',
-            roll1: r1.total, roll2: r2.total,
-            npcRoll1: npc1.total, npcRoll2: npc2.total,
-            rolls: [r1.total, r2.total, npc1.total, npc2.total],
-            timestamp: Date.now()
-        });
-        saveDiceRoll();
+        rollD20();
         updateStripWidgets();
         updateDiceDisplay();
     });
@@ -518,6 +513,20 @@ function renderStripDice($container) {
         clearDiceRoll();
         updateStripWidgets();
     });
+
+    const dmg = extensionSettings.lastDamageRoll;
+    const $dmgSep = $widget.find('.dnd-strip-damage-sep');
+    const $dmgText = $widget.find('.dnd-strip-damage-text');
+    if (dmg && (dmg.dice?.length || dmg.rolls?.length)) {
+        const chips = dmg.dice
+            ? dmg.dice.map(d => `d${d.sides}:${d.result}`)
+            : dmg.rolls.map(r => `d${dmg.sides}:${r}`);
+        $dmgSep.show();
+        $dmgText.text(chips.join(' ')).attr('title', chips.join(', ')).show();
+    } else {
+        $dmgSep.hide();
+        $dmgText.hide();
+    }
 }
 
 function renderStripQuests($container) {
@@ -531,17 +540,19 @@ function renderStripQuests($container) {
 
     const sorted = [...quests].sort((a, b) => {
         if (a.completed !== b.completed) return a.completed ? 1 : -1;
-        return (b.priority || 0) - (a.priority || 0);
+        return (b.priority || 1) - (a.priority || 1);
     });
+
+    const STRIP_EMOJIS = { 1: '📌', 2: '🛡️', 3: '👑' };
 
     const display = sorted.slice(0, 4);
     const html = display.map(q => {
         let cls = 'dnd-strip-quest-item';
+        const p = (q.priority >= 1 && q.priority <= 3) ? q.priority : 1;
         let prefix = '';
-        const p = q.priority || 0;
-        if (!q.completed && p >= 1) {
-            cls += ` dnd-quest-starred dnd-strip-priority-${p}`;
-            prefix = '★ ';
+        if (!q.completed) {
+            cls += ` dnd-strip-quest-typed dnd-strip-type-${p}`;
+            prefix = `${STRIP_EMOJIS[p]} `;
         }
         if (q.completed) cls += ' dnd-quest-done';
         const truncated = q.text.length > 20 ? q.text.substring(0, 18) + '…' : q.text;

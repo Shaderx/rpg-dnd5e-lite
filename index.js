@@ -5,14 +5,18 @@
 
 import { getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { eventSource, event_types } from '../../../../script.js';
-import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled } from './src/core/state.js';
-import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled } from './src/core/persistence.js';
+import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, spellbook, character } from './src/core/state.js';
+import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled, saveSendAttributesOnRoll, loadSendAttributesOnRoll, saveSpellInjectEnabled, loadSpellInjectEnabled, loadSpellbook, loadCharacter } from './src/core/persistence.js';
+import { importSpellbook, clearSpellbook, ensureSpellData } from './src/features/spellbook.js';
+import { renderSpellbook, hideSpellTooltip } from './src/rendering/spellbook.js';
+import { fetchClassIndex, fetchClassData, listClasses, getSubclasses, saveCharacterConfig, clearCharacter, ensureCharacterData } from './src/features/character.js';
+import { renderCharacter } from './src/rendering/character.js';
 import { onGenerationStarted, clearExtensionPrompts } from './src/generation/injector.js';
 import { renderQuests, addQuestFromInput } from './src/rendering/quests.js';
 import { renderInventory, addInventoryItemFromInput } from './src/rendering/inventory.js';
 import { renderSpellLog, addSpellFromInput, addRestFromButton, addShortRestFromButton, hardRefreshSpellLogFromButton } from './src/rendering/spellLog.js';
 import { refreshSpellLog } from './src/features/spellTracker.js';
-import { rollD20, updateDiceDisplay, clearDiceRoll } from './src/features/dice.js';
+import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, updateDamageDisplay, clearDamageRoll, rollFavored, updateFavoredDisplay } from './src/features/dice.js';
 import { refreshHeaderFromChat, updateHeaderFromMessage } from './src/features/headerParser.js';
 import { updateStripWidgets, updateHeaderWidgets } from './src/ui/desktop.js';
 import { setupMobileFab } from './src/ui/mobile.js';
@@ -48,6 +52,8 @@ function togglePower() {
         loadQuests();
         loadInventory();
         loadSpellTrackerDisabled();
+        loadSendAttributesOnRoll();
+        loadSpellInjectEnabled();
         refreshHeaderFromChat();
         if (!spellTrackerDisabled) refreshSpellLog();
         renderQuests();
@@ -56,6 +62,8 @@ function togglePower() {
         updateHeaderWidgets();
         updateStripWidgets();
         updateDiceDisplay();
+        updateDamageDisplay();
+        updateFavoredDisplay();
         updateSpellTrackerToggleUI();
     }
 }
@@ -91,6 +99,231 @@ function toggleSpellTracker() {
     }
 }
 
+// ─── Spellbook UI helpers ────────────────────────────────────
+
+function updateSpellbookVisibility() {
+    const $container = $('#dnd-spellbook-container');
+    if (spellbook?.items?.length) {
+        $container.show();
+    } else {
+        $container.hide();
+    }
+}
+
+function openSpellbookImportModal() {
+    $('#dnd-spellbook-paste-input').val('');
+    $('#dnd-spellbook-file-input').val('');
+    $('#dnd-spellbook-import-error').hide().text('');
+    $('#dnd-spellbook-import-popup').css('display', 'flex');
+}
+
+async function handleSpellbookImport(json) {
+    const $error = $('#dnd-spellbook-import-error');
+    const result = await importSpellbook(json);
+    if (!result.ok) {
+        $error.text(result.error).show();
+        return;
+    }
+    $error.hide();
+    $('#dnd-spellbook-import-popup').hide();
+    renderSpellbook();
+    updateSpellbookVisibility();
+    toastr.success(`Loaded: ${result.name} (${result.count} spells)`);
+}
+
+function handleSpellbookFileRead(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const json = JSON.parse(e.target.result);
+            await handleSpellbookImport(json);
+        } catch {
+            $('#dnd-spellbook-import-error').text('Failed to parse JSON file.').show();
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ─── Character UI helpers ────────────────────────────────────
+
+function updateCharacterVisibility() {
+    const $container = $('#dnd-character-container');
+    if (character) {
+        $container.show();
+    } else {
+        $container.hide();
+    }
+}
+
+let _charClassList = [];
+let _charSubclassList = [];
+
+async function openCharacterConfigModal() {
+    const $error = $('#dnd-character-config-error');
+    $error.hide().text('');
+
+    const $classSelect = $('#dnd-char-class-select');
+    const $sourceSelect = $('#dnd-char-source-select');
+    const $subSelect = $('#dnd-char-subclass-select');
+    const $level = $('#dnd-char-level-input');
+
+    $classSelect.html('<option value="">-- Loading --</option>');
+    $sourceSelect.html('<option value="">--</option>');
+    $subSelect.html('<option value="">(None)</option>');
+    $('#dnd-character-config-popup').css('display', 'flex');
+
+    const index = await fetchClassIndex();
+    if (!index) {
+        $classSelect.html('<option value="">Failed to load</option>');
+        return;
+    }
+
+    const uniqueNames = [...new Set(Object.keys(index).map(k => {
+        const parts = k.replace(/^class-/, '').replace(/\.json$/, '').split('-');
+        return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+    }))];
+
+    _charClassList = Object.entries(index).map(([filename]) => {
+        const cleanName = filename.replace(/^class-/, '').replace(/\.json$/, '');
+        return { filename, cleanName };
+    });
+
+    $classSelect.html('<option value="">-- Select class --</option>');
+    const seen = new Set();
+    for (const entry of _charClassList) {
+        if (seen.has(entry.cleanName)) continue;
+        seen.add(entry.cleanName);
+        const display = entry.cleanName.charAt(0).toUpperCase() + entry.cleanName.slice(1);
+        $classSelect.append(`<option value="${entry.cleanName}">${display}</option>`);
+    }
+
+    if (character) {
+        $classSelect.val(character.classFile?.replace(/^class-/, '').replace(/\.json$/, '') || '');
+        $level.val(character.level || 1);
+        if ($classSelect.val()) {
+            await onCharClassChanged();
+            if (character.classSource) {
+                $sourceSelect.val(character.classSource);
+                await onCharSourceChanged();
+                if (character.subclassShortName && character.subclassSource) {
+                    $subSelect.val(`${character.subclassShortName}|${character.subclassSource}`);
+                }
+            }
+        }
+    }
+}
+
+async function onCharClassChanged() {
+    const cleanName = $('#dnd-char-class-select').val();
+    const $sourceSelect = $('#dnd-char-source-select');
+    const $subSelect = $('#dnd-char-subclass-select');
+    $sourceSelect.html('<option value="">--</option>');
+    $subSelect.html('<option value="">(None)</option>');
+    _charSubclassList = [];
+
+    if (!cleanName) return;
+
+    const filename = `class-${cleanName}.json`;
+    const data = await fetchClassData(filename);
+    if (!data) {
+        $sourceSelect.html('<option value="">Failed to load</option>');
+        return;
+    }
+
+    const classes = listClasses(data);
+    if (classes.length === 1) {
+        $sourceSelect.html(`<option value="${classes[0].source}">${classes[0].source}</option>`);
+        $sourceSelect.val(classes[0].source);
+        await onCharSourceChanged();
+    } else {
+        $sourceSelect.html('<option value="">-- Select source --</option>');
+        for (const c of classes) {
+            $sourceSelect.append(`<option value="${c.source}">${c.name} (${c.source})</option>`);
+        }
+    }
+}
+
+async function onCharSourceChanged() {
+    const cleanName = $('#dnd-char-class-select').val();
+    const classSource = $('#dnd-char-source-select').val();
+    const $subSelect = $('#dnd-char-subclass-select');
+    $subSelect.html('<option value="">(None)</option>');
+    _charSubclassList = [];
+
+    if (!cleanName || !classSource) return;
+
+    const filename = `class-${cleanName}.json`;
+    const data = await fetchClassData(filename);
+    if (!data) return;
+
+    const classes = listClasses(data);
+    const classObj = classes.find(c => c.source === classSource);
+    if (!classObj) return;
+
+    const subs = getSubclasses(data, classObj.name, classSource);
+    _charSubclassList = subs;
+
+    for (const s of subs) {
+        $subSelect.append(`<option value="${s.shortName}|${s.source}">${s.name} (${s.source})</option>`);
+    }
+}
+
+async function saveCharacterFromModal() {
+    const cleanName = $('#dnd-char-class-select').val();
+    const classSource = $('#dnd-char-source-select').val();
+    const subVal = $('#dnd-char-subclass-select').val();
+    const level = Math.max(1, Math.min(20, parseInt($('#dnd-char-level-input').val()) || 1));
+    const $error = $('#dnd-character-config-error');
+
+    if (!cleanName || !classSource) {
+        $error.text('Select a class and source.').show();
+        return;
+    }
+
+    const filename = `class-${cleanName}.json`;
+    const data = await fetchClassData(filename);
+    if (!data) {
+        $error.text('Failed to load class data.').show();
+        return;
+    }
+
+    const classes = listClasses(data);
+    const classObj = classes.find(c => c.source === classSource);
+    if (!classObj) {
+        $error.text('Class not found in data.').show();
+        return;
+    }
+
+    let subclassName = null, subclassShortName = null, subclassSource = null;
+    if (subVal) {
+        const [sn, ss] = subVal.split('|');
+        const sub = _charSubclassList.find(s => s.shortName === sn && s.source === ss);
+        if (sub) {
+            subclassName = sub.name;
+            subclassShortName = sub.shortName;
+            subclassSource = sub.source;
+        }
+    }
+
+    const config = {
+        className: classObj.name,
+        classSource,
+        classFile: filename,
+        subclassName,
+        subclassShortName,
+        subclassSource,
+        level,
+    };
+
+    saveCharacterConfig(config);
+    $error.hide();
+    $('#dnd-character-config-popup').hide();
+    renderCharacter();
+    updateCharacterVisibility();
+    toastr.success(`Character: ${config.className}${subclassName ? ` (${subclassName})` : ''} Lv ${level}`);
+}
+
 // ─── Refresh from chat ──────────────────────────────────────
 
 function handleRefreshFromChat() {
@@ -107,6 +340,8 @@ function handleRefreshFromChat() {
     updateHeaderWidgets();
     updateStripWidgets();
     updateDiceDisplay();
+    updateDamageDisplay();
+    updateFavoredDisplay();
 
     if (headerResult) {
         toastr.success('Refreshed from chat');
@@ -124,8 +359,9 @@ function onMessageReceived(messageIndex) {
     const message = context.chat?.[messageIndex];
     if (!message || message.is_user) return;
 
-    // Auto-reset dice roll after every LLM reply so old rolls don't carry over
+    // Auto-reset dice rolls after every LLM reply so old rolls don't carry over
     clearDiceRoll();
+    clearDamageRoll();
     updateStripWidgets();
 
     const result = updateHeaderFromMessage(message.mes);
@@ -167,7 +403,10 @@ function onChatChanged() {
     loadQuests();
     loadInventory();
     loadSpellTrackerDisabled();
+    loadSendAttributesOnRoll();
+    loadSpellInjectEnabled();
     loadSpellLog();
+    loadSpellbook();
     refreshHeaderFromChat();
     if (!spellTrackerDisabled) refreshSpellLog();
 
@@ -177,8 +416,19 @@ function onChatChanged() {
     updateHeaderWidgets();
     updateStripWidgets();
     updateDiceDisplay();
+    updateDamageDisplay();
+    updateFavoredDisplay();
     updatePowerButtonState();
     updateSpellTrackerToggleUI();
+
+    ensureSpellData().then(() => renderSpellbook());
+    updateSpellbookVisibility();
+
+    loadCharacter();
+    ensureCharacterData().then(() => {
+        renderCharacter();
+        updateCharacterVisibility();
+    });
 }
 
 // ─── Attribute editor ───────────────────────────────────────
@@ -277,6 +527,8 @@ async function initUI() {
     loadQuests();
     loadInventory();
     loadSpellTrackerDisabled();
+    loadSendAttributesOnRoll();
+    loadSpellInjectEnabled();
     loadSpellLog();
     refreshHeaderFromChat();
     if (!spellTrackerDisabled) refreshSpellLog();
@@ -286,9 +538,23 @@ async function initUI() {
     if (!spellTrackerDisabled) renderSpellLog();
     updateHeaderWidgets();
     updateDiceDisplay();
+    updateDamageDisplay();
+    updateFavoredDisplay();
     updateStripWidgets();
     updatePowerButtonState();
     updateSpellTrackerToggleUI();
+
+    // Spellbook
+    loadSpellbook();
+    ensureSpellData().then(() => renderSpellbook());
+    updateSpellbookVisibility();
+
+    // Character
+    loadCharacter();
+    ensureCharacterData().then(() => {
+        renderCharacter();
+        updateCharacterVisibility();
+    });
 
     // ─── Event bindings ─────────────────────────────────
 
@@ -306,6 +572,20 @@ async function initUI() {
     $('#dnd-clear-roll').on('click', () => {
         clearDiceRoll();
         updateStripWidgets();
+    });
+
+    // Damage dice — each click adds one die to the pool
+    $('.dnd-damage-die-btn').on('click', function () {
+        const sides = parseInt($(this).data('sides'));
+        addDamageDie(sides);
+        updateStripWidgets();
+    });
+    $('#dnd-damage-clear').on('click', () => {
+        clearDamageRoll();
+        updateStripWidgets();
+    });
+    $('#dnd-favored-btn').on('click', () => {
+        rollFavored();
     });
 
     // Quest — inline add
@@ -359,6 +639,89 @@ async function initUI() {
     $('#dnd-spell-tracker-toggle').on('click', toggleSpellTracker);
     updateSpellTrackerToggleUI();
 
+    // Spellbook button — click to toggle, shift+click to import
+    $('#dnd-spellbook-btn').on('click', (e) => {
+        if (e.shiftKey) {
+            openSpellbookImportModal();
+        } else if (spellbook?.items?.length) {
+            $('#dnd-spellbook-container').toggle();
+        } else {
+            openSpellbookImportModal();
+        }
+    });
+
+    // Spellbook clear
+    $('#dnd-spellbook-clear').on('click', () => {
+        clearSpellbook();
+        renderSpellbook();
+        updateSpellbookVisibility();
+        hideSpellTooltip();
+        toastr.info('Spellbook removed');
+    });
+
+    // Spellbook import modal
+    $('#dnd-spellbook-import-close').on('click', () => $('#dnd-spellbook-import-popup').hide());
+    $('#dnd-spellbook-file-input').on('change', function () {
+        handleSpellbookFileRead(this.files[0]);
+    });
+    $('#dnd-spellbook-dropzone').on('click', (e) => {
+        if (e.target.id !== 'dnd-spellbook-file-input') {
+            document.getElementById('dnd-spellbook-file-input').click();
+        }
+    });
+    $('#dnd-spellbook-dropzone').on('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        $('#dnd-spellbook-dropzone').addClass('dnd-spellbook-dropzone-hover');
+    });
+    $('#dnd-spellbook-dropzone').on('dragleave drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        $('#dnd-spellbook-dropzone').removeClass('dnd-spellbook-dropzone-hover');
+    });
+    $('#dnd-spellbook-dropzone').on('drop', (e) => {
+        const file = e.originalEvent.dataTransfer?.files?.[0];
+        handleSpellbookFileRead(file);
+    });
+    $('#dnd-spellbook-import-btn').on('click', async () => {
+        const text = $('#dnd-spellbook-paste-input').val()?.trim();
+        if (!text) {
+            $('#dnd-spellbook-import-error').text('Paste JSON or use the file input above.').show();
+            return;
+        }
+        try {
+            const json = JSON.parse(text);
+            await handleSpellbookImport(json);
+        } catch {
+            $('#dnd-spellbook-import-error').text('Invalid JSON syntax.').show();
+        }
+    });
+
+    // Character button — click to toggle, shift+click to configure
+    $('#dnd-character-btn').on('click', (e) => {
+        if (e.shiftKey) {
+            openCharacterConfigModal();
+        } else if (character) {
+            $('#dnd-character-container').toggle();
+        } else {
+            openCharacterConfigModal();
+        }
+    });
+
+    // Character clear
+    $('#dnd-character-clear').on('click', () => {
+        clearCharacter();
+        renderCharacter();
+        updateCharacterVisibility();
+        toastr.info('Character removed');
+    });
+
+    // Character config modal
+    $('#dnd-character-config-close').on('click', () => $('#dnd-character-config-popup').hide());
+    $('#dnd-char-class-select').on('change', onCharClassChanged);
+    $('#dnd-char-source-select').on('change', onCharSourceChanged);
+    $('#dnd-character-config-save').on('click', saveCharacterFromModal);
+
     // Attribute editor modal
     $('#dnd-open-attr-editor').on('click', () => {
         populateAttrEditor();
@@ -380,7 +743,9 @@ async function initUI() {
     $('#dnd-open-settings').on('click', () => {
         $('#dnd-setting-strip-widgets').prop('checked', extensionSettings.stripWidgetsEnabled);
         $('#dnd-setting-position').val(extensionSettings.panelPosition || 'right');
-        $('#dnd-setting-quest-depth').val(extensionSettings.questDepth ?? 4);
+        $('#dnd-setting-injection-depth').val(extensionSettings.injectionDepth ?? 0);
+        $('#dnd-setting-send-attributes').prop('checked', sendAttributesOnRoll);
+        $('#dnd-setting-spell-inject').prop('checked', spellInjectEnabled);
         $('#dnd-setting-weather-visuals').prop('checked', extensionSettings.weatherVisuals?.enabled ?? true);
         $('#dnd-setting-weather-particles').val(extensionSettings.weatherVisuals?.particleCount ?? 200);
         $('#dnd-setting-lighting-overlay').prop('checked', extensionSettings.lightingOverlay?.enabled ?? true);
@@ -403,9 +768,17 @@ async function initUI() {
         saveSettings();
         applyPanelPosition();
     });
-    $('#dnd-setting-quest-depth').on('change', function () {
-        extensionSettings.questDepth = parseInt(String($(this).val())) || 4;
+    $('#dnd-setting-injection-depth').on('change', function () {
+        extensionSettings.injectionDepth = parseInt(String($(this).val())) || 0;
         saveSettings();
+    });
+    $('#dnd-setting-send-attributes').on('change', function () {
+        setSendAttributesOnRoll($(this).prop('checked'));
+        saveSendAttributesOnRoll(sendAttributesOnRoll);
+    });
+    $('#dnd-setting-spell-inject').on('change', function () {
+        setSpellInjectEnabled($(this).prop('checked'));
+        saveSpellInjectEnabled(spellInjectEnabled);
     });
 
     // Weather visuals settings
@@ -457,10 +830,13 @@ async function initUI() {
 function destroyUI() {
     clearExtensionPrompts();
     destroyWeatherVisuals();
+    hideSpellTooltip();
     $('#dnd-panel').remove();
     $('#dnd-mobile-toggle').remove();
     $('#dnd-attr-editor-popup').remove();
     $('#dnd-settings-popup').remove();
+    $('#dnd-spellbook-import-popup').remove();
+    $('#dnd-character-config-popup').remove();
 }
 
 // ─── Entry point ────────────────────────────────────────────

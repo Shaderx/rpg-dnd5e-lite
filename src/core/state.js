@@ -29,12 +29,14 @@ export const extensionSettings = {
 
     // Dice
     lastDiceRoll: null,
+    lastDamageRoll: null,
+    lastFavoredRoll: null,
 
     // Strip widgets
     stripWidgetsEnabled: true,
 
-    // Quest injection depth (Author's Note depth)
-    questDepth: 4,
+    // Injection depth for all prompts (0 = right before user message)
+    injectionDepth: 0,
 
     // UI
     panelPosition: 'right',
@@ -92,6 +94,30 @@ export function setSpellLog(val) { spellLog = val; }
 // Per-chat flag: when true, spell tracker + injection is disabled for this chat.
 export let spellTrackerDisabled = false;
 export function setSpellTrackerDisabled(val) { spellTrackerDisabled = val; }
+
+// Per-chat flag: when true, attributes are included in the dice roll prompt.
+export let sendAttributesOnRoll = true;
+export function setSendAttributesOnRoll(val) { sendAttributesOnRoll = val; }
+
+// Per-chat flag: when true, [Spell, Lv] references in user messages inject spell details into context.
+export let spellInjectEnabled = false;
+export function setSpellInjectEnabled(val) { spellInjectEnabled = val; }
+
+// Spellbook: per-chat imported spell list from 5e.tools sublist JSON.
+// Stores { name, items: [{h}], sources: [] } from the imported file.
+export let spellbook = null;
+export function setSpellbook(val) { spellbook = val; }
+
+// In-memory cache of resolved spell data from 5e.tools API (hash -> spell object).
+// Not persisted — refetched on demand.
+export const spellDataCache = new Map();
+
+// Character: per-chat class/subclass/level config.
+export let character = null;
+export function setCharacter(val) { character = val; }
+
+// In-memory cache of 5e.tools class data files (filename -> parsed JSON).
+export const classDataCache = new Map();
 
 export let pendingDiceRoll = null;
 export function setPendingDiceRoll(val) { pendingDiceRoll = val; }

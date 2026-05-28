@@ -67,12 +67,6 @@ export function setupCollapseToggle() {
         updateCollapseToggleIcon();
     });
 
-    // Default: start collapsed on desktop
-    if (window.innerWidth > 1000) {
-        $panel.addClass('dnd-collapsed');
-        updateStripWidgets();
-    }
-
     updateCollapseToggleIcon();
 }
 

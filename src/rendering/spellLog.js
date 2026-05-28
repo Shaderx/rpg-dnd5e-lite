@@ -6,7 +6,7 @@
 
 import { spellLog } from '../core/state.js';
 import { saveSpellLog } from '../core/persistence.js';
-import { addManualSpellCast, addManualRest, addManualShortRest, hardRefreshSpellLog } from '../features/spellTracker.js';
+import { addManualSpellCast, addManualRest, addManualShortRest, hardRefreshSpellLog, actionLabels } from '../features/spellTracker.js';
 
 let dragSrcIdx = null;
 
@@ -60,10 +60,13 @@ export function renderSpellLog() {
             iconClass = 'dnd-spell-log-icon-rest';
             label = escapeHtml(entry.text);
         } else {
+            const action = entry.action || 'cast';
             typeClass = 'dnd-spell-log-cast';
-            icon = 'fa-wand-sparkles';
+            icon = action === 'cast' ? 'fa-wand-sparkles' : 'fa-bolt';
             iconClass = 'dnd-spell-log-icon-cast';
-            label = `Cast <strong>${escapeHtml(entry.spell)}</strong>`;
+            const { present } = actionLabels(action);
+            const detailStr = entry.details ? ` <span class="dnd-spell-log-details">(${escapeHtml(entry.details)})</span>` : '';
+            label = `${present} <strong>${escapeHtml(entry.spell)}</strong>${detailStr}`;
         }
         const timestamp = formatTimestamp(entry);
         const manualTag = entry._manual ? '<span class="dnd-spell-log-manual-tag">manual</span>' : '';

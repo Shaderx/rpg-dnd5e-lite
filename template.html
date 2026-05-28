@@ -52,21 +52,36 @@
         <!-- Strip: omni extras (dynamically populated) -->
         <div class="dnd-strip-extras-container"></div>
 
-        <!-- Strip dice roller (4d20: 2 player + 2 NPC) -->
+        <!-- Strip dice roller (6d20: player + ally + enemy) -->
         <div class="dnd-strip-widget dnd-strip-widget-dice">
-            <button class="dnd-strip-dice-roll" title="Roll d20 (Player + NPC)">
+            <button class="dnd-strip-dice-roll" title="Roll d20 (Player + Ally + Enemy)">
                 <i class="fa-solid fa-dice-d20"></i>
             </button>
-            <span class="dnd-strip-dice-result dnd-strip-dice-r1">--</span>
-            <span class="dnd-strip-dice-sep">/</span>
-            <span class="dnd-strip-dice-result dnd-strip-dice-r2">--</span>
-            <span class="dnd-strip-dice-sep dnd-strip-dice-npc-sep">|</span>
-            <span class="dnd-strip-dice-result dnd-strip-dice-npc dnd-strip-dice-npc1">--</span>
-            <span class="dnd-strip-dice-sep dnd-strip-dice-npc-sep">/</span>
-            <span class="dnd-strip-dice-result dnd-strip-dice-npc dnd-strip-dice-npc2">--</span>
+            <div class="dnd-strip-dice-rolls">
+                <div class="dnd-strip-dice-row dnd-strip-dice-row-player">
+                    <span class="dnd-strip-dice-row-label">You</span>
+                    <span class="dnd-strip-dice-result dnd-strip-dice-r1">--</span>
+                    <span class="dnd-strip-dice-sep">/</span>
+                    <span class="dnd-strip-dice-result dnd-strip-dice-r2">--</span>
+                </div>
+                <div class="dnd-strip-dice-row dnd-strip-dice-row-ally">
+                    <span class="dnd-strip-dice-row-label">Ally</span>
+                    <span class="dnd-strip-dice-result dnd-strip-dice-ally dnd-strip-dice-ally1">--</span>
+                    <span class="dnd-strip-dice-sep">/</span>
+                    <span class="dnd-strip-dice-result dnd-strip-dice-ally dnd-strip-dice-ally2">--</span>
+                </div>
+                <div class="dnd-strip-dice-row dnd-strip-dice-row-enemy">
+                    <span class="dnd-strip-dice-row-label">Foe</span>
+                    <span class="dnd-strip-dice-result dnd-strip-dice-npc dnd-strip-dice-npc1">--</span>
+                    <span class="dnd-strip-dice-sep">/</span>
+                    <span class="dnd-strip-dice-result dnd-strip-dice-npc dnd-strip-dice-npc2">--</span>
+                </div>
+            </div>
             <button class="dnd-strip-dice-clear" title="Clear roll" style="display:none;">
                 <i class="fa-solid fa-xmark"></i>
             </button>
+            <span class="dnd-strip-damage-sep" style="display:none;">·</span>
+            <span class="dnd-strip-damage-text" style="display:none;"></span>
         </div>
 
         <!-- Strip quest summary -->
@@ -162,38 +177,122 @@
                 <div class="dnd-omni-widgets" id="dnd-omni-widgets"></div>
             </div>
 
-            <!-- Dice roller (4d20: 2 player + 2 NPC for advantage/disadvantage) -->
+            <!-- Dice roller (6d20: player + ally + enemy for advantage/disadvantage) -->
             <div class="dnd-dice-section">
-                <button id="dnd-roll-btn" class="dnd-roll-btn" title="Roll 4d20 (Player + NPC)">
-                    <i class="fa-solid fa-dice-d20"></i>
-                    <span>Roll d20</span>
-                </button>
+                <div class="dnd-dice-left-stack">
+                    <button id="dnd-roll-btn" class="dnd-roll-btn" title="Roll 6d20 (Player + Ally + Enemy)">
+                        <i class="fa-solid fa-dice-d20"></i>
+                        <span>Roll</span>
+                    </button>
+                    <button id="dnd-favored-btn" class="dnd-favored-toggle" title="Favored by the Gods — Toggle on to auto-roll 2d4 with every d20 roll. Once per short/long rest.">
+                        <i class="fa-solid fa-hands-praying"></i>
+                        <span>Favored</span>
+                    </button>
+                </div>
                 <div class="dnd-roll-result" id="dnd-roll-result" style="display:none;">
-                    <div class="dnd-roll-group dnd-roll-group-player">
-                        <span class="dnd-roll-group-label">Player</span>
-                        <div class="dnd-roll-pair">
-                            <span class="dnd-roll-label">1st</span>
-                            <span class="dnd-roll-value" id="dnd-roll-value-1"></span>
+                    <div class="dnd-roll-groups">
+                        <div class="dnd-roll-group dnd-roll-group-player">
+                            <span class="dnd-roll-group-label">You</span>
+                            <div class="dnd-roll-pair">
+                                <span class="dnd-roll-label">1</span>
+                                <span class="dnd-roll-value" id="dnd-roll-value-1"></span>
+                            </div>
+                            <div class="dnd-roll-pair">
+                                <span class="dnd-roll-label">2</span>
+                                <span class="dnd-roll-value" id="dnd-roll-value-2"></span>
+                            </div>
                         </div>
-                        <div class="dnd-roll-pair">
-                            <span class="dnd-roll-label">2nd</span>
-                            <span class="dnd-roll-value" id="dnd-roll-value-2"></span>
+                        <div class="dnd-roll-group dnd-roll-group-ally">
+                            <span class="dnd-roll-group-label">Ally</span>
+                            <div class="dnd-roll-pair">
+                                <span class="dnd-roll-label">1</span>
+                                <span class="dnd-roll-value dnd-roll-ally" id="dnd-roll-ally-1"></span>
+                            </div>
+                            <div class="dnd-roll-pair">
+                                <span class="dnd-roll-label">2</span>
+                                <span class="dnd-roll-value dnd-roll-ally" id="dnd-roll-ally-2"></span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="dnd-roll-group dnd-roll-group-npc">
-                        <span class="dnd-roll-group-label">NPC</span>
-                        <div class="dnd-roll-pair">
-                            <span class="dnd-roll-label">1st</span>
-                            <span class="dnd-roll-value dnd-roll-npc" id="dnd-roll-npc-1"></span>
-                        </div>
-                        <div class="dnd-roll-pair">
-                            <span class="dnd-roll-label">2nd</span>
-                            <span class="dnd-roll-value dnd-roll-npc" id="dnd-roll-npc-2"></span>
+                        <div class="dnd-roll-group dnd-roll-group-enemy">
+                            <span class="dnd-roll-group-label">Foe</span>
+                            <div class="dnd-roll-pair">
+                                <span class="dnd-roll-label">1</span>
+                                <span class="dnd-roll-value dnd-roll-npc" id="dnd-roll-npc-1"></span>
+                            </div>
+                            <div class="dnd-roll-pair">
+                                <span class="dnd-roll-label">2</span>
+                                <span class="dnd-roll-value dnd-roll-npc" id="dnd-roll-npc-2"></span>
+                            </div>
                         </div>
                     </div>
                     <button id="dnd-clear-roll" class="dnd-clear-roll-btn" title="Clear roll">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
+                    <div class="dnd-favored-rolls-display" id="dnd-favored-result" style="display:none;">
+                        <span class="dnd-favored-tag">2d4</span>
+                        <span class="dnd-favored-values" id="dnd-favored-rolls"></span>
+                        <span class="dnd-favored-total" id="dnd-favored-total"></span>
+                    </div>
+                </div>
+                <div class="dnd-dice-btn-stack">
+                    <button id="dnd-character-btn" class="dnd-character-btn" title="Character (Shift+click to configure)">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <span>Character</span>
+                    </button>
+                    <button id="dnd-spellbook-btn" class="dnd-spellbook-btn" title="Spellbook (Shift+click to import)">
+                        <i class="fa-solid fa-book-open"></i>
+                        <span>Spellbook</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Damage dice — each click adds one die, supports mixed types -->
+            <div class="dnd-damage-section">
+                <div class="dnd-damage-controls">
+                    <span class="dnd-damage-label">DMG</span>
+                    <button class="dnd-damage-die-btn" data-sides="4" title="Roll d4">d4</button>
+                    <button class="dnd-damage-die-btn" data-sides="6" title="Roll d6">d6</button>
+                    <button class="dnd-damage-die-btn" data-sides="8" title="Roll d8">d8</button>
+                    <button class="dnd-damage-die-btn" data-sides="10" title="Roll d10">d10</button>
+                    <button class="dnd-damage-die-btn" data-sides="12" title="Roll d12">d12</button>
+                </div>
+                <div class="dnd-damage-result" id="dnd-damage-result" style="display:none;">
+                    <span class="dnd-damage-dice" id="dnd-damage-dice"></span>
+                    <button class="dnd-damage-clear" id="dnd-damage-clear" title="Clear dice">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Character (toggled by Character button) -->
+            <div id="dnd-character-container" class="dnd-content-box" style="display:none;">
+                <div class="dnd-section">
+                    <div class="dnd-section-header">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <span id="dnd-character-title">Character</span>
+                        <button id="dnd-character-clear" class="dnd-character-clear-btn" title="Remove character">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                    <div id="dnd-character-content" class="dnd-character-content">
+                        <div class="dnd-empty-state">No character configured</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Spellbook (toggled by Spellbook button) -->
+            <div id="dnd-spellbook-container" class="dnd-content-box" style="display:none;">
+                <div class="dnd-section">
+                    <div class="dnd-section-header">
+                        <i class="fa-solid fa-book-open"></i>
+                        <span id="dnd-spellbook-title">Spellbook</span>
+                        <button id="dnd-spellbook-clear" class="dnd-spellbook-clear-btn" title="Remove spellbook">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                    <div id="dnd-spellbook-list" class="dnd-spellbook-list">
+                        <div class="dnd-empty-state">No spellbook loaded</div>
+                    </div>
                 </div>
             </div>
 
@@ -245,7 +344,7 @@
                     <div class="dnd-spell-log-empty">No spells tracked</div>
                 </div>
                 <div class="dnd-spell-log-actions">
-                    <input type="text" id="dnd-add-spell-input" class="dnd-spell-log-input" placeholder="Spell name..." />
+                    <input type="text" id="dnd-add-spell-input" class="dnd-spell-log-input" placeholder="activate, invoke, channel, use, consume, read, trigger, play..." />
                     <button id="dnd-add-spell-btn" class="dnd-spell-log-action-btn" title="Add spell cast">
                         <i class="fa-solid fa-wand-sparkles"></i>
                     </button>
@@ -320,9 +419,17 @@
                 </select>
             </div>
             <div class="dnd-setting-row">
-                <span>Quest injection depth (AN):</span>
-                <input type="number" id="dnd-setting-quest-depth" min="0" max="99" value="4" style="width:3.5em;" />
+                <span>Injection depth (AN):</span>
+                <input type="number" id="dnd-setting-injection-depth" min="0" max="99" value="0" style="width:3.5em;" />
             </div>
+            <label class="dnd-toggle-label">
+                <input type="checkbox" id="dnd-setting-send-attributes" />
+                <span>Send attributes with dice rolls</span>
+            </label>
+            <label class="dnd-toggle-label">
+                <input type="checkbox" id="dnd-setting-spell-inject" />
+                <span>Inject spell info from [Spell, Lv] in message</span>
+            </label>
 
             <div style="margin-top:0.8em; padding-top:0.8em; border-top:1px solid var(--dnd-border);">
                 <label class="dnd-toggle-label" style="margin-bottom:0.5em;">
@@ -362,6 +469,68 @@
                     </select>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Spellbook Import Modal -->
+<div id="dnd-spellbook-import-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-spellbook-import">
+        <div class="dnd-modal-header">
+            <span>Import Spellbook</span>
+            <button class="dnd-modal-close" id="dnd-spellbook-import-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body">
+            <p class="dnd-spellbook-import-hint">Import a spell sublist exported from <a href="https://5e.tools/spells.html" target="_blank" rel="noopener">5e.tools</a>.</p>
+            <div id="dnd-spellbook-dropzone" class="dnd-spellbook-dropzone">
+                <i class="fa-solid fa-file-import"></i>
+                <span>Drop JSON file here or click to browse</span>
+                <input type="file" id="dnd-spellbook-file-input" accept=".json" />
+            </div>
+            <div class="dnd-spellbook-import-or">or paste JSON below</div>
+            <textarea id="dnd-spellbook-paste-input" class="dnd-spellbook-paste-input" rows="5" placeholder='{"fileType":"spells-sublist", "items":[...], ...}'></textarea>
+            <div id="dnd-spellbook-import-error" class="dnd-spellbook-import-error" style="display:none;"></div>
+        </div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-spellbook-import-btn" class="dnd-btn dnd-btn-primary">Import</button>
+        </div>
+    </div>
+</div>
+
+<!-- Character Config Modal -->
+<div id="dnd-character-config-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-character-config">
+        <div class="dnd-modal-header">
+            <span>Configure Character</span>
+            <button class="dnd-modal-close" id="dnd-character-config-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body">
+            <div class="dnd-setting-row">
+                <span>Class:</span>
+                <select id="dnd-char-class-select">
+                    <option value="">-- Loading --</option>
+                </select>
+            </div>
+            <div class="dnd-setting-row">
+                <span>Source:</span>
+                <select id="dnd-char-source-select">
+                    <option value="">-- Select class first --</option>
+                </select>
+            </div>
+            <div class="dnd-setting-row">
+                <span>Subclass:</span>
+                <select id="dnd-char-subclass-select">
+                    <option value="">-- Select class first --</option>
+                </select>
+            </div>
+            <div class="dnd-setting-row">
+                <span>Level:</span>
+                <input type="number" id="dnd-char-level-input" min="1" max="20" value="1" style="width:3.5em;" />
+            </div>
+            <div id="dnd-character-config-error" class="dnd-spellbook-import-error" style="display:none;"></div>
+        </div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-character-config-save" class="dnd-btn dnd-btn-primary">Save</button>
         </div>
     </div>
 </div>

@@ -1,6 +1,6 @@
 /**
  * D&D 5e Lite - Quest Renderer
- * Renders quest list with drag-to-reorder, 3-tier star priority, and completed section
+ * Renders quest list with drag-to-reorder, 3-type classification, and completed section
  */
 
 import { quests } from '../core/state.js';
@@ -23,12 +23,18 @@ function normalizeOrder() {
     quests.push(...active, ...done);
 }
 
-const PRIORITY_LABELS = ['none', 'minor', 'important', 'critical'];
+const QUEST_TYPES = { 1: 'Reminder', 2: 'Side Errand', 3: 'Main Quest' };
+const QUEST_EMOJIS = { 1: '📌', 2: '🛡️', 3: '👑' };
 
-function starHtml(priority) {
-    const p = Math.max(0, Math.min(3, priority || 0));
-    if (p === 0) return '<i class="fa-regular fa-star"></i>';
-    return '<i class="fa-solid fa-star"></i>';
+function normalizePriority(priority) {
+    const p = priority || 1;
+    if (p < 1 || p > 3) return 1;
+    return p;
+}
+
+function typeEmojiHtml(priority) {
+    const p = normalizePriority(priority);
+    return `<span class="dnd-quest-type-emoji">${QUEST_EMOJIS[p]}</span>`;
 }
 
 /**
@@ -54,11 +60,11 @@ export function renderQuests() {
     let html = '';
 
     for (const { q, i } of activeQuests) {
-        const pClass = q.priority >= 1 ? ` dnd-priority-${q.priority}` : '';
-        html += `<div class="dnd-quest-item${pClass}" data-idx="${i}">
+        const p = normalizePriority(q.priority);
+        html += `<div class="dnd-quest-item dnd-quest-type-${p}" data-idx="${i}">
             <span class="dnd-quest-drag-handle" title="Drag to reorder"><i class="fa-solid fa-grip-vertical"></i></span>
-            <button class="dnd-quest-star-btn" data-idx="${i}" title="${PRIORITY_LABELS[q.priority || 0]} — click to cycle">
-                ${starHtml(q.priority)}
+            <button class="dnd-quest-type-btn" data-idx="${i}" title="${QUEST_TYPES[p]} — click to cycle">
+                ${typeEmojiHtml(p)}
             </button>
             <span class="dnd-quest-text" contenteditable="true" data-idx="${i}">${escapeHtml(q.text)}</span>
             <button class="dnd-quest-check" data-idx="${i}" title="Mark completed">
@@ -73,7 +79,10 @@ export function renderQuests() {
     if (completedQuests.length > 0) {
         html += '<div class="dnd-quests-completed-divider"><span>Completed</span></div>';
         for (const { q, i } of completedQuests) {
-            html += `<div class="dnd-quest-item dnd-quest-completed" data-idx="${i}">
+            const p = normalizePriority(q.priority);
+            html += `<div class="dnd-quest-item dnd-quest-completed dnd-quest-type-${p}" data-idx="${i}">
+                <span class="dnd-quest-drag-handle" title="Drag to reorder"><i class="fa-solid fa-grip-vertical"></i></span>
+                <span class="dnd-quest-type-badge" title="${QUEST_TYPES[p]}">${QUEST_EMOJIS[p]}</span>
                 <button class="dnd-quest-check dnd-checked" data-idx="${i}" title="Restore quest">
                     <i class="fa-solid fa-square-check"></i>
                 </button>
@@ -90,12 +99,13 @@ export function renderQuests() {
 }
 
 function bindQuestEvents(container) {
-    // Priority cycle: 0(none)→1(minor ★)→2(important ★★★)→3(critical ★★★★★)→0
-    container.querySelectorAll('.dnd-quest-star-btn').forEach(btn => {
+    // Type cycle: 1(📌 Reminder)→2(🛡️ Side Errand)→3(👑 Main Quest)→1
+    container.querySelectorAll('.dnd-quest-type-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const idx = parseInt(btn.dataset.idx);
             if (!quests[idx]) return;
-            quests[idx].priority = ((quests[idx].priority || 0) + 1) % 4;
+            const p = normalizePriority(quests[idx].priority);
+            quests[idx].priority = (p % 3) + 1;
             persist();
             renderQuests();
         });
@@ -144,7 +154,7 @@ function bindQuestEvents(container) {
         });
     });
 
-    // Drag-and-drop reorder (active quests only, initiated from handle)
+    // Drag-and-drop reorder (initiated from handle)
     container.querySelectorAll('.dnd-quest-drag-handle').forEach(handle => {
         handle.addEventListener('mousedown', () => {
             const item = handle.closest('.dnd-quest-item');
@@ -208,7 +218,7 @@ export function addQuestFromInput() {
     const text = input.value.trim();
     if (!text) return;
 
-    quests.push({ text, priority: 0, completed: false });
+    quests.push({ text, priority: 1, completed: false });
     input.value = '';
     persist();
     renderQuests();

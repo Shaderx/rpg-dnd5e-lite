@@ -5,7 +5,7 @@
 
 import { getContext } from '../../../../../extensions.js';
 import { saveSettingsDebounced, chat_metadata, saveChatDebounced } from '../../../../../../script.js';
-import { extensionName, extensionSettings, defaultAttributes, defaultAttributeSchema, buildDefaultAttributes, setChatAttributes, setChatAttributeSchema, setQuests, setInventory, setSpellLog, setSpellTrackerDisabled } from './state.js';
+import { extensionName, extensionSettings, defaultAttributes, defaultAttributeSchema, buildDefaultAttributes, setChatAttributes, setChatAttributeSchema, setQuests, setInventory, setSpellLog, setSpellTrackerDisabled, setSendAttributesOnRoll, setSpellInjectEnabled, setSpellbook, setCharacter } from './state.js';
 
 /**
  * Save extension settings to SillyTavern storage.
@@ -34,11 +34,16 @@ export function loadSettings() {
                 saveChatDebounced();
             }
             delete stored.attributes;
-            Object.assign(extensionSettings, stored);
-            saveSettings();
-        } else {
-            Object.assign(extensionSettings, stored);
         }
+
+        // Migrate legacy questDepth → injectionDepth
+        if ('questDepth' in stored && !('injectionDepth' in stored)) {
+            stored.injectionDepth = stored.questDepth;
+        }
+        delete stored.questDepth;
+
+        Object.assign(extensionSettings, stored);
+        saveSettings();
     }
     loadAttributes();
 }
@@ -99,15 +104,21 @@ export function saveQuests(questList) {
 
 /**
  * Load quest data from chat metadata into runtime state.
- * Migrates legacy isMain boolean to numeric priority.
- * Priority: 0=unset, 1=minor(★), 2=important(★★★), 3=critical(★★★★★).
+ * Migrates legacy isMain boolean and unset priority to quest types.
+ * Types: 1=Reminder(📌), 2=Side Errand(🛡️), 3=Main Quest(👑).
  */
 export function loadQuests() {
     const stored = chat_metadata?.dnd5e_quests;
     if (Array.isArray(stored)) {
         for (const q of stored) {
             if (q.priority === undefined) {
-                q.priority = q.isMain ? 3 : 0;
+                q.priority = q.isMain ? 3 : 1;
+            }
+            if (q.priority === 0) {
+                q.priority = 1;
+            }
+            if (q.priority < 1 || q.priority > 3) {
+                q.priority = 1;
             }
             delete q.isMain;
         }
@@ -183,4 +194,75 @@ export function saveSpellTrackerDisabled(disabled) {
 export function loadSpellTrackerDisabled() {
     const val = chat_metadata?.dnd5e_spellTrackerDisabled;
     setSpellTrackerDisabled(!!val);
+}
+
+/**
+ * Save the per-chat "send attributes on roll" flag.
+ * @param {boolean} enabled
+ */
+export function saveSendAttributesOnRoll(enabled) {
+    if (!chat_metadata) return;
+    chat_metadata.dnd5e_sendAttributesOnRoll = enabled !== false;
+    saveChatDebounced();
+}
+
+/**
+ * Load the per-chat "send attributes on roll" flag into runtime state.
+ */
+export function loadSendAttributesOnRoll() {
+    const val = chat_metadata?.dnd5e_sendAttributesOnRoll;
+    setSendAttributesOnRoll(val !== false);
+}
+
+/**
+ * Save the per-chat "inject spell info" flag.
+ */
+export function saveSpellInjectEnabled(enabled) {
+    if (!chat_metadata) return;
+    chat_metadata.dnd5e_spellInjectEnabled = !!enabled;
+    saveChatDebounced();
+}
+
+/**
+ * Load the per-chat "inject spell info" flag into runtime state.
+ */
+export function loadSpellInjectEnabled() {
+    const val = chat_metadata?.dnd5e_spellInjectEnabled;
+    setSpellInjectEnabled(!!val);
+}
+
+/**
+ * Save spellbook data to chat metadata.
+ * @param {object|null} data - The spellbook object { name, items, sources } or null to clear
+ */
+export function saveSpellbook(data) {
+    if (!chat_metadata) return;
+    chat_metadata.dnd5e_spellbook = data;
+    saveChatDebounced();
+}
+
+/**
+ * Load spellbook data from chat metadata into runtime state.
+ */
+export function loadSpellbook() {
+    const stored = chat_metadata?.dnd5e_spellbook;
+    setSpellbook(stored || null);
+}
+
+/**
+ * Save character config to chat metadata.
+ * @param {object|null} data - { className, classSource, classFile, subclassName, subclassShortName, subclassSource, level }
+ */
+export function saveCharacter(data) {
+    if (!chat_metadata) return;
+    chat_metadata.dnd5e_character = data;
+    saveChatDebounced();
+}
+
+/**
+ * Load character config from chat metadata into runtime state.
+ */
+export function loadCharacter() {
+    const stored = chat_metadata?.dnd5e_character;
+    setCharacter(stored || null);
 }
