@@ -5,6 +5,7 @@
 
 import { extensionSettings, pendingDiceRoll, setPendingDiceRoll } from '../core/state.js';
 import { saveSettings } from '../core/persistence.js';
+import { MODIFIER_DEFS } from './modifiers.js';
 
 /**
  * Secure random roll using crypto.getRandomValues() with rejection sampling.
@@ -36,29 +37,39 @@ export function executeRoll(count, sides) {
 }
 
 /**
- * Roll 6d20 (2 player + 2 ally + 2 enemy for advantage/disadvantage checks), store as pending, and save to settings.
+ * Roll d20 sets: 2 player + 2×N ally + 2 enemy for advantage/disadvantage checks.
+ * Ally count is driven by extensionSettings.allyCount (default 1).
+ * Once rolled, the roll button is locked until cleared (by user or LLM reply).
  */
 export function rollD20() {
+    if (extensionSettings.lastDiceRoll) return null;
+
+    const count = Math.max(0, extensionSettings.allyCount ?? 1);
     const r1 = secureRoll(20);
     const r2 = secureRoll(20);
-    const ally1 = secureRoll(20);
-    const ally2 = secureRoll(20);
+    const allyRolls = [];
+    for (let i = 0; i < count; i++) {
+        allyRolls.push({ roll1: secureRoll(20), roll2: secureRoll(20) });
+    }
     const npc1 = secureRoll(20);
     const npc2 = secureRoll(20);
+
+    const totalDice = 2 + count * 2 + 2;
+    const allRolls = [r1, r2, ...allyRolls.flatMap(a => [a.roll1, a.roll2]), npc1, npc2];
     const rollData = {
-        formula: '6d20',
+        formula: `${totalDice}d20`,
         roll1: r1,
         roll2: r2,
-        allyRoll1: ally1,
-        allyRoll2: ally2,
+        allyRolls,
+        allyRoll1: allyRolls[0]?.roll1 ?? null,
+        allyRoll2: allyRolls[0]?.roll2 ?? null,
         npcRoll1: npc1,
         npcRoll2: npc2,
-        rolls: [r1, r2, ally1, ally2, npc1, npc2],
+        rolls: allRolls,
         timestamp: Date.now()
     };
     setPendingDiceRoll(rollData);
     extensionSettings.lastDiceRoll = { ...rollData };
-    extensionSettings.lastFavoredRoll = null;
 
     saveSettings();
     updateDiceDisplay();
@@ -77,37 +88,64 @@ export function saveDiceRoll() {
 }
 
 /**
- * Update the inline dice display in the expanded panel (player + ally + enemy rolls).
+ * Update the inline dice display in the expanded panel (player + N allies + enemy rolls).
+ * Ally groups are built dynamically from roll.allyRolls[].
+ * Also locks/unlocks the roll button based on whether a roll is active.
  */
 export function updateDiceDisplay() {
     const roll = extensionSettings.lastDiceRoll;
     const $result = $('#dnd-roll-result');
     const $val1 = $('#dnd-roll-value-1');
     const $val2 = $('#dnd-roll-value-2');
-    const $ally1 = $('#dnd-roll-ally-1');
-    const $ally2 = $('#dnd-roll-ally-2');
     const $npc1 = $('#dnd-roll-npc-1');
     const $npc2 = $('#dnd-roll-npc-2');
+    const $allyContainer = $('#dnd-roll-ally-groups');
+    const $rollBtn = $('#dnd-roll-btn');
 
     if (roll) {
         $val1.text(`${roll.roll1}`).attr('title', `Player 1st: ${roll.roll1}`);
         $val2.text(`${roll.roll2}`).attr('title', `Player 2nd: ${roll.roll2}`);
-        $ally1.text(`${roll.allyRoll1 ?? '--'}`).attr('title', `Ally 1st: ${roll.allyRoll1 ?? '--'}`);
-        $ally2.text(`${roll.allyRoll2 ?? '--'}`).attr('title', `Ally 2nd: ${roll.allyRoll2 ?? '--'}`);
+
+        const allies = roll.allyRolls ?? (roll.allyRoll1 != null
+            ? [{ roll1: roll.allyRoll1, roll2: roll.allyRoll2 }] : []);
+        let allyHtml = '';
+        for (let i = 0; i < allies.length; i++) {
+            const a = allies[i];
+            const label = allies.length === 1 ? 'Ally' : `A${i + 1}`;
+            allyHtml += `<div class="dnd-roll-group dnd-roll-group-ally">`
+                + `<span class="dnd-roll-group-label">${label}</span>`
+                + `<div class="dnd-roll-pair"><span class="dnd-roll-label">1</span>`
+                + `<span class="dnd-roll-value dnd-roll-ally" title="${label} 1st: ${a.roll1}">${a.roll1}</span></div>`
+                + `<div class="dnd-roll-pair"><span class="dnd-roll-label">2</span>`
+                + `<span class="dnd-roll-value dnd-roll-ally" title="${label} 2nd: ${a.roll2}">${a.roll2}</span></div>`
+                + `</div>`;
+        }
+        $allyContainer.html(allyHtml);
+
         $npc1.text(`${roll.npcRoll1 ?? '--'}`).attr('title', `Enemy 1st: ${roll.npcRoll1 ?? '--'}`);
         $npc2.text(`${roll.npcRoll2 ?? '--'}`).attr('title', `Enemy 2nd: ${roll.npcRoll2 ?? '--'}`);
         $result.show();
+        $rollBtn.prop('disabled', true).addClass('dnd-roll-locked');
     } else {
         $result.hide();
         $val1.text('');
         $val2.text('');
-        $ally1.text('');
-        $ally2.text('');
+        $allyContainer.empty();
         $npc1.text('');
         $npc2.text('');
+        $rollBtn.prop('disabled', false).removeClass('dnd-roll-locked');
     }
 
-    updateFavoredDisplay();
+    updateAllyCountLabel();
+    updateModifierDisplay();
+}
+
+/**
+ * Update the ally count label text to reflect current setting.
+ */
+export function updateAllyCountLabel() {
+    const count = extensionSettings.allyCount ?? 1;
+    $('#dnd-ally-count-val').text(count);
 }
 
 /**
@@ -115,10 +153,11 @@ export function updateDiceDisplay() {
  */
 export function clearDiceRoll() {
     extensionSettings.lastDiceRoll = null;
-    extensionSettings.lastFavoredRoll = null;
+    extensionSettings.lastModifierRolls = {};
     setPendingDiceRoll(null);
     saveSettings();
     updateDiceDisplay();
+    updateModifierDisplay();
 }
 
 /**
@@ -207,39 +246,77 @@ export function clearDamageRoll() {
 }
 
 /**
- * Roll Favored by the Gods (2d4). Only works when a d20 roll is active.
+ * Toggle a modifier on/off. Toggling on rolls immediately; toggling off clears it.
  */
-export function rollFavored() {
-    if (!extensionSettings.lastDiceRoll) return;
-    const { rolls, total } = executeRoll(2, 4);
-    extensionSettings.lastFavoredRoll = { formula: '2d4', rolls, total, timestamp: Date.now() };
+export function toggleModifier(modId) {
+    const mods = extensionSettings.lastModifierRolls || {};
+    if (mods[modId]) {
+        delete mods[modId];
+    } else {
+        const def = MODIFIER_DEFS.find(m => m.id === modId);
+        if (!def) return;
+        const { rolls, total } = executeRoll(def.count, def.sides);
+        mods[modId] = { rolls, total, formula: `${def.count}d${def.sides}` };
+    }
+    extensionSettings.lastModifierRolls = mods;
     saveSettings();
-    updateFavoredDisplay();
+    updateModifierDisplay();
 }
 
 /**
- * Update the Favored by the Gods inline roll display.
+ * Clear all modifier rolls.
  */
-export function updateFavoredDisplay() {
-    const roll = extensionSettings.lastFavoredRoll;
-    const hasD20 = !!extensionSettings.lastDiceRoll;
-    const $btn = $('#dnd-favored-btn');
-    const $result = $('#dnd-favored-result');
+export function clearModifiers() {
+    extensionSettings.lastModifierRolls = {};
+    saveSettings();
+    updateModifierDisplay();
+}
 
-    if (hasD20 && !roll) {
-        $btn.prop('disabled', false).removeClass('dnd-favored-used');
-    } else if (roll) {
-        $btn.prop('disabled', true).addClass('dnd-favored-used');
-    } else {
-        $btn.prop('disabled', true).removeClass('dnd-favored-used');
-    }
+/**
+ * Build modifier toggle buttons from MODIFIER_DEFS into the container.
+ * Call once at init; buttons are then updated via updateModifierDisplay().
+ */
+export function renderModifierButtons() {
+    const $container = $('#dnd-modifier-toggles');
+    if (!$container.length) return;
+    const html = MODIFIER_DEFS.map(def => {
+        const tooltip = def.prompt.replace(/\{user\}/g, 'You');
+        return `<button class="dnd-mod-btn" data-mod="${def.id}" title="${tooltip}">`
+            + `<i class="fa-solid ${def.icon}"></i> ${def.label}</button>`;
+    }).join('');
+    $container.html(html);
+}
 
-    if (roll) {
-        $('#dnd-favored-rolls').text(roll.rolls.join(' + '));
-        $('#dnd-favored-total').text(`= +${roll.total}`);
-        $result.show();
+/**
+ * Update modifier toggle button states and the results chip display.
+ */
+export function updateModifierDisplay() {
+    const mods = extensionSettings.lastModifierRolls || {};
+
+    $('.dnd-mod-btn').each(function () {
+        const id = $(this).data('mod');
+        $(this).toggleClass('dnd-mod-active', !!mods[id]);
+    });
+
+    const $results = $('#dnd-modifier-results');
+    const activeIds = Object.keys(mods);
+
+    if (activeIds.length > 0) {
+        let html = '';
+        for (const id of activeIds) {
+            const def = MODIFIER_DEFS.find(m => m.id === id);
+            const roll = mods[id];
+            if (!def || !roll) continue;
+            const valStr = roll.rolls.join('+');
+            const totalStr = roll.rolls.length > 1 ? `=${roll.total}` : '';
+            html += `<span class="dnd-mod-chip" data-mod="${id}" title="${def.prompt.replace(/\{user\}/g, 'You')}">`
+                + `<span class="dnd-mod-chip-label">${def.label}</span>`
+                + `<span class="dnd-mod-chip-val">${valStr}${totalStr}</span>`
+                + `</span>`;
+        }
+        $results.html(html).show();
     } else {
-        $result.hide();
+        $results.empty().hide();
     }
 }
 

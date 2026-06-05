@@ -249,6 +249,7 @@
     white-space: normal;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     text-overflow: ellipsis;
 }
@@ -483,8 +484,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.375em;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     min-height: 0;
 }
 
@@ -538,7 +538,6 @@
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 0.4em;
-    margin-bottom: 0.5em;
 }
 .dnd-info-widget {
     display: flex;
@@ -1017,7 +1016,6 @@
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 0.4em;
-    margin-bottom: 0.5em;
     align-items: start;
 }
 .dnd-secondary-widgets.dnd-secondary-hidden {
@@ -1140,16 +1138,10 @@
 
 .dnd-dice-section {
     display: flex;
-    align-items: stretch;
+    align-items: center;
     gap: 0.35em;
     flex-shrink: 0;
     margin-bottom: 0.15em;
-}
-.dnd-dice-left-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    flex-shrink: 0;
 }
 .dnd-roll-btn {
     display: flex;
@@ -1165,11 +1157,59 @@
     font-weight: 700;
     cursor: pointer;
     transition: transform 0.1s, background 0.2s;
-    flex: 7;
+    flex-shrink: 0;
 }
 .dnd-roll-btn:hover { background: rgba(255,215,0,0.18); }
 .dnd-roll-btn:active { transform: scale(0.95); }
 .dnd-roll-btn i { font-size: 1.1em; }
+.dnd-roll-btn.dnd-roll-locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Ally count selector — matches Roll button height */
+.dnd-ally-count-control {
+    display: flex;
+    align-items: center;
+    gap: 0.2em;
+    flex-shrink: 0;
+    padding: 0.3em 0.4em;
+    background: rgba(158,212,255,0.04);
+    border: 2px solid rgba(158,212,255,0.15);
+    border-radius: 0.4em;
+}
+.dnd-ally-count-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4em;
+    height: 1.4em;
+    padding: 0;
+    background: rgba(158,212,255,0.08);
+    border: 1px solid rgba(158,212,255,0.2);
+    border-radius: 0.25em;
+    color: rgba(158,212,255,0.6);
+    font-size: 0.75em;
+    font-weight: 700;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.dnd-ally-count-btn:hover {
+    color: rgba(158,212,255,0.9);
+    border-color: rgba(158,212,255,0.4);
+    background: rgba(158,212,255,0.14);
+}
+.dnd-ally-count-label {
+    font-size: 0.7em;
+    font-weight: 600;
+    color: rgba(158,212,255,0.5);
+    white-space: nowrap;
+    min-width: 2.5em;
+    text-align: center;
+}
+
 .dnd-roll-result {
     display: flex;
     align-items: center;
@@ -1245,17 +1285,150 @@
 }
 .dnd-clear-roll-btn:hover { color: #f44336; }
 
-/* Favored by the Gods — bottom of left stack */
-.dnd-favored-toggle {
+/* ─── Modifier toggles ───────────────────────────────── */
+
+.dnd-modifier-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2em;
+    margin-bottom: 0.25em;
+}
+.dnd-mod-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2em;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 0.3em;
+    color: rgba(255,255,255,0.35);
+    cursor: pointer;
+    font-size: 0.6em;
+    font-weight: 600;
+    padding: 0.2em 0.4em;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.dnd-mod-btn i { font-size: 0.9em; }
+.dnd-mod-btn:hover {
+    background: rgba(186,160,255,0.1);
+    color: rgba(255,255,255,0.6);
+    border-color: rgba(186,160,255,0.3);
+}
+.dnd-mod-btn.dnd-mod-active {
+    background: rgba(186,160,255,0.15);
+    border-color: rgba(186,160,255,0.5);
+    color: #ce93d8;
+}
+
+.dnd-modifier-results {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25em;
+    margin-bottom: 0.2em;
+}
+.dnd-mod-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.2em;
+    background: rgba(186,160,255,0.12);
+    border: 1px solid rgba(186,160,255,0.3);
+    border-radius: 0.3em;
+    padding: 0.05em 0.35em;
+    font-size: 0.75em;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+.dnd-mod-chip-label {
+    font-weight: 600;
+    color: #ce93d8;
+    font-size: 0.8em;
+}
+.dnd-mod-chip-val {
+    font-weight: 700;
+    color: #e1bee7;
+}
+
+/* ─── Fixed (non-collapsible) elements ────────────────── */
+
+.dnd-info-widgets,
+.dnd-secondary-widgets,
+.dnd-dice-section,
+.dnd-modifier-results,
+.dnd-modifier-toggles,
+.dnd-damage-section,
+.dnd-settings-buttons-row {
+    flex-shrink: 0;
+}
+
+/* ─── Collapsible sections ───────────────────────────── */
+
+.dnd-collapsible {
+    background: linear-gradient(135deg, var(--dnd-accent) 0%, var(--dnd-bg) 100%);
+    border: 2px solid var(--dnd-border);
+    border-radius: 0.625em;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+}
+.dnd-collapsible.dnd-collapsed {
+    flex: 0 0 auto;
+}
+.dnd-collapsible-header {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.25em;
-    background: none;
-    border: 1px solid rgba(186,160,255,0.2);
-    border-radius: 0.3em;
-    color: rgba(186,160,255,0.4);
+    gap: 0.35em;
+    padding: 0.3em 0.5em;
     cursor: pointer;
+    font-size: 0.75em;
+    font-weight: 600;
+    color: rgba(255,255,255,0.6);
+    user-select: none;
+    transition: color 0.15s;
+    flex-shrink: 0;
+}
+.dnd-collapsible-header:hover { color: rgba(255,255,255,0.85); }
+.dnd-collapsible-header span { flex: 1; }
+.dnd-collapse-icon {
+    font-size: 0.7em;
+    transition: transform 0.2s;
+    opacity: 0.4;
+}
+.dnd-collapsible.dnd-collapsed .dnd-collapse-icon {
+    transform: rotate(-90deg);
+}
+.dnd-collapsible.dnd-collapsed .dnd-collapsible-body {
+    display: none;
+}
+.dnd-collapsible-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 0 0.5em 0.4em;
+}
+.dnd-section-input-bar {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--dnd-bg);
+    padding-top: 0.3em;
+    padding-bottom: 0.25em;
+}
+.dnd-section-action-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.3);
+    cursor: pointer;
+    font-size: 1em;
+    padding: 0 3px;
+    transition: color 0.15s;
+}
+.dnd-section-action-btn:hover { color: rgba(255,255,255,0.7); }
+
+/* Legacy compat: keep favored toggle rule alive for theme overrides */
+.dnd-favored-toggle {
+    display: none;
     font-size: 0.6em;
     font-weight: 700;
     padding: 0.15em 0.4em;
@@ -1569,8 +1742,8 @@
     cursor: default;
 }
 
-.dnd-quest-type-1 { /* Reminder — red */ }
-.dnd-quest-type-2 { /* Side Errand — silver/blue */ }
+.dnd-quest-type-1 { background: transparent; }
+.dnd-quest-type-2 { background: transparent; }
 .dnd-quest-type-3 { background: rgba(201,168,76,0.06); } /* Main Quest — gold highlight */
 
 /* Strip quest type colors */
@@ -1917,7 +2090,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.15em;
-    max-height: 14em;
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 0.15em;
@@ -2159,6 +2331,23 @@
     background: rgba(200,170,80,0.12);
     color: rgba(220,195,110,0.9);
     border-color: rgba(200,170,80,0.25);
+}
+.dnd-spell-log-dispel-btn {
+    background: rgba(180,80,80,0.06);
+    border-color: rgba(180,80,80,0.12);
+    color: rgba(200,100,100,0.5);
+}
+.dnd-spell-log-dispel-btn:hover {
+    background: rgba(180,80,80,0.12);
+    color: rgba(220,120,120,0.9);
+    border-color: rgba(180,80,80,0.25);
+}
+.dnd-spell-log-dispel .dnd-spell-log-name {
+    color: rgba(220,120,120,0.85);
+    font-style: italic;
+}
+.dnd-spell-log-icon-dispel {
+    color: rgba(200,100,100,0.7);
 }
 
 /* ─── Feature toggles ────────────────────────────────── */
@@ -3163,6 +3352,474 @@
     color: var(--dnd-text, #ddd);
     padding: 0.25em 0.4em;
     font-size: 0.85em;
+}
+
+/* ─── Sidekick Card Grid (2-column) ──────────────────────── */
+
+.dnd-sidekick-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35em;
+    padding: 0.15em 0;
+}
+
+.dnd-sidekick-card {
+    position: relative;
+    background: rgba(28, 36, 44, 0.7);
+    border: 1px solid rgba(100, 200, 180, 0.2);
+    border-radius: 0.45em;
+    padding: 0.45em 0.5em 0.35em;
+    cursor: pointer;
+    transition: opacity 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    user-select: none;
+    overflow: hidden;
+}
+
+.dnd-sidekick-card.dnd-sidekick-enabled {
+    border-color: rgba(100, 200, 180, 0.35);
+    box-shadow: 0 0 8px rgba(80, 180, 160, 0.1), inset 0 0 12px rgba(80, 180, 160, 0.03);
+}
+
+.dnd-sidekick-card.dnd-sidekick-enabled:hover {
+    border-color: rgba(100, 200, 180, 0.65);
+    background: rgba(32, 44, 52, 0.8);
+    box-shadow: 0 0 12px rgba(80, 180, 160, 0.18);
+}
+
+.dnd-sidekick-card.dnd-sidekick-disabled {
+    opacity: 0.38;
+    border-color: rgba(255, 255, 255, 0.06);
+    background: rgba(22, 24, 28, 0.6);
+}
+
+.dnd-sidekick-card.dnd-sidekick-disabled:hover {
+    opacity: 0.55;
+}
+
+/* Top row: name+subtitle left, type badge right */
+.dnd-sk-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.3em;
+    margin-bottom: 0.25em;
+}
+
+.dnd-sk-card-identity {
+    flex: 1;
+    min-width: 0;
+}
+
+.dnd-sk-card-name {
+    font-weight: 700;
+    font-size: 0.82em;
+    color: #e0ece8;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dnd-sk-card-subtitle {
+    font-size: 0.62em;
+    color: rgba(160, 195, 185, 0.6);
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dnd-sk-card-type-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.2em;
+    background: rgba(100, 200, 180, 0.1);
+    border: 1px solid rgba(100, 200, 180, 0.15);
+    border-radius: 0.6em;
+    padding: 0.1em 0.35em;
+    font-size: 0.55em;
+    color: rgba(140, 220, 200, 0.7);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.dnd-sk-card-type-badge i { font-size: 0.85em; }
+
+/* Stat pills */
+.dnd-sk-card-stats {
+    display: flex;
+    gap: 0.2em;
+    margin-bottom: 0.2em;
+}
+
+.dnd-sk-pill {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0.3em;
+    padding: 0.05em 0.3em;
+    font-size: 0.6em;
+    color: rgba(200, 220, 215, 0.75);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.dnd-sk-pill-hp {
+    background: rgba(80, 180, 120, 0.1);
+    border-color: rgba(80, 180, 120, 0.15);
+    color: rgba(140, 220, 170, 0.85);
+    font-weight: 600;
+}
+
+/* Ability scores row */
+.dnd-sk-card-abilities {
+    display: flex;
+    gap: 0.15em;
+    margin-bottom: 0.2em;
+}
+
+.dnd-sk-card-ab {
+    font-size: 0.55em;
+    color: rgba(180, 200, 195, 0.5);
+    white-space: nowrap;
+}
+
+.dnd-sk-card-ab b {
+    color: rgba(100, 200, 180, 0.5);
+    font-weight: 600;
+    margin-right: 0.1em;
+}
+
+/* Weapons summary */
+.dnd-sk-card-weapons {
+    font-size: 0.58em;
+    color: rgba(200, 180, 140, 0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.15em;
+}
+
+.dnd-sk-card-weapons i {
+    font-size: 0.85em;
+    margin-right: 0.15em;
+    opacity: 0.7;
+}
+
+/* Hire info */
+.dnd-sk-card-hire {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15em 0.3em;
+    font-size: 0.55em;
+    color: rgba(200, 190, 140, 0.55);
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    padding-top: 0.2em;
+    margin-top: 0.1em;
+}
+
+.dnd-sk-card-hire-date {
+    color: rgba(180, 200, 195, 0.45);
+}
+
+.dnd-sk-card-rate {
+    color: rgba(255, 215, 0, 0.5);
+}
+
+.dnd-sk-card-owed {
+    color: rgba(255, 180, 80, 0.7);
+    font-weight: 600;
+}
+
+.dnd-sk-card-days {
+    font-weight: 400;
+    margin-left: 0.15em;
+    opacity: 0.6;
+}
+
+/* OFF badge */
+.dnd-sk-card-badge-off {
+    position: absolute;
+    top: 0.35em;
+    right: 0.35em;
+    font-size: 0.55em;
+    color: rgba(255, 100, 100, 0.45);
+}
+
+/* ─── Sidekick Detail Modal ──────────────────────────────── */
+
+.dnd-modal-sidekick-detail {
+    min-width: 300px;
+    max-width: 420px;
+    max-height: 85vh;
+}
+
+.dnd-modal-sidekick-detail .dnd-modal-body {
+    overflow-y: auto;
+    max-height: 65vh;
+}
+
+.dnd-sk-det-header {
+    margin-bottom: 0.5em;
+    padding-bottom: 0.4em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dnd-sk-det-name {
+    font-size: 1.1em;
+    font-weight: 700;
+    color: #5cd6b8;
+}
+
+.dnd-sk-det-meta {
+    font-size: 0.78em;
+    color: rgba(180, 210, 200, 0.7);
+    margin-top: 0.1em;
+}
+
+.dnd-sk-det-row {
+    margin-bottom: 0.4em;
+}
+
+.dnd-sk-det-combat {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4em 0.8em;
+    font-size: 0.82em;
+    padding: 0.4em 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dnd-sk-det-combat strong {
+    color: #ffd700;
+}
+
+.dnd-sk-det-abilities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2em 0.5em;
+    font-size: 0.8em;
+    padding: 0.3em 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dnd-sk-det-ability strong {
+    color: rgba(100, 200, 180, 0.85);
+    font-size: 0.85em;
+}
+
+.dnd-sk-det-section {
+    margin: 0.4em 0;
+    font-size: 0.8em;
+    line-height: 1.4;
+}
+
+.dnd-sk-det-label {
+    font-weight: 600;
+    font-size: 0.9em;
+    color: rgba(100, 200, 180, 0.8);
+    margin-bottom: 0.15em;
+}
+
+.dnd-sk-det-weapon {
+    padding-left: 0.5em;
+    margin-bottom: 0.15em;
+}
+
+/* ─── Sidekick Config Modal ──────────────────────────────── */
+
+.dnd-modal-sidekick-config {
+    min-width: 320px;
+    max-width: 440px;
+    max-height: 90vh;
+}
+
+.dnd-modal-sidekick-config .dnd-modal-body {
+    overflow-y: auto;
+    max-height: 72vh;
+}
+
+.dnd-sk-config-section {
+    margin-bottom: 0.8em;
+    padding-bottom: 0.5em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dnd-sk-config-section:last-child {
+    border-bottom: none;
+}
+
+.dnd-sk-config-section-title {
+    font-weight: 600;
+    font-size: 0.85em;
+    color: rgba(100, 200, 180, 0.8);
+    margin-bottom: 0.4em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.dnd-modal-sidekick-config .dnd-setting-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin-bottom: 0.4em;
+    font-size: 0.85em;
+}
+
+.dnd-modal-sidekick-config .dnd-setting-row > span:first-child {
+    min-width: 5em;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.dnd-modal-sidekick-config input[type="text"],
+.dnd-modal-sidekick-config input[type="number"],
+.dnd-modal-sidekick-config select {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--dnd-border, rgba(255,255,255,0.08));
+    border-radius: 0.3em;
+    color: var(--dnd-text, #ddd);
+    padding: 0.25em 0.4em;
+    font-size: 0.9em;
+}
+
+.dnd-sk-creature-preview {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(100, 200, 180, 0.15);
+    border-radius: 0.3em;
+    padding: 0.4em 0.5em;
+    font-size: 0.78em;
+    margin-top: 0.3em;
+    line-height: 1.5;
+}
+
+.dnd-sk-preview-line strong {
+    color: #5cd6b8;
+}
+
+.dnd-sk-skill-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15em 0.4em;
+    padding: 0.2em 0;
+    font-size: 0.8em;
+}
+
+.dnd-sk-check {
+    display: flex;
+    align-items: center;
+    gap: 0.2em;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.dnd-sk-check input[type="checkbox"] {
+    accent-color: #5cd6b8;
+    margin: 0;
+}
+
+.dnd-sk-asi-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    margin-bottom: 0.3em;
+    font-size: 0.82em;
+}
+
+.dnd-sk-asi-badge {
+    background: rgba(100, 200, 180, 0.15);
+    border-radius: 0.3em;
+    padding: 0.1em 0.4em;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: #5cd6b8;
+    min-width: 2.5em;
+    text-align: center;
+}
+
+.dnd-sk-asi-select {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--dnd-border, rgba(255,255,255,0.08));
+    border-radius: 0.3em;
+    color: var(--dnd-text, #ddd);
+    padding: 0.2em 0.3em;
+    font-size: 0.9em;
+}
+
+.dnd-sk-weapon-item {
+    font-size: 0.82em;
+    padding: 0.2em 0.3em;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 0.2em;
+    margin-bottom: 0.2em;
+}
+
+/* Spell tags/chips */
+.dnd-sk-spell-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25em;
+    padding: 0.2em 0;
+    min-height: 1.4em;
+}
+
+.dnd-sk-spell-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2em;
+    background: rgba(100, 200, 180, 0.15);
+    border: 1px solid rgba(100, 200, 180, 0.25);
+    border-radius: 0.8em;
+    padding: 0.1em 0.5em;
+    font-size: 0.78em;
+    color: #a8e6cf;
+}
+
+.dnd-sk-spell-remove {
+    background: none;
+    border: none;
+    color: rgba(255, 100, 100, 0.6);
+    cursor: pointer;
+    font-size: 0.9em;
+    line-height: 1;
+    padding: 0;
+}
+
+.dnd-sk-spell-remove:hover {
+    color: rgba(255, 100, 100, 1);
+}
+
+.dnd-sk-no-spells {
+    font-size: 0.75em;
+    color: rgba(255, 255, 255, 0.3);
+    font-style: italic;
+}
+
+.dnd-sk-spell-results {
+    max-height: 8em;
+    overflow-y: auto;
+    font-size: 0.8em;
+}
+
+.dnd-sk-spell-result {
+    padding: 0.2em 0.4em;
+    cursor: pointer;
+    border-radius: 0.2em;
+    transition: background 0.1s;
+}
+
+.dnd-sk-spell-result:hover {
+    background: rgba(100, 200, 180, 0.15);
+}
+
+/* Danger button */
+.dnd-btn-danger {
+    background: rgba(200, 60, 60, 0.3);
+    border: 1px solid rgba(200, 60, 60, 0.4);
+    color: #ff8888;
+}
+
+.dnd-btn-danger:hover {
+    background: rgba(200, 60, 60, 0.5);
 }
 
 @media (max-width: 768px) {

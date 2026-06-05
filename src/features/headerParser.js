@@ -78,10 +78,11 @@ export function parseHeader(text) {
 }
 
 function parseKnownSection(section, result) {
-    // Time: LLM may output transitional ranges like "🕰️ 02:58 PM → 07:47 PM".
+    // Time: LLM may output transitional ranges like "🕰️ 02:58 PM → 07:47 PM"
+    // or combat times with seconds like "🕰️ 02:58:18 PM".
     // We always take the last time token since it represents the final/current time.
     if (/^🕰️/.test(section)) {
-        const timeTokens = [...section.matchAll(/(\d{1,2}:\d{2}\s*(?:AM|PM)?)/gi)];
+        const timeTokens = [...section.matchAll(/(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)/gi)];
         if (timeTokens.length > 0) {
             result.time = timeTokens[timeTokens.length - 1][1].trim();
             return true;

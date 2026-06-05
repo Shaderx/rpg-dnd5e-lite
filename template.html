@@ -64,12 +64,7 @@
                     <span class="dnd-strip-dice-sep">/</span>
                     <span class="dnd-strip-dice-result dnd-strip-dice-r2">--</span>
                 </div>
-                <div class="dnd-strip-dice-row dnd-strip-dice-row-ally">
-                    <span class="dnd-strip-dice-row-label">Ally</span>
-                    <span class="dnd-strip-dice-result dnd-strip-dice-ally dnd-strip-dice-ally1">--</span>
-                    <span class="dnd-strip-dice-sep">/</span>
-                    <span class="dnd-strip-dice-result dnd-strip-dice-ally dnd-strip-dice-ally2">--</span>
-                </div>
+                <div id="dnd-strip-ally-rows" class="dnd-strip-ally-rows"></div>
                 <div class="dnd-strip-dice-row dnd-strip-dice-row-enemy">
                     <span class="dnd-strip-dice-row-label">Foe</span>
                     <span class="dnd-strip-dice-result dnd-strip-dice-npc dnd-strip-dice-npc1">--</span>
@@ -177,17 +172,16 @@
                 <div class="dnd-omni-widgets" id="dnd-omni-widgets"></div>
             </div>
 
-            <!-- Dice roller (6d20: player + ally + enemy for advantage/disadvantage) -->
+            <!-- Dice roller (d20 sets: player + N allies + enemy for advantage/disadvantage) -->
             <div class="dnd-dice-section">
-                <div class="dnd-dice-left-stack">
-                    <button id="dnd-roll-btn" class="dnd-roll-btn" title="Roll 6d20 (Player + Ally + Enemy)">
-                        <i class="fa-solid fa-dice-d20"></i>
-                        <span>Roll</span>
-                    </button>
-                    <button id="dnd-favored-btn" class="dnd-favored-toggle" title="Favored by the Gods — Toggle on to auto-roll 2d4 with every d20 roll. Once per short/long rest.">
-                        <i class="fa-solid fa-hands-praying"></i>
-                        <span>Favored</span>
-                    </button>
+                <button id="dnd-roll-btn" class="dnd-roll-btn" title="Roll d20 sets (Player + Allies + Enemy)">
+                    <i class="fa-solid fa-dice-d20"></i>
+                    <span>Roll</span>
+                </button>
+                <div class="dnd-ally-count-control" title="Number of ally d20 sets to roll">
+                    <button id="dnd-ally-minus" class="dnd-ally-count-btn">−</button>
+                    <span class="dnd-ally-count-label"><span id="dnd-ally-count-val">1</span> Ally</span>
+                    <button id="dnd-ally-plus" class="dnd-ally-count-btn">+</button>
                 </div>
                 <div class="dnd-roll-result" id="dnd-roll-result" style="display:none;">
                     <div class="dnd-roll-groups">
@@ -202,17 +196,7 @@
                                 <span class="dnd-roll-value" id="dnd-roll-value-2"></span>
                             </div>
                         </div>
-                        <div class="dnd-roll-group dnd-roll-group-ally">
-                            <span class="dnd-roll-group-label">Ally</span>
-                            <div class="dnd-roll-pair">
-                                <span class="dnd-roll-label">1</span>
-                                <span class="dnd-roll-value dnd-roll-ally" id="dnd-roll-ally-1"></span>
-                            </div>
-                            <div class="dnd-roll-pair">
-                                <span class="dnd-roll-label">2</span>
-                                <span class="dnd-roll-value dnd-roll-ally" id="dnd-roll-ally-2"></span>
-                            </div>
-                        </div>
+                        <div id="dnd-roll-ally-groups"></div>
                         <div class="dnd-roll-group dnd-roll-group-enemy">
                             <span class="dnd-roll-group-label">Foe</span>
                             <div class="dnd-roll-pair">
@@ -225,26 +209,14 @@
                             </div>
                         </div>
                     </div>
-                    <button id="dnd-clear-roll" class="dnd-clear-roll-btn" title="Clear roll">
+                    <button id="dnd-clear-roll" class="dnd-clear-roll-btn" title="Clear all rolls">
                         <i class="fa-solid fa-xmark"></i>
-                    </button>
-                    <div class="dnd-favored-rolls-display" id="dnd-favored-result" style="display:none;">
-                        <span class="dnd-favored-tag">2d4</span>
-                        <span class="dnd-favored-values" id="dnd-favored-rolls"></span>
-                        <span class="dnd-favored-total" id="dnd-favored-total"></span>
-                    </div>
-                </div>
-                <div class="dnd-dice-btn-stack">
-                    <button id="dnd-character-btn" class="dnd-character-btn" title="Character (Shift+click to configure)">
-                        <i class="fa-solid fa-user-shield"></i>
-                        <span>Character</span>
-                    </button>
-                    <button id="dnd-spellbook-btn" class="dnd-spellbook-btn" title="Spellbook (Shift+click to import)">
-                        <i class="fa-solid fa-book-open"></i>
-                        <span>Spellbook</span>
                     </button>
                 </div>
             </div>
+            <!-- Modifier results + toggle buttons (populated from modifiers.js) -->
+            <div class="dnd-modifier-results" id="dnd-modifier-results" style="display:none;"></div>
+            <div class="dnd-modifier-toggles" id="dnd-modifier-toggles"></div>
 
             <!-- Damage dice — each click adds one die, supports mixed types -->
             <div class="dnd-damage-section">
@@ -264,96 +236,129 @@
                 </div>
             </div>
 
-            <!-- Character (toggled by Character button) -->
-            <div id="dnd-character-container" class="dnd-content-box" style="display:none;">
-                <div class="dnd-section">
-                    <div class="dnd-section-header">
-                        <i class="fa-solid fa-user-shield"></i>
-                        <span id="dnd-character-title">Character</span>
-                        <button id="dnd-character-clear" class="dnd-character-clear-btn" title="Remove character">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </div>
+            <!-- Character (collapsible, Shift+click header to configure) -->
+            <div id="dnd-character-container" class="dnd-collapsible dnd-collapsed">
+                <div class="dnd-collapsible-header" data-section="character" title="Click to toggle, Shift+click to configure">
+                    <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span id="dnd-character-title">Character</span>
+                    <button id="dnd-character-clear" class="dnd-section-action-btn" title="Remove character">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                <div class="dnd-collapsible-body">
                     <div id="dnd-character-content" class="dnd-character-content">
                         <div class="dnd-empty-state">No character configured</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Spellbook (toggled by Spellbook button) -->
-            <div id="dnd-spellbook-container" class="dnd-content-box" style="display:none;">
-                <div class="dnd-section">
-                    <div class="dnd-section-header">
-                        <i class="fa-solid fa-book-open"></i>
-                        <span id="dnd-spellbook-title">Spellbook</span>
-                        <button id="dnd-spellbook-clear" class="dnd-spellbook-clear-btn" title="Remove spellbook">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
+            <!-- Sidekicks (collapsible, card grid) -->
+            <div id="dnd-sidekick-container" class="dnd-collapsible dnd-collapsed">
+                <div class="dnd-collapsible-header" data-section="sidekicks" title="Click to toggle, Shift+click card for details">
+                    <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
+                    <i class="fa-solid fa-users"></i>
+                    <span>Sidekicks</span>
+                    <button id="dnd-sidekick-add" class="dnd-section-action-btn" title="Add sidekick">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+                <div class="dnd-collapsible-body">
+                    <div id="dnd-sidekick-cards" class="dnd-sidekick-card-grid">
+                        <div class="dnd-empty-state">No sidekicks configured</div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Spellbook (collapsible, Shift+click header to import) -->
+            <div id="dnd-spellbook-container" class="dnd-collapsible dnd-collapsed">
+                <div class="dnd-collapsible-header" data-section="spellbook" title="Click to toggle, Shift+click to import">
+                    <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
+                    <i class="fa-solid fa-book-open"></i>
+                    <span id="dnd-spellbook-title">Spellbook</span>
+                    <button id="dnd-spellbook-clear" class="dnd-section-action-btn" title="Remove spellbook">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                <div class="dnd-collapsible-body">
                     <div id="dnd-spellbook-list" class="dnd-spellbook-list">
                         <div class="dnd-empty-state">No spellbook loaded</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Content box: Quests -->
-            <div class="dnd-content-box">
-                <div id="dnd-quests" class="dnd-section">
-                    <div class="dnd-section-header">Quests</div>
-                    <div id="dnd-quests-list" class="dnd-quests-list">
-                        <div class="dnd-empty-state">No quests yet</div>
-                    </div>
-                    <div class="dnd-add-quest-row">
+            <!-- Quests (collapsible) -->
+            <div class="dnd-collapsible">
+                <div class="dnd-collapsible-header" data-section="quests">
+                    <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
+                    <i class="fa-solid fa-scroll"></i>
+                    <span>Quests</span>
+                </div>
+                <div class="dnd-collapsible-body">
+                    <div class="dnd-add-quest-row dnd-section-input-bar">
                         <input type="text" id="dnd-add-quest-input" class="dnd-add-quest-input" placeholder="New quest..." />
                         <button id="dnd-add-quest-btn" class="dnd-btn-small" title="Add quest">
                             <i class="fa-solid fa-plus"></i>
                         </button>
                     </div>
+                    <div id="dnd-quests-list" class="dnd-quests-list">
+                        <div class="dnd-empty-state">No quests yet</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Content box: Inventory -->
-            <div class="dnd-content-box">
-                <div id="dnd-inventory" class="dnd-section">
-                    <div class="dnd-section-header">Inventory</div>
-                    <div id="dnd-inventory-list" class="dnd-inventory-list">
-                        <div class="dnd-empty-state">No items yet</div>
-                    </div>
-                    <div class="dnd-add-inventory-row">
+            <!-- Inventory (collapsible) -->
+            <div class="dnd-collapsible">
+                <div class="dnd-collapsible-header" data-section="inventory">
+                    <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
+                    <i class="fa-solid fa-box-open"></i>
+                    <span>Inventory</span>
+                </div>
+                <div class="dnd-collapsible-body">
+                    <div class="dnd-add-inventory-row dnd-section-input-bar">
                         <input type="text" id="dnd-add-inventory-input" class="dnd-add-inventory-input" placeholder="New item..." />
                         <button id="dnd-add-inventory-btn" class="dnd-btn-small" title="Add item">
                             <i class="fa-solid fa-plus"></i>
                         </button>
                     </div>
+                    <div id="dnd-inventory-list" class="dnd-inventory-list">
+                        <div class="dnd-empty-state">No items yet</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Spell Log (own container) -->
-            <div class="dnd-spell-log-container">
-                <div class="dnd-spell-log-header">
+            <!-- Spell Log (collapsible) -->
+            <div class="dnd-collapsible dnd-spell-log-container">
+                <div class="dnd-collapsible-header dnd-spell-log-header" data-section="spelllog">
+                    <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
                     <i class="fa-solid fa-wand-sparkles"></i>
                     <span>Spell Log</span>
-                    <button id="dnd-spell-tracker-toggle" class="dnd-spell-log-toggle-btn" title="Disable spell tracker for this chat">
+                    <button id="dnd-spell-tracker-toggle" class="dnd-section-action-btn dnd-spell-log-toggle-btn" title="Disable spell tracker for this chat">
                         <i class="fa-solid fa-toggle-on"></i>
                     </button>
-                    <button id="dnd-spell-log-refresh" class="dnd-spell-log-refresh-btn" title="Re-scan chat and rebuild spell log">
+                    <button id="dnd-spell-log-refresh" class="dnd-section-action-btn dnd-spell-log-refresh-btn" title="Re-scan chat and rebuild spell log">
                         <i class="fa-solid fa-rotate"></i>
                     </button>
                 </div>
-                <div id="dnd-spell-log-list" class="dnd-spell-log-list">
-                    <div class="dnd-spell-log-empty">No spells tracked</div>
-                </div>
-                <div class="dnd-spell-log-actions">
-                    <input type="text" id="dnd-add-spell-input" class="dnd-spell-log-input" placeholder="activate, invoke, channel, use, consume, read, trigger, play..." />
-                    <button id="dnd-add-spell-btn" class="dnd-spell-log-action-btn" title="Add spell cast">
-                        <i class="fa-solid fa-wand-sparkles"></i>
-                    </button>
-                    <button id="dnd-add-short-rest-btn" class="dnd-spell-log-action-btn dnd-spell-log-short-rest-btn" title="Add short rest">
-                        <i class="fa-solid fa-mug-hot"></i>
-                    </button>
-                    <button id="dnd-add-rest-btn" class="dnd-spell-log-action-btn dnd-spell-log-rest-btn" title="Add long rest">
-                        <i class="fa-solid fa-bed"></i>
-                    </button>
+                <div class="dnd-collapsible-body">
+                    <div class="dnd-spell-log-actions dnd-section-input-bar">
+                        <input type="text" id="dnd-add-spell-input" class="dnd-spell-log-input" placeholder="activate|invoke|channel|use|consume|trigger|maintain" />
+                        <button id="dnd-add-spell-btn" class="dnd-spell-log-action-btn" title="Add spell cast">
+                            <i class="fa-solid fa-wand-sparkles"></i>
+                        </button>
+                        <button id="dnd-add-short-rest-btn" class="dnd-spell-log-action-btn dnd-spell-log-short-rest-btn" title="Add short rest">
+                            <i class="fa-solid fa-mug-hot"></i>
+                        </button>
+                        <button id="dnd-add-rest-btn" class="dnd-spell-log-action-btn dnd-spell-log-rest-btn" title="Add long rest">
+                            <i class="fa-solid fa-bed"></i>
+                        </button>
+                        <button id="dnd-add-dispel-btn" class="dnd-spell-log-action-btn dnd-spell-log-dispel-btn" title="Clear/dispel all own effects">
+                            <i class="fa-solid fa-ban"></i>
+                        </button>
+                    </div>
+                    <div id="dnd-spell-log-list" class="dnd-spell-log-list">
+                        <div class="dnd-spell-log-empty">No spells tracked</div>
+                    </div>
                 </div>
             </div>
 
@@ -531,6 +536,140 @@
         </div>
         <div class="dnd-modal-footer">
             <button id="dnd-character-config-save" class="dnd-btn dnd-btn-primary">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Sidekick Detail Modal -->
+<div id="dnd-sidekick-detail-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-sidekick-detail">
+        <div class="dnd-modal-header">
+            <span id="dnd-sk-detail-title">Sidekick Details</span>
+            <button class="dnd-modal-close" id="dnd-sk-detail-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body" id="dnd-sk-detail-body"></div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-sk-detail-edit" class="dnd-btn dnd-btn-primary"><i class="fa-solid fa-pen"></i> Edit</button>
+            <button id="dnd-sk-detail-delete" class="dnd-btn dnd-btn-danger"><i class="fa-solid fa-trash-can"></i> Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Sidekick Config Modal -->
+<div id="dnd-sidekick-config-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-sidekick-config">
+        <div class="dnd-modal-header">
+            <span id="dnd-sk-config-title">Add Sidekick</span>
+            <button class="dnd-modal-close" id="dnd-sk-config-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body">
+            <input type="hidden" id="dnd-sk-config-id" value="" />
+
+            <div class="dnd-sk-config-section">
+                <div class="dnd-sk-config-section-title">Identity</div>
+                <div class="dnd-setting-row">
+                    <span>Name:</span>
+                    <input type="text" id="dnd-sk-name" placeholder="NPC name" />
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Race:</span>
+                    <input type="text" id="dnd-sk-race" placeholder="e.g. Human, Elf" />
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Type:</span>
+                    <select id="dnd-sk-type">
+                        <option value="">-- Select --</option>
+                        <option value="expert">Expert</option>
+                        <option value="spellcaster">Spellcaster</option>
+                        <option value="warrior">Warrior</option>
+                    </select>
+                </div>
+                <div class="dnd-setting-row" id="dnd-sk-subtype-row" style="display:none;">
+                    <span>Subtype:</span>
+                    <select id="dnd-sk-subtype"></select>
+                </div>
+            </div>
+
+            <div class="dnd-sk-config-section">
+                <div class="dnd-sk-config-section-title">Base Creature</div>
+                <div class="dnd-setting-row">
+                    <span>Source:</span>
+                    <select id="dnd-sk-creature-source">
+                        <option value="">-- Loading --</option>
+                    </select>
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Creature:</span>
+                    <input type="text" id="dnd-sk-creature-search" placeholder="Search creature..." />
+                    <select id="dnd-sk-creature-select" style="display:none;"></select>
+                </div>
+                <div id="dnd-sk-creature-preview" class="dnd-sk-creature-preview" style="display:none;"></div>
+            </div>
+
+            <div class="dnd-sk-config-section" id="dnd-sk-prof-section" style="display:none;">
+                <div class="dnd-sk-config-section-title">Proficiencies</div>
+                <div class="dnd-setting-row">
+                    <span>Save:</span>
+                    <select id="dnd-sk-save-prof"></select>
+                </div>
+                <div class="dnd-setting-row dnd-sk-skill-row">
+                    <span id="dnd-sk-skill-label">Skills (0/2):</span>
+                </div>
+                <div id="dnd-sk-skill-checks" class="dnd-sk-skill-checks"></div>
+                <div class="dnd-setting-row" id="dnd-sk-expertise-row" style="display:none;">
+                    <span>Expertise:</span>
+                </div>
+                <div id="dnd-sk-expertise-checks" class="dnd-sk-skill-checks" style="display:none;"></div>
+            </div>
+
+            <div class="dnd-sk-config-section" id="dnd-sk-asi-section" style="display:none;">
+                <div class="dnd-sk-config-section-title">ASI Allocations</div>
+                <div id="dnd-sk-asi-rows"></div>
+            </div>
+
+            <div class="dnd-sk-config-section" id="dnd-sk-weapons-section" style="display:none;">
+                <div class="dnd-sk-config-section-title">Weapons</div>
+                <div id="dnd-sk-weapons-list"></div>
+            </div>
+
+            <div class="dnd-sk-config-section" id="dnd-sk-spells-section" style="display:none;">
+                <div class="dnd-sk-config-section-title">Spells</div>
+                <div class="dnd-setting-row">
+                    <span id="dnd-sk-cantrip-count">Cantrips (0/2):</span>
+                </div>
+                <div id="dnd-sk-cantrip-tags" class="dnd-sk-spell-tags"></div>
+                <div class="dnd-setting-row">
+                    <input type="text" id="dnd-sk-cantrip-search" placeholder="Search cantrips..." />
+                </div>
+                <div id="dnd-sk-cantrip-results" class="dnd-sk-spell-results"></div>
+                <div class="dnd-setting-row">
+                    <span id="dnd-sk-spell-count">Spells (0/1):</span>
+                </div>
+                <div id="dnd-sk-spell-tags" class="dnd-sk-spell-tags"></div>
+                <div class="dnd-setting-row">
+                    <input type="text" id="dnd-sk-spell-search" placeholder="Search spells..." />
+                </div>
+                <div id="dnd-sk-spell-results" class="dnd-sk-spell-results"></div>
+            </div>
+
+            <div class="dnd-sk-config-section">
+                <div class="dnd-sk-config-section-title">Hire Info</div>
+                <div class="dnd-setting-row">
+                    <span>Gold/day:</span>
+                    <input type="number" id="dnd-sk-hire-gold" min="0" value="0" style="width:4em;" />
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Hire date:</span>
+                    <input type="text" id="dnd-sk-hire-date" placeholder="e.g. Day 16 of Spring" />
+                    <button id="dnd-sk-hire-date-now" class="dnd-btn-small" title="Set from current date"><i class="fa-solid fa-calendar-check"></i></button>
+                </div>
+            </div>
+
+            <div id="dnd-sk-config-error" class="dnd-spellbook-import-error" style="display:none;"></div>
+        </div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-sk-config-save" class="dnd-btn dnd-btn-primary">Save</button>
+            <button id="dnd-sk-config-cancel" class="dnd-btn">Cancel</button>
         </div>
     </div>
 </div>

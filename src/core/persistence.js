@@ -5,7 +5,7 @@
 
 import { getContext } from '../../../../../extensions.js';
 import { saveSettingsDebounced, chat_metadata, saveChatDebounced } from '../../../../../../script.js';
-import { extensionName, extensionSettings, defaultAttributes, defaultAttributeSchema, buildDefaultAttributes, setChatAttributes, setChatAttributeSchema, setQuests, setInventory, setSpellLog, setSpellTrackerDisabled, setSendAttributesOnRoll, setSpellInjectEnabled, setSpellbook, setCharacter } from './state.js';
+import { extensionName, extensionSettings, defaultAttributeSchema, buildDefaultAttributes, setChatAttributes, setChatAttributeSchema, setQuests, setInventory, setSpellLog, setSpellTrackerDisabled, setSendAttributesOnRoll, setSpellInjectEnabled, setSpellbook, setCharacter, setSidekicks } from './state.js';
 
 /**
  * Save extension settings to SillyTavern storage.
@@ -265,4 +265,26 @@ export function saveCharacter(data) {
 export function loadCharacter() {
     const stored = chat_metadata?.dnd5e_character;
     setCharacter(stored || null);
+}
+
+/**
+ * Save sidekick data to chat metadata.
+ * @param {Array} list - The sidekicks array to persist
+ */
+export function saveSidekicks(list) {
+    if (!chat_metadata) return;
+    chat_metadata.dnd5e_sidekicks = list;
+    saveChatDebounced();
+}
+
+/**
+ * Load sidekick data from chat metadata into runtime state.
+ */
+export function loadSidekicks() {
+    const stored = chat_metadata?.dnd5e_sidekicks;
+    if (Array.isArray(stored)) {
+        setSidekicks(stored);
+    } else {
+        setSidekicks([]);
+    }
 }

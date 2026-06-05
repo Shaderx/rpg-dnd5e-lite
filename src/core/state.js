@@ -30,7 +30,8 @@ export const extensionSettings = {
     // Dice
     lastDiceRoll: null,
     lastDamageRoll: null,
-    lastFavoredRoll: null,
+    lastModifierRolls: {},
+    allyCount: 1,
 
     // Strip widgets
     stripWidgetsEnabled: true,
@@ -118,6 +119,17 @@ export function setCharacter(val) { character = val; }
 
 // In-memory cache of 5e.tools class data files (filename -> parsed JSON).
 export const classDataCache = new Map();
+
+// Sidekicks: per-chat array of sidekick NPC configs.
+export let sidekicks = [];
+export function setSidekicks(val) { sidekicks = val; }
+
+// In-memory cache of 5e.tools bestiary data (sourceKey -> monster array).
+export const bestiaryCache = new Map();
+
+// In-memory cache of weapon items from items-base.json (weaponName lowercase -> item object).
+export let weaponItemCache = null;
+export function setWeaponItemCache(val) { weaponItemCache = val; }
 
 export let pendingDiceRoll = null;
 export function setPendingDiceRoll(val) { pendingDiceRoll = val; }

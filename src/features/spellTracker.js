@@ -26,9 +26,8 @@ const ACTION_KEYWORD_MAP = new Map([
     ['use', 'use'],           ['uses', 'use'],           ['used', 'use'],           ['using', 'use'],
     ['drink', 'drink'],       ['drinks', 'drink'],       ['drank', 'drink'],        ['drinking', 'drink'],
     ['consume', 'consume'],   ['consumes', 'consume'],   ['consumed', 'consume'],   ['consuming', 'consume'],
-    ['read', 'read'],         ['reads', 'read'],         ['reading', 'read'],
     ['trigger', 'trigger'],   ['triggers', 'trigger'],   ['triggered', 'trigger'],  ['triggering', 'trigger'],
-    ['play', 'play'],         ['plays', 'play'],         ['played', 'play'],        ['playing', 'play'],
+    ['maintain', 'maintain'], ['maintains', 'maintain'], ['maintained', 'maintain'], ['maintaining', 'maintain'],
 ]);
 
 const ACTION_LABELS = {
@@ -39,9 +38,8 @@ const ACTION_LABELS = {
     use:      { present: 'Use',      past: 'Used' },
     drink:    { present: 'Drink',    past: 'Drank' },
     consume:  { present: 'Consume',  past: 'Consumed' },
-    read:     { present: 'Read',     past: 'Read' },
     trigger:  { present: 'Trigger',  past: 'Triggered' },
-    play:     { present: 'Play',     past: 'Played' },
+    maintain: { present: 'Maintain', past: 'Maintained' },
 };
 
 /**
@@ -232,6 +230,7 @@ function scanChatForSpells({ skipLastAssistant = false } = {}) {
         if (SHORT_REST_REGEX.test(msg.mes)) {
             parsed.push({
                 type: 'short-rest',
+                time: lastTime,
                 date: lastDate,
                 text: `${userName} has short rested here for 1 hour.`,
                 msgIndex: i,
@@ -317,7 +316,6 @@ export function hardRefreshSpellLog() {
 export function addManualSpellCast(spellName) {
     if (!spellName) return;
     const context = getContext();
-    const userName = context.name1 || 'User';
 
     let currentDate = null;
     let currentTime = null;
@@ -376,26 +374,68 @@ export function addManualRest() {
 }
 
 /**
- * Manually add a short rest entry at the current header date.
+ * Manually add a short rest entry at the current header date/time.
  */
 export function addManualShortRest() {
     const context = getContext();
     const userName = context.name1 || 'User';
 
     let currentDate = null;
+    let currentTime = null;
     const chat = context.chat;
     if (chat) {
         for (let i = chat.length - 1; i >= 0; i--) {
             if (chat[i].is_user) continue;
             const header = parseHeader(chat[i].mes);
-            if (header?.date) { currentDate = header.date; break; }
+            if (header?.date) {
+                currentDate = header.date;
+                currentTime = header.time;
+                break;
+            }
         }
     }
 
     spellLog.push({
         type: 'short-rest',
+        time: currentTime,
         date: currentDate,
         text: `${userName} has short rested here for 1 hour.`,
+        _edited: true,
+        _manual: true,
+    });
+
+    const trimmed = trimToTwoLongRests(spellLog);
+    setSpellLog(trimmed);
+    saveSpellLog(trimmed);
+}
+
+/**
+ * Manually add a dispel entry at the current header date/time.
+ */
+export function addManualDispel() {
+    const context = getContext();
+    const userName = context.name1 || 'User';
+
+    let currentDate = null;
+    let currentTime = null;
+    const chat = context.chat;
+    if (chat) {
+        for (let i = chat.length - 1; i >= 0; i--) {
+            if (chat[i].is_user) continue;
+            const header = parseHeader(chat[i].mes);
+            if (header?.date) {
+                currentDate = header.date;
+                currentTime = header.time;
+                break;
+            }
+        }
+    }
+
+    spellLog.push({
+        type: 'dispel',
+        time: currentTime,
+        date: currentDate,
+        text: `${userName} cleared and dispelled all own effects here.`,
         _edited: true,
         _manual: true,
     });

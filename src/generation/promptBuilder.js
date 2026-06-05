@@ -4,9 +4,11 @@
  */
 
 import { getContext } from '../../../../../extensions.js';
-import { extensionSettings, chatAttributes, chatAttributeSchema, quests, inventory, spellLog, headerInfo, sendAttributesOnRoll, spellInjectEnabled, spellDataCache } from '../core/state.js';
+import { extensionSettings, chatAttributes, chatAttributeSchema, quests, inventory, spellLog, headerInfo, sendAttributesOnRoll, spellInjectEnabled, spellDataCache, sidekicks } from '../core/state.js';
 import { formatLevel, schoolName } from '../features/spellbook.js';
 import { extractSpellCasts, actionLabels } from '../features/spellTracker.js';
+import { MODIFIER_DEFS } from '../features/modifiers.js';
+import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost } from '../features/sidekick.js';
 
 export function getModifier(score) {
     const mod = Math.floor((score - 10) / 2);
@@ -158,11 +160,10 @@ export function buildSpellLogPrompt() {
 
     // Filter out entries from the current (last) user message
     const prior = spellLog.filter(e =>
-        e.type === 'rest' || e.type === 'short-rest' || e.msgIndex === null || e.msgIndex !== lastUserIdx
+        e.type === 'rest' || e.type === 'short-rest' || e.type === 'dispel' || e.msgIndex === null || e.msgIndex !== lastUserIdx
     );
 
-    const casts = prior.filter(e => e.type === 'cast');
-    if (casts.length === 0) return '';
+    if (prior.length === 0) return '';
 
     const userName = getContext().name1 || 'User';
     const lines = [
@@ -171,8 +172,13 @@ export function buildSpellLogPrompt() {
     ];
 
     for (const entry of prior) {
-        if (entry.type === 'rest' || entry.type === 'short-rest') {
-            lines.push(`- ${entry.text}`);
+        if (entry.type === 'rest') {
+            const datePart = entry.date ? `, ${entry.date}` : '';
+            lines.push(`- ${entry.text}${datePart}`);
+        } else if (entry.type === 'short-rest' || entry.type === 'dispel') {
+            const timePart = entry.time ? ` at ${entry.time}` : '';
+            const datePart = entry.date ? `, ${entry.date}` : '';
+            lines.push(`- ${entry.text}${timePart}${datePart}`);
         } else {
             const { past } = actionLabels(entry.action);
             const detailsPart = entry.details ? ` (${entry.details})` : '';
@@ -180,12 +186,6 @@ export function buildSpellLogPrompt() {
             const datePart = entry.date ? `, ${entry.date}` : '';
             lines.push(`- ${past} ${entry.spell}${detailsPart}${timePart}${datePart}`);
         }
-    }
-
-    const slotsStr = buildSpellSlotsString();
-    if (slotsStr) {
-        lines.push('');
-        lines.push(`[Current spell slots remaining: ${slotsStr}]`);
     }
 
     return lines.join('\n');
@@ -199,8 +199,9 @@ export function buildSpellLogPrompt() {
 export function buildRollPrompt() {
     const roll = extensionSettings.lastDiceRoll;
     const dmg = extensionSettings.lastDamageRoll;
-    const favored = extensionSettings.lastFavoredRoll;
-    if (!roll && !dmg && !favored) return '';
+    const mods = extensionSettings.lastModifierRolls || {};
+    const hasModifiers = Object.keys(mods).length > 0;
+    if (!roll && !dmg && !hasModifiers) return '';
 
     const userName = getContext().name1 || 'User';
     const includeAttrs = sendAttributesOnRoll;
@@ -211,15 +212,22 @@ export function buildRollPrompt() {
             prompt += `${userName}'s attributes: ${buildAttributesString()}\n`;
         }
         prompt += `${userName} rolled two d20 dice — 1st roll: ${roll.roll1}, 2nd roll: ${roll.roll2}.\n`;
-        prompt += `If the situation grants advantage, use the higher roll. If it imposes disadvantage, use the lower roll. Otherwise use the 1st roll.\n`;
+        prompt += `Disregard any rolls if not needed. If the situation grants advantage, use the higher roll. If it imposes disadvantage, use the lower roll. Otherwise use the 1st roll.\n`;
         if (includeAttrs) {
-            prompt += `The relevant ability modifier is calculated from their attributes above. Add the appropriate modifier to the chosen roll and compare against the DC to determine success or failure. Attack rolls are d20 + Modifier + Proficiency Bonus\n\n`;
+            prompt += `The relevant ability modifier is calculated from their attributes above. Add the appropriate modifier to the chosen roll and compare against the DC to determine success or failure. Attack rolls are d20 + Modifier + Proficiency Bonus.\n`;
+            prompt += `Remember to apply all applicable proficiencies and expertise: skill proficiency, tool proficiency, weapon/armor proficiency, saving throw proficiency, and expertise (double proficiency bonus) where the character has them.\n\n`;
         } else {
-            prompt += `Compare the chosen roll against the DC to determine success or failure.\n\n`;
+            prompt += `Compare the chosen roll against the DC to determine success or failure. Remember to apply all applicable proficiencies and expertise (double proficiency bonus) the character has when calculating the final result.\n\n`;
         }
-        if (roll.allyRoll1 != null && roll.allyRoll2 != null) {
-            prompt += `Allied rolls (use only when an ally needs to roll this turn; otherwise ignore) — 1st roll: ${roll.allyRoll1}, 2nd roll: ${roll.allyRoll2}.\n`;
-            prompt += `Apply the same advantage/disadvantage logic for the ally: use the higher if advantage, the lower if disadvantage, otherwise the 1st roll.\n`;
+        const allies = roll.allyRolls ?? (roll.allyRoll1 != null
+            ? [{ roll1: roll.allyRoll1, roll2: roll.allyRoll2 }] : []);
+        if (allies.length > 0) {
+            for (let i = 0; i < allies.length; i++) {
+                const a = allies[i];
+                const tag = allies.length === 1 ? 'Ally' : `Ally ${i + 1}`;
+                prompt += `${tag} rolls (use only when this ally needs to roll this turn; otherwise ignore) — 1st roll: ${a.roll1}, 2nd roll: ${a.roll2}.\n`;
+            }
+            prompt += `Apply the same advantage/disadvantage logic for each ally: use the higher if advantage, the lower if disadvantage, otherwise the 1st roll.\n`;
             prompt += `Use these ally rolls for any checks, saves, attacks, or contested rolls a friendly NPC or companion must make this turn.\n\n`;
         }
         if (roll.npcRoll1 != null && roll.npcRoll2 != null) {
@@ -238,13 +246,18 @@ export function buildRollPrompt() {
         prompt += `Apply each die result to the relevant effect of the spell, ability, or attack used this turn (damage, healing, save penalty, duration, etc.).`;
     }
 
-    if (favored) {
+    if (hasModifiers) {
         if (prompt) prompt += '\n';
-        prompt += `${userName} activates Favored by the Gods (Divine Soul, 1st level): `;
-        prompt += `If they failed a saving throw or missed with an attack roll, they may add 2d4 to the total, possibly changing the outcome. `;
-        prompt += `Rolled 2d4: ${favored.rolls.join(' + ')} = ${favored.total} to add.\n`;
-        prompt += `Once this feature is used, it cannot be used again until ${userName} finishes a short or long rest.`;
+        prompt += `${userName} has the following active dice modifiers:\n`;
+        for (const [id, modRoll] of Object.entries(mods)) {
+            const def = MODIFIER_DEFS.find(m => m.id === id);
+            if (!def || !modRoll) continue;
+            const desc = def.prompt.replace(/\{user\}/g, userName);
+            prompt += `- ${desc} Rolled ${modRoll.formula}: ${modRoll.rolls.join(' + ')} = ${modRoll.total}.\n`;
+        }
     }
+
+    prompt += `\nIMPORTANT: Write out the roll results and calculations at the end of your response (e.g. the chosen roll, modifiers applied, total, DC, and outcome).`;
 
     return prompt;
 }
@@ -307,6 +320,91 @@ export function buildSpellInjectPrompt() {
     return lines.join('\n');
 }
 
+
+/**
+ * Build the sidekick injection prompt with compact stat blocks for enabled NPCs.
+ */
+export function buildSidekickPrompt() {
+    if (!sidekicks || sidekicks.length === 0) return '';
+    const enabled = sidekicks.filter(sk => sk.enabled);
+    if (enabled.length === 0) return '';
+
+    const level = getSidekickLevel();
+    const lines = [`[Active Sidekicks (Lv ${level}):]`];
+
+    for (const sk of enabled) {
+        const stats = computeSidekickStats(sk, level);
+        const typeInfo = SIDEKICK_TYPES[sk.type];
+        const subInfo = typeInfo?.subtypes?.find(s => s.key === sk.subtype);
+        const typeLabel = typeInfo?.label || sk.type;
+        const subLabel = subInfo ? `/${subInfo.label}` : '';
+        const raceStr = sk.race ? `${sk.race} ` : '';
+        const creatureStr = sk.creatureName || '';
+        const acBonus = sk.type === 'warrior' && level >= 10 ? ' (+1)' : '';
+
+        lines.push(`\n— ${sk.name} (${raceStr}${creatureStr}, ${typeLabel}${subLabel}): HP ${stats.hp} | AC ${sk.baseAc}${acBonus} | SPD ${sk.baseSpeed}ft | Prof +${stats.proficiency}`);
+
+        const abilLine = ['str','dex','con','int','wis','cha']
+            .map(a => `${a.toUpperCase()} ${stats.scores[a]}(${getModStr(stats.scores[a])})`)
+            .join(' ');
+        lines.push(`  ${abilLine}`);
+
+        const profSaves = ['str','dex','con','int','wis','cha']
+            .filter(a => stats.saves[a].proficient)
+            .map(a => {
+                const s = stats.saves[a];
+                return `${a.toUpperCase()} ${s.mod >= 0 ? '+' : ''}${s.mod}*`;
+            });
+        const profSkills = ALL_SKILLS
+            .filter(sk2 => stats.skills[sk2].proficient || stats.skills[sk2].expertise)
+            .map(sk2 => {
+                const s = stats.skills[sk2];
+                const mark = s.expertise ? '**' : '';
+                return `${SKILL_LABELS[sk2]} ${s.mod >= 0 ? '+' : ''}${s.mod}${mark}`;
+            });
+        const saveSkillParts = [];
+        if (profSaves.length > 0) saveSkillParts.push(`Saves: ${profSaves.join(', ')}`);
+        if (profSkills.length > 0) saveSkillParts.push(`Skills: ${profSkills.join(', ')}`);
+        if (saveSkillParts.length > 0) lines.push(`  ${saveSkillParts.join(' | ')}`);
+
+        if (sk.weapons?.length > 0) {
+            const wStrs = sk.weapons.map(w => {
+                let desc = `${w.damageDice} ${w.damageType}`;
+                if (w.versatileDice) desc += `, versatile ${w.versatileDice}`;
+                if (w.range) desc += `, ${w.attackType?.includes('mw') ? 'thrown' : 'range'} ${w.range}`;
+                return `${w.name} (${desc})`;
+            });
+            lines.push(`  Weapons: ${wStrs.join('; ')}`);
+        }
+
+        if (stats.spellcasting) {
+            const sc = stats.spellcasting;
+            lines.push(`  Spellcasting: ${sc.abilityLabel} +${sc.attackMod} DC ${sc.saveDC} | Slots ${sc.slotsStr || 'none'}`);
+            if (sk.knownCantrips?.length > 0) lines.push(`  Cantrips: ${sk.knownCantrips.join(', ')}`);
+            if (sk.knownSpells?.length > 0) lines.push(`  Spells: ${sk.knownSpells.join(', ')}`);
+        }
+
+        if (stats.features?.length > 0) {
+            lines.push(`  Features: ${stats.features.join('. ')}`);
+        }
+
+        if (sk.hireGoldPerDay > 0 || sk.hireDate) {
+            const parts = [];
+            if (sk.hireGoldPerDay > 0) parts.push(`${sk.hireGoldPerDay}gp/day`);
+            if (sk.hireDate) parts.push(`since ${sk.hireDate}`);
+            const currentDate = headerInfo?.date || null;
+            if (sk.hireGoldPerDay > 0 && sk.hireDate && currentDate) {
+                const cost = calculateHireCost(sk.hireDate, currentDate, sk.hireGoldPerDay);
+                if (cost && cost.daysElapsed > 0) {
+                    parts.push(`(${cost.daysElapsed} days, ${cost.goldOwed}gp owed)`);
+                }
+            }
+            lines.push(`  Hire: ${parts.join(' ')}`);
+        }
+    }
+
+    return lines.join('\n');
+}
 
 function findSpellInCache(name) {
     const lower = name.toLowerCase();

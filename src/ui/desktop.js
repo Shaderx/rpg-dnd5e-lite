@@ -5,7 +5,7 @@
 
 import { extensionSettings, quests, headerInfo } from '../core/state.js';
 import { hasCurrency, formatCurrencyStrip, formatCurrencyTitle } from '../features/currencyParser.js';
-import { rollD20, updateDiceDisplay, clearDiceRoll, updateDamageDisplay } from '../features/dice.js';
+import { rollD20, updateDiceDisplay, clearDiceRoll } from '../features/dice.js';
 import { applyWeatherVisuals } from '../features/weatherVisuals.js';
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -477,8 +477,7 @@ function renderStripDice($container) {
     const $widget = $container.find('.dnd-strip-widget-dice');
     const $r1 = $widget.find('.dnd-strip-dice-r1');
     const $r2 = $widget.find('.dnd-strip-dice-r2');
-    const $ally1 = $widget.find('.dnd-strip-dice-ally1');
-    const $ally2 = $widget.find('.dnd-strip-dice-ally2');
+    const $allyRows = $widget.find('#dnd-strip-ally-rows');
     const $npc1 = $widget.find('.dnd-strip-dice-npc1');
     const $npc2 = $widget.find('.dnd-strip-dice-npc2');
     const $clearBtn = $widget.find('.dnd-strip-dice-clear');
@@ -488,16 +487,34 @@ function renderStripDice($container) {
     if (roll) {
         $r1.text(roll.roll1).attr('title', `Player 1st: ${roll.roll1}`);
         $r2.text(roll.roll2).attr('title', `Player 2nd: ${roll.roll2}`);
-        $ally1.text(roll.allyRoll1 ?? '--').attr('title', `Ally 1st: ${roll.allyRoll1 ?? '--'}`);
-        $ally2.text(roll.allyRoll2 ?? '--').attr('title', `Ally 2nd: ${roll.allyRoll2 ?? '--'}`);
+
+        const allies = roll.allyRolls ?? (roll.allyRoll1 != null
+            ? [{ roll1: roll.allyRoll1, roll2: roll.allyRoll2 }] : []);
+        let allyHtml = '';
+        for (let i = 0; i < allies.length; i++) {
+            const a = allies[i];
+            const label = allies.length === 1 ? 'Ally' : `A${i + 1}`;
+            allyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-ally">`
+                + `<span class="dnd-strip-dice-row-label">${label}</span>`
+                + `<span class="dnd-strip-dice-result dnd-strip-dice-ally" title="${label} 1st: ${a.roll1}">${a.roll1}</span>`
+                + `<span class="dnd-strip-dice-sep">/</span>`
+                + `<span class="dnd-strip-dice-result dnd-strip-dice-ally" title="${label} 2nd: ${a.roll2}">${a.roll2}</span>`
+                + `</div>`;
+        }
+        $allyRows.html(allyHtml);
+
         $npc1.text(roll.npcRoll1 ?? '--').attr('title', `Enemy 1st: ${roll.npcRoll1 ?? '--'}`);
         $npc2.text(roll.npcRoll2 ?? '--').attr('title', `Enemy 2nd: ${roll.npcRoll2 ?? '--'}`);
         $clearBtn.show();
     } else {
         $r1.text('--').attr('title', '');
         $r2.text('--').attr('title', '');
-        $ally1.text('--').attr('title', '');
-        $ally2.text('--').attr('title', '');
+        $allyRows.html(`<div class="dnd-strip-dice-row dnd-strip-dice-row-ally">`
+            + `<span class="dnd-strip-dice-row-label">Ally</span>`
+            + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">--</span>`
+            + `<span class="dnd-strip-dice-sep">/</span>`
+            + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">--</span>`
+            + `</div>`);
         $npc1.text('--').attr('title', '');
         $npc2.text('--').attr('title', '');
         $clearBtn.hide();

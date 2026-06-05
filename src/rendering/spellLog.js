@@ -6,7 +6,7 @@
 
 import { spellLog } from '../core/state.js';
 import { saveSpellLog } from '../core/persistence.js';
-import { addManualSpellCast, addManualRest, addManualShortRest, hardRefreshSpellLog, actionLabels } from '../features/spellTracker.js';
+import { addManualSpellCast, addManualRest, addManualShortRest, addManualDispel, hardRefreshSpellLog, actionLabels } from '../features/spellTracker.js';
 
 let dragSrcIdx = null;
 
@@ -47,9 +47,15 @@ export function renderSpellLog() {
         const entry = spellLog[i];
         const isRest = entry.type === 'rest';
         const isShortRest = entry.type === 'short-rest';
+        const isDispel = entry.type === 'dispel';
         const isAnyRest = isRest || isShortRest;
         let typeClass, icon, iconClass, label;
-        if (isShortRest) {
+        if (isDispel) {
+            typeClass = 'dnd-spell-log-dispel';
+            icon = 'fa-ban';
+            iconClass = 'dnd-spell-log-icon-dispel';
+            label = escapeHtml(entry.text);
+        } else if (isShortRest) {
             typeClass = 'dnd-spell-log-short-rest';
             icon = 'fa-mug-hot';
             iconClass = 'dnd-spell-log-icon-short-rest';
@@ -194,6 +200,14 @@ export function addRestFromButton() {
  */
 export function addShortRestFromButton() {
     addManualShortRest();
+    renderSpellLog();
+}
+
+/**
+ * Add a dispel entry from the UI button.
+ */
+export function addDispelFromButton() {
+    addManualDispel();
     renderSpellLog();
 }
 

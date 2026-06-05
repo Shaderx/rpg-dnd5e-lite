@@ -6,7 +6,7 @@
 import { extension_prompt_types, extension_prompt_roles, setExtensionPrompt } from '../../../../../../script.js';
 import { extensionSettings, spellTrackerDisabled } from '../core/state.js';
 import { saveSettings } from '../core/persistence.js';
-import { buildQuestPrompt, buildInventoryPrompt, buildRollPrompt, buildSpellLogPrompt, buildSpellInjectPrompt } from './promptBuilder.js';
+import { buildQuestPrompt, buildInventoryPrompt, buildRollPrompt, buildSpellLogPrompt, buildSpellInjectPrompt, buildSidekickPrompt } from './promptBuilder.js';
 import { refreshHeaderFromChat } from '../features/headerParser.js';
 import { refreshSpellLog } from '../features/spellTracker.js';
 
@@ -16,6 +16,7 @@ export function clearExtensionPrompts() {
     setExtensionPrompt('dnd5e-roll', '', extension_prompt_types.IN_CHAT, 0, false);
     setExtensionPrompt('dnd5e-spelllog', '', extension_prompt_types.IN_CHAT, 0, false);
     setExtensionPrompt('dnd5e-spellinfo', '', extension_prompt_types.IN_CHAT, 0, false);
+    setExtensionPrompt('dnd5e-sidekicks', '', extension_prompt_types.IN_CHAT, 0, false);
 }
 
 /**
@@ -37,27 +38,27 @@ export function onGenerationStarted(type) {
 
     const depth = extensionSettings.injectionDepth ?? 0;
 
-    // Quest prompt as SYSTEM
+    // Quest prompt
     const questPrompt = buildQuestPrompt();
     if (questPrompt) {
-        setExtensionPrompt('dnd5e-quests', questPrompt, extension_prompt_types.IN_CHAT, depth, false, extension_prompt_roles.SYSTEM);
+        setExtensionPrompt('dnd5e-quests', questPrompt, extension_prompt_types.IN_CHAT, depth, false, extension_prompt_roles.USER);
     } else {
         setExtensionPrompt('dnd5e-quests', '', extension_prompt_types.IN_CHAT, 0, false);
     }
 
-    // Inventory prompt as SYSTEM
+    // Inventory prompt
     const inventoryPrompt = buildInventoryPrompt();
     if (inventoryPrompt) {
-        setExtensionPrompt('dnd5e-inventory', inventoryPrompt, extension_prompt_types.IN_CHAT, depth + 1, false, extension_prompt_roles.SYSTEM);
+        setExtensionPrompt('dnd5e-inventory', inventoryPrompt, extension_prompt_types.IN_CHAT, depth, false, extension_prompt_roles.USER);
     } else {
         setExtensionPrompt('dnd5e-inventory', '', extension_prompt_types.IN_CHAT, 0, false);
     }
 
-    // Spell log at depth 1 as SYSTEM (skip if tracker disabled for this chat)
+    // Spell log
     if (!spellTrackerDisabled) {
         const spellLogPrompt = buildSpellLogPrompt();
         if (spellLogPrompt) {
-            setExtensionPrompt('dnd5e-spelllog', spellLogPrompt, extension_prompt_types.IN_CHAT, 1, false, extension_prompt_roles.SYSTEM);
+            setExtensionPrompt('dnd5e-spelllog', spellLogPrompt, extension_prompt_types.IN_CHAT, depth, false, extension_prompt_roles.USER);
         } else {
             setExtensionPrompt('dnd5e-spelllog', '', extension_prompt_types.IN_CHAT, 0, false);
         }
@@ -71,18 +72,26 @@ export function onGenerationStarted(type) {
         setExtensionPrompt('dnd5e-roll', rollPrompt, extension_prompt_types.IN_CHAT, depth, false, extension_prompt_roles.USER);
         extensionSettings.lastDiceRoll = null;
         extensionSettings.lastDamageRoll = null;
-        extensionSettings.lastFavoredRoll = null;
+        extensionSettings.lastModifierRolls = {};
         saveSettings();
     } else {
         setExtensionPrompt('dnd5e-roll', '', extension_prompt_types.IN_CHAT, 0, false);
     }
 
-    // Spell info injection as SYSTEM (when user message has [Spell, ...] brackets)
+    // Spell info injection (when user message has [Spell, ...] brackets)
     const spellInfoPrompt = buildSpellInjectPrompt();
     if (spellInfoPrompt) {
-        setExtensionPrompt('dnd5e-spellinfo', spellInfoPrompt, extension_prompt_types.IN_CHAT, 0, false, extension_prompt_roles.SYSTEM);
+        setExtensionPrompt('dnd5e-spellinfo', spellInfoPrompt, extension_prompt_types.IN_CHAT, depth, false, extension_prompt_roles.USER);
     } else {
         setExtensionPrompt('dnd5e-spellinfo', '', extension_prompt_types.IN_CHAT, 0, false);
+    }
+
+    // Sidekick stats injection (per-NPC enabled flags gate individually)
+    const sidekickPrompt = buildSidekickPrompt();
+    if (sidekickPrompt) {
+        setExtensionPrompt('dnd5e-sidekicks', sidekickPrompt, extension_prompt_types.IN_CHAT, depth, false, extension_prompt_roles.USER);
+    } else {
+        setExtensionPrompt('dnd5e-sidekicks', '', extension_prompt_types.IN_CHAT, 0, false);
     }
 
 }
