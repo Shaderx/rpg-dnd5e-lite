@@ -19,7 +19,7 @@ import {
     PREPARED_CASTERS, getPreparedCount, SPELLCASTING_ABILITY, CASTER_TYPE,
     SPELLCASTING_SUBCLASSES, SUBCLASS_EXTRA_SPELL_LISTS,
 } from '../core/constants.js';
-import { getLevelFeatures } from '../features/levelFeatures.js';
+import { getLevelFeatures, getMultiSelectCount, filterByPrereqs, computeCompanionStats } from '../features/levelFeatures.js';
 import { renderV1CharacterPanel } from './character.js';
 import { renderV1Spellbook } from './spellbook.js';
 
@@ -1278,6 +1278,14 @@ function populateASI() {
                 renderASIFeature(levelSection, parseInt(lv));
             } else if (feat.type === 'single-select') {
                 renderSingleSelectFeature(levelSection, parseInt(lv), feat);
+            } else if (feat.type === 'multi-select') {
+                renderMultiSelectFeature(levelSection, parseInt(lv), feat);
+            } else if (feat.type === 'proficiency-pick') {
+                renderProficiencyPickFeature(levelSection, parseInt(lv), feat);
+            } else if (feat.type === 'spell-pick') {
+                renderSpellPickFeature(levelSection, parseInt(lv), feat);
+            } else if (feat.type === 'companion') {
+                renderCompanionFeature(levelSection, parseInt(lv), feat);
             }
         }
 
@@ -1458,6 +1466,360 @@ function renderFeatureSubconfig(container, lv, featDef, selectedId) {
                 });
             };
         }
+    }
+}
+
+// ============================================================
+// MULTI-SELECT FEATURE (Maneuvers, Arcane Shots, Metamagic, Invocations)
+// ============================================================
+
+function renderMultiSelectFeature(parent, lv, featDef) {
+    const level = wizState.level || 1;
+    const maxCount = getMultiSelectCount(featDef, level);
+    const data = wizState.levelChoices?.[lv]?.[featDef.id] || {};
+    const selected = data.selectedMulti || [];
+
+    const row = document.createElement('div');
+    row.className = 'dnd-v1-level-feature-row v1-multi-select-feature';
+    row.dataset.level = lv;
+    row.dataset.featureId = featDef.id;
+
+    let descHtml = '';
+    if (featDef.description) {
+        descHtml = `<div class="v1-level-feature-desc">${esc(featDef.description)}</div>`;
+    }
+
+    let scaleNote = '';
+    if (featDef.scaleCount) {
+        const parts = Object.entries(featDef.scaleCount)
+            .sort((a, b) => Number(a[0]) - Number(b[0]))
+            .map(([l, c]) => `${c} at L${l}`);
+        scaleNote = `<div class="v1-multi-scale-note">Scale: ${featDef.count} at L${featDef.level || lv}, ${parts.join(', ')}</div>`;
+    }
+
+    row.innerHTML = `
+        <div class="v1-level-feature-label">${esc(featDef.label)}</div>
+        ${descHtml}
+        ${scaleNote}
+        <div class="v1-multi-counter">Selected: <span class="v1-multi-count">${selected.length}</span> / ${maxCount}</div>
+        <div class="v1-multi-grid"></div>
+    `;
+    parent.appendChild(row);
+
+    const grid = row.querySelector('.v1-multi-grid');
+    const counter = row.querySelector('.v1-multi-count');
+
+    // Determine eligibility for invocations
+    let options = featDef.options || [];
+    if (featDef.filterByLevel) {
+        const pactBoon = wizState.levelChoices?.[3]?.['pact-boon']?.selected || null;
+        const knownCantrips = (wizState.knownCantrips || []);
+        options = filterByPrereqs(options, level, pactBoon, knownCantrips);
+    }
+
+    for (const opt of options) {
+        const isSelected = selected.includes(opt.id);
+        const isEligible = opt.eligible !== false;
+        const disabledClass = (!isEligible && !isSelected) ? ' v1-multi-disabled' : '';
+        const checkedAttr = isSelected ? ' checked' : '';
+        const disabledAttr = (!isEligible && !isSelected) ? ' disabled' : '';
+
+        const cell = document.createElement('label');
+        cell.className = `v1-multi-option${disabledClass}${isSelected ? ' v1-multi-selected' : ''}`;
+        cell.title = opt.desc || '';
+        cell.innerHTML = `
+            <input type="checkbox" class="v1-multi-cb" data-opt-id="${esc(opt.id)}"${checkedAttr}${disabledAttr} />
+            <span class="v1-multi-label">${esc(opt.label)}</span>
+            ${opt.desc ? `<span class="v1-multi-desc">${esc(opt.desc)}</span>` : ''}
+        `;
+        grid.appendChild(cell);
+    }
+
+    // Bind events
+    grid.addEventListener('change', (e) => {
+        if (!e.target.classList.contains('v1-multi-cb')) return;
+        const optId = e.target.dataset.optId;
+        if (!wizState.levelChoices[lv]) wizState.levelChoices[lv] = {};
+        const curData = wizState.levelChoices[lv][featDef.id] || {};
+        let curSelected = curData.selectedMulti || [];
+
+        if (e.target.checked) {
+            if (curSelected.length < maxCount) {
+                curSelected = [...curSelected, optId];
+            } else {
+                e.target.checked = false;
+                return;
+            }
+        } else {
+            curSelected = curSelected.filter(id => id !== optId);
+        }
+
+        wizState.levelChoices[lv][featDef.id] = { ...curData, selectedMulti: curSelected };
+        counter.textContent = curSelected.length;
+
+        // Update visual states
+        grid.querySelectorAll('.v1-multi-option').forEach(cell => {
+            const cb = cell.querySelector('.v1-multi-cb');
+            cell.classList.toggle('v1-multi-selected', cb.checked);
+            if (!cb.checked && curSelected.length >= maxCount && !cb.disabled) {
+                cell.classList.add('v1-multi-maxed');
+            } else {
+                cell.classList.remove('v1-multi-maxed');
+            }
+        });
+    });
+}
+
+// ============================================================
+// PROFICIENCY PICK FEATURE
+// ============================================================
+
+function renderProficiencyPickFeature(parent, lv, featDef) {
+    const data = wizState.levelChoices?.[lv]?.[featDef.id] || {};
+    const picks = data.picks || [];
+    const maxPicks = featDef.count || 1;
+
+    const row = document.createElement('div');
+    row.className = 'dnd-v1-level-feature-row v1-prof-pick-feature';
+    row.dataset.level = lv;
+    row.dataset.featureId = featDef.id;
+
+    let descHtml = featDef.description ? `<div class="v1-level-feature-desc">${esc(featDef.description)}</div>` : '';
+
+    row.innerHTML = `
+        <div class="v1-level-feature-label">${esc(featDef.label)}</div>
+        ${descHtml}
+        <div class="v1-prof-pick-counter">Selected: <span class="v1-prof-count">${picks.length}</span> / ${maxPicks}</div>
+        <div class="v1-prof-pick-grid"></div>
+    `;
+    parent.appendChild(row);
+
+    const grid = row.querySelector('.v1-prof-pick-grid');
+    const counter = row.querySelector('.v1-prof-count');
+
+    // Determine the skill list
+    let skillOptions = [];
+    if (featDef.skillList === 'all') {
+        skillOptions = Object.keys(SKILL_LABELS).map(k => ({ id: k, label: SKILL_LABELS[k] }));
+    } else if (featDef.skillList === 'tools') {
+        skillOptions = [
+            { id: 'alchemist', label: 'Alchemist\'s Supplies' },
+            { id: 'brewer', label: 'Brewer\'s Supplies' },
+            { id: 'calligrapher', label: 'Calligrapher\'s Supplies' },
+            { id: 'carpenter', label: 'Carpenter\'s Tools' },
+            { id: 'cartographer', label: 'Cartographer\'s Tools' },
+            { id: 'cobbler', label: 'Cobbler\'s Tools' },
+            { id: 'cook', label: 'Cook\'s Utensils' },
+            { id: 'glassblower', label: 'Glassblower\'s Tools' },
+            { id: 'jeweler', label: 'Jeweler\'s Tools' },
+            { id: 'leatherworker', label: 'Leatherworker\'s Tools' },
+            { id: 'mason', label: 'Mason\'s Tools' },
+            { id: 'painter', label: 'Painter\'s Supplies' },
+            { id: 'potter', label: 'Potter\'s Tools' },
+            { id: 'smith', label: 'Smith\'s Tools' },
+            { id: 'tinker', label: 'Tinker\'s Tools' },
+            { id: 'weaver', label: 'Weaver\'s Tools' },
+            { id: 'woodcarver', label: 'Woodcarver\'s Tools' },
+        ];
+    } else if (featDef.skillList === 'languages') {
+        const langList = ['Common', 'Dwarvish', 'Elvish', 'Giant', 'Gnomish', 'Goblin', 'Halfling', 'Orc', 'Abyssal', 'Celestial', 'Draconic', 'Deep Speech', 'Infernal', 'Primordial', 'Sylvan', 'Undercommon'];
+        skillOptions = langList.map(l => ({ id: l.toLowerCase(), label: l }));
+    } else if (Array.isArray(featDef.skillList)) {
+        skillOptions = featDef.skillList.map(k => ({ id: k, label: SKILL_LABELS[k] || k }));
+    }
+
+    for (const opt of skillOptions) {
+        const isSelected = picks.includes(opt.id);
+        const cell = document.createElement('label');
+        cell.className = `v1-prof-option${isSelected ? ' v1-prof-selected' : ''}`;
+        cell.innerHTML = `
+            <input type="checkbox" class="v1-prof-cb" data-opt-id="${esc(opt.id)}" ${isSelected ? 'checked' : ''} />
+            <span>${esc(opt.label)}</span>
+        `;
+        grid.appendChild(cell);
+    }
+
+    grid.addEventListener('change', (e) => {
+        if (!e.target.classList.contains('v1-prof-cb')) return;
+        const optId = e.target.dataset.optId;
+        if (!wizState.levelChoices[lv]) wizState.levelChoices[lv] = {};
+        const curData = wizState.levelChoices[lv][featDef.id] || {};
+        let curPicks = curData.picks || [];
+
+        if (e.target.checked) {
+            if (curPicks.length < maxPicks) {
+                curPicks = [...curPicks, optId];
+            } else {
+                e.target.checked = false;
+                return;
+            }
+        } else {
+            curPicks = curPicks.filter(id => id !== optId);
+        }
+
+        wizState.levelChoices[lv][featDef.id] = { ...curData, picks: curPicks };
+        counter.textContent = curPicks.length;
+
+        grid.querySelectorAll('.v1-prof-option').forEach(cell => {
+            const cb = cell.querySelector('.v1-prof-cb');
+            cell.classList.toggle('v1-prof-selected', cb.checked);
+        });
+    });
+}
+
+// ============================================================
+// SPELL PICK FEATURE (Magical Discoveries, etc.)
+// ============================================================
+
+function renderSpellPickFeature(parent, lv, featDef) {
+    const data = wizState.levelChoices?.[lv]?.[featDef.id] || {};
+    const picks = data.picks || [];
+    const maxPicks = featDef.count || 2;
+
+    const row = document.createElement('div');
+    row.className = 'dnd-v1-level-feature-row v1-spell-pick-feature';
+    row.dataset.level = lv;
+    row.dataset.featureId = featDef.id;
+
+    let descHtml = featDef.description ? `<div class="v1-level-feature-desc">${esc(featDef.description)}</div>` : '';
+
+    row.innerHTML = `
+        <div class="v1-level-feature-label">${esc(featDef.label)}</div>
+        ${descHtml}
+        <div class="v1-spell-pick-tags v1-feat-tag-list"></div>
+        <div class="v1-spell-pick-counter">Selected: <span class="v1-spell-count">${picks.length}</span> / ${maxPicks}</div>
+        <div class="v1-feat-search-wrapper dnd-setting-row">
+            <input type="text" class="v1-spell-pick-search" placeholder="Search spells..." autocomplete="off" />
+            <div class="v1-feat-dropdown v1-spell-pick-dropdown"></div>
+        </div>
+    `;
+    parent.appendChild(row);
+
+    const tagDiv = row.querySelector('.v1-spell-pick-tags');
+    const counter = row.querySelector('.v1-spell-count');
+    const input = row.querySelector('.v1-spell-pick-search');
+    const dd = row.querySelector('.v1-spell-pick-dropdown');
+
+    const renderTags = () => {
+        tagDiv.innerHTML = '';
+        for (const name of picks) {
+            const tag = document.createElement('span');
+            tag.className = 'v1-feat-tag';
+            tag.innerHTML = `${esc(name)} <button class="v1-feat-remove">&times;</button>`;
+            tag.querySelector('.v1-feat-remove').onclick = () => {
+                const idx = picks.indexOf(name);
+                if (idx >= 0) picks.splice(idx, 1);
+                if (!wizState.levelChoices[lv]) wizState.levelChoices[lv] = {};
+                wizState.levelChoices[lv][featDef.id] = { picks: [...picks] };
+                counter.textContent = picks.length;
+                renderTags();
+            };
+            tagDiv.appendChild(tag);
+        }
+    };
+    renderTags();
+
+    input.oninput = async () => {
+        const q = input.value.toLowerCase().trim();
+        if (!q || picks.length >= maxPicks) { dd.classList.remove('open'); return; }
+
+        const targetClasses = featDef.spellFilter?.classes || [wizState.className?.toLowerCase()];
+        let allSpells = [];
+        for (const cls of targetClasses) {
+            const { getClassSpells } = await import('../features/spells.js');
+            const spells = await getClassSpells(cls);
+            allSpells = allSpells.concat(spells);
+        }
+
+        const matches = allSpells
+            .filter(s => s.name.toLowerCase().includes(q) && !picks.includes(s.name))
+            .slice(0, 12);
+        const unique = [...new Map(matches.map(s => [s.name, s])).values()];
+
+        dd.innerHTML = unique.map(s => `<div class="dropdown-item" data-name="${esc(s.name)}">${esc(s.name)} (Lv${s.level || '?'})</div>`).join('') || '<div class="dropdown-empty">No spells found</div>';
+        dd.classList.add('open');
+
+        dd.querySelectorAll('.dropdown-item').forEach(item => {
+            item.onclick = () => {
+                if (picks.length < maxPicks) {
+                    picks.push(item.dataset.name);
+                    if (!wizState.levelChoices[lv]) wizState.levelChoices[lv] = {};
+                    wizState.levelChoices[lv][featDef.id] = { picks: [...picks] };
+                    counter.textContent = picks.length;
+                    renderTags();
+                }
+                dd.classList.remove('open');
+                input.value = '';
+            };
+        });
+    };
+}
+
+// ============================================================
+// COMPANION FEATURE (Beast Master)
+// ============================================================
+
+function renderCompanionFeature(parent, lv, featDef) {
+    const choices = wizState.levelChoices?.[lv] || {};
+    const current = choices[featDef.id] || {};
+
+    const row = document.createElement('div');
+    row.className = 'dnd-v1-level-feature-row v1-companion-feature';
+    row.dataset.level = lv;
+    row.dataset.featureId = featDef.id;
+
+    let descHtml = featDef.description ? `<div class="v1-level-feature-desc">${esc(featDef.description)}</div>` : '';
+
+    const optionsHtml = (featDef.options || []).map(opt => {
+        const sel = current.selected === opt.id ? ' selected' : '';
+        return `<option value="${esc(opt.id)}"${sel}>${esc(opt.label)} — ${esc(opt.desc || '')}</option>`;
+    }).join('');
+
+    row.innerHTML = `
+        <div class="v1-level-feature-label">${esc(featDef.label)}</div>
+        ${descHtml}
+        <select class="v1-companion-select" data-level="${lv}" data-feature-id="${esc(featDef.id)}">
+            <option value="">-- Choose Companion --</option>
+            ${optionsHtml}
+        </select>
+        <div class="v1-companion-stats" data-level="${lv}" data-feature-id="${esc(featDef.id)}"></div>
+    `;
+    parent.appendChild(row);
+
+    const select = row.querySelector('.v1-companion-select');
+    const statsDiv = row.querySelector('.v1-companion-stats');
+
+    const showCompanionStats = (companionId) => {
+        statsDiv.innerHTML = '';
+        if (!companionId) return;
+
+        const level = wizState.level || 1;
+        const profBonus = Math.ceil(level / 4) + 1;
+        const wisScore = wizState.baseAbilities?.wis || 10;
+        const wisMod = Math.floor((wisScore - 10) / 2);
+
+        const comp = computeCompanionStats(companionId, level, profBonus, wisMod);
+        if (!comp) return;
+
+        statsDiv.innerHTML = `
+            <div class="v1-companion-card">
+                <div class="v1-companion-name">${esc(comp.name)}</div>
+                <div class="v1-companion-line"><b>HP:</b> ${comp.hp} | <b>AC:</b> ${comp.ac} | <b>Speed:</b> ${comp.speed}</div>
+                <div class="v1-companion-line"><b>Attack:</b> ${esc(comp.attackName)} +${comp.attackBonus} (${comp.damage} ${comp.damageType})</div>
+                <div class="v1-companion-line"><b>Special:</b> ${esc(comp.special)}</div>
+            </div>
+        `;
+    };
+
+    select.onchange = () => {
+        const val = select.value;
+        if (!wizState.levelChoices[lv]) wizState.levelChoices[lv] = {};
+        wizState.levelChoices[lv][featDef.id] = { selected: val || null };
+        showCompanionStats(val);
+    };
+
+    if (current.selected) {
+        showCompanionStats(current.selected);
     }
 }
 

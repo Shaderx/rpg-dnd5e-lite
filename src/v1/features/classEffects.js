@@ -21,9 +21,19 @@ import { MARTIAL_ARTS_DIE, RAGE_DAMAGE, getSneakAttackDice, getExtraAttacks } fr
 
 const CLASS_EFFECTS = {};
 
-function register(classKey, featureName, minLevel, effects) {
+/**
+ * Register a class or subclass feature effect.
+ * @param {string} classKey - Lowercase class name
+ * @param {string} featureName - Display name of the feature
+ * @param {number} minLevel - Minimum class level required
+ * @param {object} effects - Effect handlers (promptNote, acBonus, etc.)
+ * @param {object} [opts] - Optional metadata: { subclass?, optIn? }
+ *   subclass: string - If set, feature only applies when character has this subclass
+ *   optIn: boolean - If true, feature requires explicit selection (fighting styles)
+ */
+function register(classKey, featureName, minLevel, effects, opts = {}) {
     const id = `${classKey}_${featureName}`;
-    CLASS_EFFECTS[id] = { classKey, featureName, minLevel, ...effects };
+    CLASS_EFFECTS[id] = { classKey, featureName, minLevel, ...effects, _subclass: opts.subclass || null, _optIn: opts.optIn || false };
 }
 
 // --- Barbarian ---
@@ -106,11 +116,11 @@ register('cleric', 'Divine Intervention', 10, {
 register('cleric', 'Disciple of Life', 1, {
     healingBonus: (spellLevel) => 2 + spellLevel,
     promptNote: () => 'Disciple of Life: Healing spells restore extra 2 + spell level HP',
-});
+}, { subclass: 'Life' });
 
 register('cleric', 'Blessed Healer', 6, {
     promptNote: () => 'Blessed Healer: When you heal another, you regain 2 + spell level HP',
-});
+}, { subclass: 'Life' });
 
 // Subclass: Light Domain
 register('cleric', 'Potent Spellcasting', 8, {
@@ -118,7 +128,7 @@ register('cleric', 'Potent Spellcasting', 8, {
         filter: { cantripOnly: true },
         flatBonus: stats.mods.wis || 0,
     }),
-});
+}, { subclass: 'Light' });
 
 // --- Druid ---
 
@@ -160,26 +170,26 @@ register('fighter', 'Indomitable', 9, {
 // Fighting Styles (apply based on character's chosen fighting style stored in featData)
 register('fighter', 'Fighting Style: Archery', 1, {
     weaponAttackBonus: (_stats, wpn) => wpn.isRanged ? 2 : 0,
-});
+}, { optIn: true });
 
 register('fighter', 'Fighting Style: Defense', 1, {
     acBonus: (stats) => stats.hasArmor ? 1 : 0,
-});
+}, { optIn: true });
 
 register('fighter', 'Fighting Style: Dueling', 1, {
     weaponDamageBonus: (stats, wpn) => {
         if (!wpn.isTwoHanded && !wpn.isRanged && stats.equippedWeaponCount <= 1) return 2;
         return 0;
     },
-});
+}, { optIn: true });
 
 register('fighter', 'Fighting Style: Great Weapon Fighting', 1, {
     promptNote: () => 'Great Weapon Fighting: Reroll 1s and 2s on damage dice with two-handed/versatile weapons',
-});
+}, { optIn: true });
 
 register('fighter', 'Fighting Style: Two-Weapon Fighting', 1, {
     promptNote: () => 'Two-Weapon Fighting: Add ability modifier to off-hand bonus action attack damage',
-});
+}, { optIn: true });
 
 // --- Monk ---
 
@@ -263,22 +273,22 @@ register('paladin', 'Improved Divine Smite', 11, {
 // Fighting Styles for Paladin (same patterns as Fighter)
 register('paladin', 'Fighting Style: Defense', 2, {
     acBonus: (stats) => stats.hasArmor ? 1 : 0,
-});
+}, { optIn: true });
 
 register('paladin', 'Fighting Style: Dueling', 2, {
     weaponDamageBonus: (stats, wpn) => {
         if (!wpn.isTwoHanded && !wpn.isRanged && stats.equippedWeaponCount <= 1) return 2;
         return 0;
     },
-});
+}, { optIn: true });
 
 register('paladin', 'Fighting Style: Great Weapon Fighting', 2, {
     promptNote: () => 'Great Weapon Fighting: Reroll 1s and 2s on damage dice with two-handed/versatile weapons',
-});
+}, { optIn: true });
 
 register('paladin', 'Blessed Warrior', 2, {
     promptNote: () => 'Blessed Warrior: 2 Cleric cantrips using CHA as spellcasting ability',
-});
+}, { optIn: true });
 
 // --- Ranger ---
 
@@ -299,26 +309,26 @@ register('ranger', 'Extra Attack', 5, {
 // Ranger Fighting Styles
 register('ranger', 'Fighting Style: Archery', 2, {
     weaponAttackBonus: (_stats, wpn) => wpn.isRanged ? 2 : 0,
-});
+}, { optIn: true });
 
 register('ranger', 'Fighting Style: Defense', 2, {
     acBonus: (stats) => stats.hasArmor ? 1 : 0,
-});
+}, { optIn: true });
 
 register('ranger', 'Fighting Style: Dueling', 2, {
     weaponDamageBonus: (stats, wpn) => {
         if (!wpn.isTwoHanded && !wpn.isRanged && stats.equippedWeaponCount <= 1) return 2;
         return 0;
     },
-});
+}, { optIn: true });
 
 register('ranger', 'Fighting Style: Two-Weapon Fighting', 2, {
     promptNote: () => 'Two-Weapon Fighting: Add ability modifier to off-hand bonus action attack damage',
-});
+}, { optIn: true });
 
 register('ranger', 'Druidic Warrior', 2, {
     promptNote: () => 'Druidic Warrior: 2 Druid cantrips using WIS as spellcasting ability',
-});
+}, { optIn: true });
 
 // --- Rogue ---
 
@@ -364,31 +374,31 @@ register('sorcerer', 'Draconic Resilience', 1, {
         allowsShield: true,
     }),
     hpBonus: (level) => level,
-});
+}, { subclass: 'Draconic' });
 
 // Subclass: Divine Soul
 register('sorcerer', 'Favored by the Gods', 1, {
     promptNote: () => 'Favored by the Gods: When failing a save or missing an attack, add 2d4 to the roll (1/SR)',
-});
+}, { subclass: 'Divine Soul' });
 
 register('sorcerer', 'Empowered Healing', 6, {
     promptNote: () => 'Empowered Healing: Spend 1 sorcery point to reroll healing dice when you or ally within 5ft rolls healing',
-});
+}, { subclass: 'Divine Soul' });
 
 register('sorcerer', 'Otherworldly Wings', 14, {
     promptNote: () => 'Otherworldly Wings: Bonus action to sprout spectral wings, 30ft fly speed',
-});
+}, { subclass: 'Divine Soul' });
 
 register('sorcerer', 'Unearthly Recovery', 18, {
     promptNote: (stats) => `Unearthly Recovery: When below half HP at start of turn, regain HP equal to half max (${Math.floor(stats.hp / 2)}) once/LR`,
-});
+}, { subclass: 'Divine Soul' });
 
 register('sorcerer', 'Elemental Affinity', 6, {
     spellDamageBonus: (stats) => ({
         filter: { damageType: stats.draconicElement || null },
         flatBonus: stats.mods.cha || 0,
     }),
-});
+}, { subclass: 'Draconic' });
 
 // --- Warlock ---
 
@@ -404,7 +414,7 @@ register('warlock', 'Pact Boon', 3, {
 register('warlock', 'Hex Warrior', 1, {
     overrideWeaponAbility: () => 'cha',
     promptNote: () => 'Hex Warrior: Use CHA for weapon attack/damage rolls',
-});
+}, { subclass: 'Hexblade' });
 
 // Subclass: Celestial
 register('warlock', 'Radiant Soul', 6, {
@@ -412,7 +422,7 @@ register('warlock', 'Radiant Soul', 6, {
         filter: { damageType: 'radiant' },
         flatBonus: stats.mods.cha || 0,
     }),
-});
+}, { subclass: 'Celestial' });
 
 // --- Wizard ---
 
@@ -422,11 +432,11 @@ register('wizard', 'Empowered Evocation', 10, {
         filter: { school: 'V' },
         flatBonus: stats.mods.int || 0,
     }),
-});
+}, { subclass: 'Evocation' });
 
 register('wizard', 'Sculpt Spells', 2, {
     promptNote: () => 'Sculpt Spells: Choose creatures in evocation area spell to automatically save and take no damage',
-});
+}, { subclass: 'Evocation' });
 
 register('wizard', 'Arcane Recovery', 1, {
     promptNote: (stats) => {
@@ -441,7 +451,7 @@ register('wizard', 'Arcane Recovery', 1, {
 
 /**
  * Get all applicable class effects for a given class, subclass, and level.
- * Also considers fighting style and subclass-specific features.
+ * Uses data-driven _subclass and _optIn fields set during registration.
  *
  * @param {string} classKey - Lowercase class name
  * @param {string|null} subclassName - Subclass name (for subclass-specific effects)
@@ -456,61 +466,26 @@ export function getApplicableClassEffects(classKey, subclassName, level, chosenF
         if (effect.classKey !== classKey) continue;
         if (level < effect.minLevel) continue;
 
-        // Fighting styles and subclass features need explicit selection
-        const isChosen = chosenFeatures.some(f =>
-            f === effect.featureName ||
-            effect.featureName.includes(f) ||
-            f.includes(effect.featureName)
-        );
+        // Opt-in features (fighting styles) require explicit selection
+        if (effect._optIn) {
+            const isChosen = chosenFeatures.some(f =>
+                f === effect.featureName ||
+                effect.featureName.includes(f) ||
+                f.includes(effect.featureName)
+            );
+            if (!isChosen) continue;
+        }
 
-        const isFightingStyle = effect.featureName.startsWith('Fighting Style:') || isOptInFeature(effect.featureName);
-        const isSubclassFeature = isSubclassSpecific(effect.featureName);
-
-        if (isFightingStyle && !isChosen) continue;
-        if (isSubclassFeature && !isChosen && !matchesSubclass(effect.featureName, subclassName)) continue;
+        // Subclass-gated features require matching subclass
+        if (effect._subclass) {
+            if (!subclassName) continue;
+            if (!subclassName.toLowerCase().includes(effect._subclass.toLowerCase())) continue;
+        }
 
         results.push({ id, ...effect });
     }
 
     return results;
-}
-
-function isOptInFeature(featureName) {
-    const optIn = ['Druidic Warrior', 'Blessed Warrior'];
-    return optIn.includes(featureName);
-}
-
-function isSubclassSpecific(featureName) {
-    const subclassFeatures = [
-        'Disciple of Life', 'Blessed Healer', 'Potent Spellcasting',
-        'Draconic Resilience', 'Elemental Affinity',
-        'Favored by the Gods', 'Empowered Healing', 'Otherworldly Wings', 'Unearthly Recovery',
-        'Hex Warrior', 'Radiant Soul',
-        'Empowered Evocation', 'Sculpt Spells',
-    ];
-    return subclassFeatures.includes(featureName);
-}
-
-function matchesSubclass(featureName, subclassName) {
-    if (!subclassName) return false;
-    const subclassMap = {
-        'Disciple of Life': 'Life',
-        'Blessed Healer': 'Life',
-        'Potent Spellcasting': 'Light',
-        'Draconic Resilience': 'Draconic',
-        'Elemental Affinity': 'Draconic',
-        'Favored by the Gods': 'Divine Soul',
-        'Empowered Healing': 'Divine Soul',
-        'Otherworldly Wings': 'Divine Soul',
-        'Unearthly Recovery': 'Divine Soul',
-        'Hex Warrior': 'Hexblade',
-        'Radiant Soul': 'Celestial',
-        'Empowered Evocation': 'Evocation',
-        'Sculpt Spells': 'Evocation',
-    };
-    const expected = subclassMap[featureName];
-    if (!expected) return false;
-    return subclassName.toLowerCase().includes(expected.toLowerCase());
 }
 
 /**
@@ -550,3 +525,7 @@ export function collectClassEffects(classKey, subclassName, level, chosenFeature
 
     return result;
 }
+
+// Load subclass effects (registers additional features via register())
+import { registerAllSubclassEffects } from './subclassEffects.js';
+registerAllSubclassEffects(register);

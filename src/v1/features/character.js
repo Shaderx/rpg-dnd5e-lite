@@ -13,7 +13,8 @@ import {
 } from '../core/constants.js';
 import { collectFeatEffects, parseFeatAbilityBonus } from './featEffects.js';
 import { collectClassEffects } from './classEffects.js';
-import { collectLevelChoiceEffects } from './levelFeatures.js';
+import { collectLevelChoiceEffects, computeCompanionStats } from './levelFeatures.js';
+import { getSubclassSpells } from './subclassSpells.js';
 import { computeAC, computeWeaponStats } from './equipment.js';
 import { getSpellDamageInfo, buildSpellAnnotation, getMaxSpellLevel, formatSlots } from './spells.js';
 
@@ -152,11 +153,27 @@ export function computeCharacterStats(char) {
     const featEffects = collectFeatEffects(char.asiChoices, char.originFeat, char.originFeatConfig);
 
     // Gather level-choice effects (fighting styles, subclass selections, etc.)
-    const levelChoiceEffects = collectLevelChoiceEffects(char.levelChoices, classKey, char.subclassName);
+    const levelChoiceEffects = collectLevelChoiceEffects(char.levelChoices, classKey, char.subclassName, level);
     const allChosenFeatures = [
         ...(char.chosenFeatures || []),
         ...levelChoiceEffects.chosenFeatures,
     ];
+
+    // Subclass spells (always-prepared or bonus-known)
+    const subclassSpellData = char.subclassName
+        ? getSubclassSpells(classKey, char.subclassName, level)
+        : { spells: [], isKnown: false, bonusCantrips: [] };
+
+    // Companion (Beast Master)
+    let companion = null;
+    if (levelChoiceEffects.companion && classKey === 'ranger') {
+        companion = computeCompanionStats(
+            levelChoiceEffects.companion,
+            level,
+            proficiency,
+            mods.wis || 0
+        );
+    }
 
     const classEffects = collectClassEffects(
         classKey, char.subclassName, level, allChosenFeatures
@@ -387,6 +404,16 @@ export function computeCharacterStats(char) {
     const senses = [];
     if (char.speciesDarkvision) senses.push(`Darkvision ${char.speciesDarkvision}ft`);
 
+    // --- Level Choice Details (for prompt output) ---
+    const levelChoiceDetails = {
+        metamagic: levelChoiceEffects.metamagic,
+        invocations: levelChoiceEffects.invocations,
+        pactBoon: levelChoiceEffects.pactBoon,
+        maneuvers: levelChoiceEffects.maneuvers,
+        arcaneShots: levelChoiceEffects.arcaneShots,
+        kenseiWeapons: levelChoiceEffects.kenseiWeapons,
+    };
+
     return {
         // Identity
         name: char.name,
@@ -440,11 +467,22 @@ export function computeCharacterStats(char) {
         featBonusCantrips: [
             ...(featEffects.bonusCantrips || []),
             ...levelChoiceEffects.bonusCantrips,
+            ...subclassSpellData.bonusCantrips.map(name => ({ name, source: `${char.subclassName}` })),
         ],
         featBonusSpells: [
             ...(featEffects.bonusSpells || []),
             ...levelChoiceEffects.bonusSpells,
         ],
+
+        // Subclass spells
+        subclassSpells: subclassSpellData.spells,
+        subclassSpellsAreKnown: subclassSpellData.isKnown,
+
+        // Companion (Beast Master)
+        companion,
+
+        // Level choice details (metamagic, invocations, maneuvers, etc.)
+        levelChoiceDetails,
 
         // Feature toggles
         enabledFeatures: char.enabledFeatures || {},

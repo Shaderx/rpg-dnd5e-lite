@@ -5360,3 +5360,199 @@
     opacity: 1;
     color: #e44;
 }
+
+/* ============================================================
+   MULTI-SELECT FEATURE (Maneuvers, Arcane Shots, Metamagic, Invocations)
+   ============================================================ */
+
+.v1-multi-select-feature {
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.08));
+    border-radius: 6px;
+    padding: 0.7em;
+}
+
+.v1-multi-counter {
+    font-size: 0.82em;
+    opacity: 0.8;
+    margin-bottom: 0.4em;
+}
+
+.v1-multi-count {
+    font-weight: 700;
+    color: var(--SmartThemeQuoteColor, #5ba0d0);
+}
+
+.v1-multi-scale-note {
+    font-size: 0.75em;
+    opacity: 0.6;
+    margin-bottom: 0.3em;
+}
+
+.v1-multi-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.25em;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 0.3em;
+}
+
+.v1-multi-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4em;
+    padding: 0.35em 0.5em;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.82em;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+}
+
+.v1-multi-option:hover {
+    background: rgba(255,255,255,0.04);
+}
+
+.v1-multi-option.v1-multi-selected {
+    background: rgba(91, 160, 208, 0.12);
+    border-color: var(--SmartThemeQuoteColor, #5ba0d0);
+}
+
+.v1-multi-option.v1-multi-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.v1-multi-option.v1-multi-maxed {
+    opacity: 0.5;
+}
+
+.v1-multi-label {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.v1-multi-desc {
+    opacity: 0.7;
+    font-size: 0.9em;
+}
+
+.v1-multi-cb {
+    accent-color: var(--SmartThemeQuoteColor, #5ba0d0);
+    margin-top: 0.1em;
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   PROFICIENCY PICK FEATURE
+   ============================================================ */
+
+.v1-prof-pick-feature {
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.08));
+    border-radius: 6px;
+    padding: 0.7em;
+}
+
+.v1-prof-pick-counter {
+    font-size: 0.82em;
+    opacity: 0.8;
+    margin-bottom: 0.4em;
+}
+
+.v1-prof-count {
+    font-weight: 700;
+    color: var(--SmartThemeQuoteColor, #5ba0d0);
+}
+
+.v1-prof-pick-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3em;
+}
+
+.v1-prof-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    padding: 0.25em 0.5em;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.1));
+    border-radius: 4px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.v1-prof-option:hover {
+    background: rgba(255,255,255,0.04);
+}
+
+.v1-prof-option.v1-prof-selected {
+    background: rgba(91, 160, 208, 0.12);
+    border-color: var(--SmartThemeQuoteColor, #5ba0d0);
+}
+
+.v1-prof-cb {
+    accent-color: var(--SmartThemeQuoteColor, #5ba0d0);
+}
+
+/* ============================================================
+   SPELL PICK FEATURE
+   ============================================================ */
+
+.v1-spell-pick-feature {
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.08));
+    border-radius: 6px;
+    padding: 0.7em;
+}
+
+.v1-spell-pick-counter {
+    font-size: 0.82em;
+    opacity: 0.8;
+    margin-bottom: 0.4em;
+}
+
+.v1-spell-count {
+    font-weight: 700;
+    color: var(--SmartThemeQuoteColor, #5ba0d0);
+}
+
+/* ============================================================
+   COMPANION FEATURE (Beast Master)
+   ============================================================ */
+
+.v1-companion-feature {
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.08));
+    border-radius: 6px;
+    padding: 0.7em;
+}
+
+.v1-companion-select {
+    width: 100%;
+    padding: 0.35em;
+    border-radius: 4px;
+    margin-bottom: 0.5em;
+}
+
+.v1-companion-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.1));
+    border-radius: 6px;
+    padding: 0.6em;
+    margin-top: 0.4em;
+}
+
+.v1-companion-name {
+    font-weight: 700;
+    font-size: 0.95em;
+    margin-bottom: 0.3em;
+    color: var(--SmartThemeQuoteColor, #5ba0d0);
+}
+
+.v1-companion-line {
+    font-size: 0.82em;
+    margin-bottom: 0.2em;
+}
+
+.v1-companion-line b {
+    opacity: 0.8;
+}

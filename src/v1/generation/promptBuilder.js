@@ -149,8 +149,13 @@ export function buildCharacterPrompt() {
 
         lines.push(`  Slots: ${sc.slotsStr}`);
 
+        // Subclass spells (always prepared or bonus known)
+        if (stats.subclassSpells?.length > 0) {
+            const label = stats.subclassSpellsAreKnown ? 'Bonus Known' : 'Always Prepared';
+            lines.push(`  Subclass Spells (${label}): ${stats.subclassSpells.join(', ')}`);
+        }
+
         if (stats.annotatedSpells?.length > 0) {
-            // Group spells by level
             const byLevel = {};
             for (const sp of stats.annotatedSpells) {
                 const lv = sp.info?.spellLevel ?? 1;
@@ -163,6 +168,38 @@ export function buildCharacterPrompt() {
                 lines.push(`  ${label} (${ordinal(parseInt(lv))} level): ${spells.join(', ')}`);
             }
         }
+    }
+
+    // Level Choice Details (Metamagic, Invocations, Maneuvers, etc.)
+    if (stats.levelChoiceDetails) {
+        const lcd = stats.levelChoiceDetails;
+        if (lcd.metamagic?.length > 0) {
+            lines.push(`Metamagic: ${lcd.metamagic.join(', ')}`);
+        }
+        if (lcd.invocations?.length > 0) {
+            lines.push(`Eldritch Invocations: ${lcd.invocations.join(', ')}`);
+        }
+        if (lcd.pactBoon) {
+            lines.push(`Pact Boon: ${lcd.pactBoon}`);
+        }
+        if (lcd.maneuvers?.length > 0) {
+            lines.push(`Battle Master Maneuvers: ${lcd.maneuvers.join(', ')}`);
+        }
+        if (lcd.arcaneShots?.length > 0) {
+            lines.push(`Arcane Shot Options: ${lcd.arcaneShots.join(', ')}`);
+        }
+        if (lcd.kenseiWeapons?.length > 0) {
+            lines.push(`Kensei Weapons: ${lcd.kenseiWeapons.join(', ')}`);
+        }
+    }
+
+    // Companion (Beast Master)
+    if (stats.companion) {
+        const c = stats.companion;
+        lines.push(`Companion — ${c.name}:`);
+        lines.push(`  HP: ${c.hp} | AC: ${c.ac} | Speed: ${c.speed}`);
+        lines.push(`  Attack: ${c.attackName} (+${c.attackBonus}, ${c.damage} ${c.damageType})`);
+        if (c.special) lines.push(`  Special: ${c.special}`);
     }
 
     return lines.join('\n');
