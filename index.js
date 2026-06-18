@@ -5,25 +5,36 @@
 
 import { getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { eventSource, event_types } from '../../../../script.js';
-import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, character, sidekicks, headerInfo } from './src/core/state.js';
-import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled, saveSendAttributesOnRoll, loadSendAttributesOnRoll, saveSpellInjectEnabled, loadSpellInjectEnabled, loadSpellbook, loadCharacter, saveSidekicks, loadSidekicks } from './src/core/persistence.js';
+import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, autoLongRestEnabled, setAutoLongRestEnabled, character, sidekicks, headerInfo, lastEventRoll } from './src/core/state.js';
+import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled, saveSendAttributesOnRoll, loadSendAttributesOnRoll, saveSpellInjectEnabled, loadSpellInjectEnabled, saveAutoLongRest, loadAutoLongRest, loadSpellbook, loadCharacter, saveSidekicks, loadSidekicks, loadRandomEventState, saveRandomEventState } from './src/core/persistence.js';
 import { importSpellbook, clearSpellbook, ensureSpellData } from './src/features/spellbook.js';
 import { renderSpellbook, hideSpellTooltip } from './src/rendering/spellbook.js';
 import { fetchClassIndex, fetchClassData, listClasses, getSubclasses, saveCharacterConfig, clearCharacter, ensureCharacterData } from './src/features/character.js';
 import { renderCharacter } from './src/rendering/character.js';
 import { renderSidekickCards, renderSidekickDetail } from './src/rendering/sidekick.js';
-import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, fetchBestiaryIndex, fetchBestiarySource, searchCreatures, getCreatureStats, fetchWeaponItems, enrichWeaponFromItems, parseCreatureActions, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, searchSpellsForSidekick } from './src/features/sidekick.js';
+import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, CREATURE_TYPES, SPELL_SCHOOLS, fetchBestiaryIndex, fetchBestiarySource, preloadBestiarySources, getAvailableSourceKeys, getLoadedSourceKeys, searchCreatures, findCreatureVersions, getCreatureStats, fetchEquipmentItems, fetchMagicItems, isMagicWeaponsLoaded, extractCreatureActions, extractCreatureTraits, extractCreatureSkillProficiencies, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, preloadSpellData, getSpellsForClass, spellSchoolLabel, searchEquipment, searchMagicItems, weaponFromItem, armorFromItem, computeEquippedAC, DND_LANGUAGES, parseCreatureLanguages, getSpellDamageInfo, fetchFeats, getLoadedFeats, parseFeatAbility, checkFeatPrereqs, lookupFeatByName } from './src/features/sidekick.js';
+import { getFeatUIDescriptor, DND_TOOLS } from './src/features/featEffects.js';
+import { bindTooltipEvents, hideTooltip } from './src/rendering/tooltip.js';
 import { onGenerationStarted, clearExtensionPrompts } from './src/generation/injector.js';
+import { DEFAULT_SEVERITY_TIERS, getSeverityTiers } from './src/features/randomEvents.js';
 import { renderQuests, addQuestFromInput } from './src/rendering/quests.js';
 import { renderInventory, addInventoryItemFromInput } from './src/rendering/inventory.js';
 import { renderSpellLog, addSpellFromInput, addRestFromButton, addShortRestFromButton, addDispelFromButton, hardRefreshSpellLogFromButton } from './src/rendering/spellLog.js';
-import { refreshSpellLog } from './src/features/spellTracker.js';
+import { refreshSpellLog, hardRefreshSpellLog } from './src/features/spellTracker.js';
 import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, updateDamageDisplay, clearDamageRoll, toggleModifier, updateModifierDisplay, clearModifiers, updateAllyCountLabel, renderModifierButtons } from './src/features/dice.js';
 import { refreshHeaderFromChat, updateHeaderFromMessage } from './src/features/headerParser.js';
 import { updateStripWidgets, updateHeaderWidgets } from './src/ui/desktop.js';
 import { setupMobileFab } from './src/ui/mobile.js';
 import { setupCollapseToggle, applyPanelPosition, updatePanelVisibility, updateStripWidgetClass } from './src/ui/layout.js';
 import { applyWeatherVisuals, destroyWeatherVisuals, rebuildWeatherParticles, refreshLightingOverlay } from './src/features/weatherVisuals.js';
+import { loadCharacterV1, saveCharacterV1 } from './src/v1/core/persistence.js';
+import { characterV1, setCharacterV1 } from './src/v1/core/state.js';
+import { renderV1CharacterPanel } from './src/v1/rendering/character.js';
+import { renderV1DetailModal } from './src/v1/rendering/detail.js';
+import { openV1ConfigModal } from './src/v1/rendering/configModal.js';
+import { renderV1Spellbook, initV1Spellbook } from './src/v1/rendering/spellbook.js';
+import { listCustomSpecies, createCustomSpecies, updateCustomSpecies, deleteCustomSpecies, blankCustomSpecies } from './src/v1/features/customSpecies.js';
+import { CREATURE_TYPES as V1_CREATURE_TYPES, DAMAGE_TYPES, ABILITY_KEYS as V1_ABILITY_KEYS, ABILITY_LABELS as V1_ABILITY_LABELS } from './src/v1/core/constants.js';
 
 // ─── Power toggle ───────────────────────────────────────────
 
@@ -56,6 +67,7 @@ function togglePower() {
         loadSpellTrackerDisabled();
         loadSendAttributesOnRoll();
         loadSpellInjectEnabled();
+        loadAutoLongRest();
         refreshHeaderFromChat();
         if (!spellTrackerDisabled) refreshSpellLog();
         renderQuests();
@@ -307,10 +319,20 @@ async function saveCharacterFromModal() {
 
 // ─── Sidekick UI helpers ─────────────────────────────────────
 
+function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
 let _skEditId = null;
 let _skTempCreature = null;
+let _skTempActions = [];
+let _skTempTraits = [];
 let _skTempWeapons = [];
-let _skTempSpecial = [];
+let _skTempCantrips = [];
+let _skTempSpells = [];
+let _skTempItems = [];
 
 function toggleSidekickEnabled(id) {
     const sk = sidekicks.find(s => s.id === id);
@@ -322,8 +344,10 @@ function toggleSidekickEnabled(id) {
 
 function openSidekickDetailModal(id) {
     renderSidekickDetail(id);
-    $('#dnd-sidekick-detail-popup').css('display', 'flex');
-    $('#dnd-sidekick-detail-popup .dnd-modal-body').attr('data-sidekick-id', id);
+    const $popup = $('#dnd-sidekick-detail-popup');
+    $popup.css('display', 'flex');
+    $popup.find('.dnd-modal-body').attr('data-sidekick-id', id);
+    bindTooltipEvents($popup[0]);
 }
 
 function deleteSidekick(id) {
@@ -341,8 +365,13 @@ function deleteSidekick(id) {
 async function openSidekickConfigModal(editId) {
     _skEditId = editId || null;
     _skTempCreature = null;
+    _skTempActions = [];
+    _skTempTraits = [];
     _skTempWeapons = [];
-    _skTempSpecial = [];
+    _skTempCantrips = [];
+    _skTempSpells = [];
+    _skTempChosenLanguages = [];
+    _skTempItems = [];
 
     const $popup = $('#dnd-sidekick-config-popup');
     const $error = $('#dnd-sk-config-error');
@@ -355,31 +384,40 @@ async function openSidekickConfigModal(editId) {
     $('#dnd-sk-type').val('');
     $('#dnd-sk-subtype-row').hide();
     $('#dnd-sk-creature-search').val('');
-    $('#dnd-sk-creature-select').hide().html('');
+    const $typeFilter = $('#dnd-sk-creature-type-filter');
+    $typeFilter.html('<option value="">All types</option>');
+    for (const t of CREATURE_TYPES) {
+        $typeFilter.append(`<option value="${t}">${t.charAt(0).toUpperCase() + t.slice(1)}</option>`);
+    }
+    $('#dnd-sk-creature-dropdown').html('<div class="dnd-sk-dd-empty">Pick a creature type or search by name</div>');
+    $('#dnd-sk-source-row').hide();
     $('#dnd-sk-creature-preview').hide().html('');
     $('#dnd-sk-prof-section').hide();
     $('#dnd-sk-asi-section').hide();
-    $('#dnd-sk-weapons-section').hide();
+    $('#dnd-sk-equip-section').hide();
     $('#dnd-sk-spells-section').hide();
     $('#dnd-sk-hire-gold').val(0);
+    $('#dnd-sk-hire-paymode').val('owed');
+    $('#dnd-sk-hire-paid').val(0);
+    $('#dnd-sk-hire-paid-row').show();
     $('#dnd-sk-hire-date').val('');
+    _skSelectedArmorName = null;
+    $('#dnd-sk-armor-current').text('None');
+    $('#dnd-sk-armor-clear').hide();
+    $('#dnd-sk-armor-search').val('');
+    $('#dnd-sk-armor-results').html('');
+    $('#dnd-sk-magic-armor-check').prop('checked', false);
+    $('#dnd-sk-shield-check').prop('checked', false);
+    $('#dnd-sk-equip-search').val('');
+    $('#dnd-sk-equip-results').html('');
+    $('#dnd-sk-magic-check').prop('checked', false);
+    $('#dnd-sk-item-input').val('');
+    $('#dnd-sk-item-results').html('');
+    _skSelectedCreatureName = null;
 
-    const index = await fetchBestiaryIndex();
-    const $srcSelect = $('#dnd-sk-creature-source');
-    $srcSelect.html('<option value="">-- Select source --</option>');
-    if (index) {
-        const defaultSources = ['MM', 'XMM'];
-        for (const key of defaultSources) {
-            if (index[key]) $srcSelect.append(`<option value="${key}">${key}</option>`);
-        }
-        for (const key of Object.keys(index).sort()) {
-            if (!defaultSources.includes(key)) {
-                $srcSelect.append(`<option value="${key}">${key}</option>`);
-            }
-        }
-    }
-
-    await fetchWeaponItems();
+    await preloadBestiarySources();
+    await fetchEquipmentItems();
+    populateExtraSourceDropdown();
 
     if (editId) {
         const sk = sidekicks.find(s => s.id === editId);
@@ -390,23 +428,50 @@ async function openSidekickConfigModal(editId) {
             onSkTypeChanged();
             if (sk.subtype) $('#dnd-sk-subtype').val(sk.subtype);
             $('#dnd-sk-hire-gold').val(sk.hireGoldPerDay || 0);
+            $('#dnd-sk-hire-paymode').val(sk.hirePayMode || 'owed');
+            $('#dnd-sk-hire-paid').val(sk.hirePaidAmount || 0);
+            $('#dnd-sk-hire-paid-row').toggle((sk.hirePayMode || 'owed') === 'owed');
             $('#dnd-sk-hire-date').val(sk.hireDate || '');
 
+            _skTempActions = (sk.creatureActions || []).map(a => ({ ...a }));
+            _skTempTraits = (sk.creatureTraits || []).map(t => ({ ...t }));
+            _skTempWeapons = (sk.weapons || []).map(w => ({ ...w }));
+            _skTempItems = (sk.items || []).slice();
+            _skTempChosenLanguages = (sk.chosenLanguages || []).slice();
+
             if (sk.creatureSource) {
-                $srcSelect.val(sk.creatureSource);
-                await onSkCreatureSourceChanged();
+                if (!getCreatureStats(sk.creatureName, sk.creatureSource)) {
+                    await fetchBestiarySource(sk.creatureSource);
+                }
                 const creature = getCreatureStats(sk.creatureName, sk.creatureSource);
                 if (creature) {
                     _skTempCreature = creature;
-                    _skTempWeapons = sk.weapons || [];
-                    _skTempSpecial = sk.specialActions || [];
+                    _skSelectedCreatureName = sk.creatureName;
+                    $('#dnd-sk-creature-search').val(sk.creatureName);
                     showCreaturePreview(creature);
-                    showWeaponsSection();
+
+                    const versions = findCreatureVersions(sk.creatureName);
+                    if (versions.length > 1) {
+                        const $srcSelect = $('#dnd-sk-creature-source');
+                        $srcSelect.html('');
+                        for (const v of versions) {
+                            $srcSelect.append(`<option value="${v.source}">${v.source} (CR ${v.cr}, HP ${v.hp}, AC ${v.ac})</option>`);
+                        }
+                        $srcSelect.val(sk.creatureSource);
+                        $('#dnd-sk-source-row').show();
+                    }
                 }
             }
 
+            if (sk.equippedArmor) {
+                setSelectedArmor(sk.equippedArmor.name);
+            }
+            $('#dnd-sk-shield-check').prop('checked', !!sk.hasShield);
+            showEquipmentSection();
+
             populateProfSection(sk.type, sk.saveProficiency, sk.skillProficiencies, sk.skillExpertise);
-            populateAsiSection(sk.type, sk.asiChoices);
+            populateAsiSection(sk.type, sk.asiChoices, sk.featData);
+            populateClassFeatureChoices(sk.type, sk);
             if (sk.type === 'spellcaster') {
                 showSpellsSection(sk);
             }
@@ -414,6 +479,7 @@ async function openSidekickConfigModal(editId) {
     }
 
     $popup.css('display', 'flex');
+    bindTooltipEvents($popup[0]);
 }
 
 function onSkTypeChanged() {
@@ -436,57 +502,135 @@ function onSkTypeChanged() {
     if (type) {
         populateProfSection(type, null, [], []);
         populateAsiSection(type, {});
+        populateClassFeatureChoices(type, null);
     } else {
         $('#dnd-sk-prof-section').hide();
         $('#dnd-sk-asi-section').hide();
+        $('#dnd-sk-class-features-section').hide();
     }
 
     if (type === 'spellcaster') {
-        showSpellsSection(null);
+        $('#dnd-sk-cantrip-dropdown').html('<div class="dnd-sk-dd-empty">Select a subtype to see spells</div>');
+        $('#dnd-sk-spell-dropdown').html('<div class="dnd-sk-dd-empty">Select a subtype to see spells</div>');
+        $('#dnd-sk-cantrip-tags').html('<span class="dnd-sk-no-spells">None selected</span>');
+        $('#dnd-sk-spell-tags').html('<span class="dnd-sk-no-spells">None selected</span>');
+        $('#dnd-sk-spells-section').show();
     } else {
         $('#dnd-sk-spells-section').hide();
     }
 }
 
-async function onSkCreatureSourceChanged() {
-    const sourceKey = /** @type {string} */ ($('#dnd-sk-creature-source').val());
-    if (!sourceKey) return;
-    await fetchBestiarySource(sourceKey);
+let _skSearchDebounce = null;
+let _skSelectedCreatureName = null;
+
+function refreshCreatureDropdown() {
+    const query = /** @type {string} */ ($('#dnd-sk-creature-search').val()).trim();
+    const typeFilter = /** @type {string} */ ($('#dnd-sk-creature-type-filter').val()) || null;
+    const hasQuery = query.length >= 2;
+
+    if (!hasQuery && !typeFilter) {
+        $('#dnd-sk-creature-dropdown').html('<div class="dnd-sk-dd-empty">Pick a creature type or search by name</div>');
+        return;
+    }
+
+    const results = searchCreatures(hasQuery ? query : null, typeFilter);
+    const $dd = $('#dnd-sk-creature-dropdown');
+    if (results.length === 0) {
+        $dd.html('<div class="dnd-sk-dd-empty">No matches</div>');
+        return;
+    }
+    const SIZE_MAP = { T: 'Tiny', S: 'Small', M: 'Med', L: 'Large', H: 'Huge', G: 'Garg' };
+    const rows = results.map(r => {
+        const sz = SIZE_MAP[r.size] || r.size;
+        const typePart = typeFilter ? '' : `${r.type} &middot; `;
+        const selected = _skSelectedCreatureName === r.name ? ' dnd-sk-dd-selected' : '';
+        return `<div class="dnd-sk-dd-item${selected}" data-creature-name="${escHtml(r.name)}">
+            <span class="dnd-sk-dd-name">${escHtml(r.name)}</span>
+            <span class="dnd-sk-dd-info">CR ${r.cr} &middot; ${typePart}${sz} &middot; HP ${r.hp} &middot; AC ${r.ac}</span>
+        </div>`;
+    });
+    $dd.html(rows.join(''));
 }
 
-let _skSearchDebounce = null;
 function onSkCreatureSearch() {
     clearTimeout(_skSearchDebounce);
-    _skSearchDebounce = setTimeout(() => {
-        const query = /** @type {string} */ ($('#dnd-sk-creature-search').val());
-        const sourceKey = /** @type {string} */ ($('#dnd-sk-creature-source').val());
-        if (!query || query.length < 2 || !sourceKey) {
-            $('#dnd-sk-creature-select').hide().html('');
-            return;
-        }
-        const results = searchCreatures(query, [sourceKey]);
-        const $select = $('#dnd-sk-creature-select');
-        $select.html('<option value="">-- Select --</option>');
-        for (const r of results) {
-            $select.append(`<option value="${r.name}|${r.source}">${r.name} (CR ${r.cr}, ${r.type})</option>`);
-        }
-        $select.show();
-    }, 250);
+    _skSearchDebounce = setTimeout(refreshCreatureDropdown, 200);
 }
 
-function onSkCreatureSelected() {
-    const val = /** @type {string} */ ($('#dnd-sk-creature-select').val());
-    if (!val) return;
-    const [name, source] = val.split('|');
+function onSkCreatureTypeFilter() {
+    refreshCreatureDropdown();
+}
+
+function onSkCreatureNamePicked(creatureName) {
+    _skSelectedCreatureName = creatureName;
+    $('.dnd-sk-dd-item').removeClass('dnd-sk-dd-selected');
+    $(`.dnd-sk-dd-item[data-creature-name="${creatureName}"]`).addClass('dnd-sk-dd-selected');
+
+    const versions = findCreatureVersions(creatureName);
+    const $srcRow = $('#dnd-sk-source-row');
+    const $srcSelect = $('#dnd-sk-creature-source');
+
+    if (versions.length <= 1) {
+        $srcRow.hide();
+        const v = versions[0];
+        if (v) selectCreatureVersion(v.name, v.source);
+    } else {
+        $srcSelect.html('');
+        for (const v of versions) {
+            $srcSelect.append(`<option value="${v.source}">${v.source} (CR ${v.cr}, HP ${v.hp}, AC ${v.ac})</option>`);
+        }
+        $srcRow.show();
+        selectCreatureVersion(versions[0].name, versions[0].source);
+    }
+}
+
+function onSkCreatureSourceChanged() {
+    if (!_skSelectedCreatureName) return;
+    const source = /** @type {string} */ ($('#dnd-sk-creature-source').val());
+    if (source) selectCreatureVersion(_skSelectedCreatureName, source);
+}
+
+function selectCreatureVersion(name, source) {
     const creature = getCreatureStats(name, source);
     if (!creature) return;
     _skTempCreature = creature;
-    const { weapons, specialActions } = parseCreatureActions(creature);
-    for (const w of weapons) enrichWeaponFromItems(w);
-    _skTempWeapons = weapons;
-    _skTempSpecial = specialActions;
+    _skTempActions = extractCreatureActions(creature);
+    _skTempTraits = extractCreatureTraits(creature);
+    _skTempWeapons = [];
+    _skTempChosenLanguages = [];
     showCreaturePreview(creature);
-    showWeaponsSection();
+    showEquipmentSection();
+    renderCreatureSkillsDisplay();
+    renderLanguageSelection();
+}
+
+async function onSkLoadExtraSource() {
+    const key = /** @type {string} */ ($('#dnd-sk-load-extra-source').val());
+    if (!key) return;
+    const $btn = $('#dnd-sk-load-source-btn');
+    $btn.prop('disabled', true).text('...');
+    await fetchBestiarySource(key);
+    $btn.prop('disabled', false).text('+');
+    toastr.info(`Loaded bestiary source: ${key}`);
+    populateExtraSourceDropdown();
+}
+
+function populateExtraSourceDropdown() {
+    const available = getAvailableSourceKeys();
+    const loaded = new Set(getLoadedSourceKeys());
+    const $sel = $('#dnd-sk-load-extra-source');
+    $sel.html('<option value="">-- Pick --</option>');
+    let count = 0;
+    for (const key of available) {
+        if (loaded.has(key)) continue;
+        $sel.append(`<option value="${key}">${key}</option>`);
+        count++;
+    }
+    if (count > 0) {
+        $('#dnd-sk-load-more-row').show();
+    } else {
+        $('#dnd-sk-load-more-row').hide();
+    }
 }
 
 function showCreaturePreview(creature) {
@@ -504,25 +648,254 @@ function showCreaturePreview(creature) {
         .show();
 }
 
-function showWeaponsSection() {
-    const $list = $('#dnd-sk-weapons-list');
-    if (_skTempWeapons.length === 0 && _skTempSpecial.length === 0) {
-        $('#dnd-sk-weapons-section').hide();
+let _skArmorSearchDebounce = null;
+let _skSelectedArmorName = null;
+
+function setSelectedArmor(name) {
+    _skSelectedArmorName = name || null;
+    $('#dnd-sk-armor-current').text(name || 'None');
+    $('#dnd-sk-armor-clear').toggle(!!name);
+    updateAcPreview();
+}
+
+function onSkArmorSearch() {
+    clearTimeout(_skArmorSearchDebounce);
+    _skArmorSearchDebounce = setTimeout(() => {
+        const query = /** @type {string} */ ($('#dnd-sk-armor-search').val());
+        if (!query || query.length < 2) { $('#dnd-sk-armor-results').html(''); return; }
+        const useMagic = !!$('#dnd-sk-magic-armor-check').prop('checked');
+        const results = searchEquipment(query, 'armor', useMagic);
+        const $results = $('#dnd-sk-armor-results');
+        if (results.length === 0) { $results.html('<em>No results</em>'); return; }
+        const ARMOR_LABELS = { LA: 'Light', MA: 'Medium', HA: 'Heavy' };
+        const items = results.map(item => {
+            const typeLabel = ARMOR_LABELS[item._armorType] || '?';
+            const bonusAc = item.bonusAc ? ` (+${item.bonusAc})` : '';
+            const rarity = item._magic && item.rarity && !RARITY_HIDDEN.has(item.rarity) ? ` · ${item.rarity}` : '';
+            const src = item._magic ? ` · ${item.source || '?'}` : '';
+            return `<div class="dnd-sk-dd-item dnd-sk-armor-result" data-item-name="${escHtml(item.name)}" data-item-source="${escHtml(item.source || '')}"><span class="dnd-sk-dd-name">${escHtml(item.name)}${bonusAc}</span><span class="dnd-sk-dd-info">${typeLabel}, AC ${item.ac || '?'}${rarity}${src}</span></div>`;
+        });
+        $results.html(items.join(''));
+    }, 250);
+}
+
+function showEquipmentSection() {
+    renderTraitsList();
+    renderActionsList();
+    renderWeaponsList();
+    renderItemsList();
+    updateAcPreview();
+    $('#dnd-sk-equip-section').show();
+}
+
+function renderTraitsList() {
+    const $list = $('#dnd-sk-traits-list');
+    if (_skTempTraits.length === 0) {
+        $list.html('<div class="dnd-sk-no-spells">No creature traits</div>');
         return;
     }
     let html = '';
-    for (const w of _skTempWeapons) {
-        let desc = `${w.damageDice} ${w.damageType}`;
-        if (w.versatileDice) desc += `, versatile ${w.versatileDice}`;
-        if (w.range) desc += `, range ${w.range}`;
-        const props = (w.properties || []).join(', ');
-        html += `<div class="dnd-sk-weapon-item">${w.name} &mdash; ${desc}${props ? ` [${props}]` : ''}</div>`;
-    }
-    for (const a of _skTempSpecial) {
-        html += `<div class="dnd-sk-weapon-item"><em>${a.name}</em></div>`;
+    for (let i = 0; i < _skTempTraits.length; i++) {
+        const t = _skTempTraits[i];
+        const checked = t.enabled ? 'checked' : '';
+        const dimClass = t.enabled ? '' : ' dnd-sk-action-disabled';
+        html += `<div class="dnd-sk-action-row${dimClass}">
+            <label class="dnd-sk-action-toggle">
+                <input type="checkbox" data-trait-idx="${i}" ${checked} />
+                <strong>${escHtml(t.name)}.</strong>
+            </label>
+            <span class="dnd-sk-action-text" title="${escHtml(t.text)}">${escHtml(t.text)}</span>
+        </div>`;
     }
     $list.html(html);
-    $('#dnd-sk-weapons-section').show();
+}
+
+function renderActionsList() {
+    const $list = $('#dnd-sk-actions-list');
+    if (_skTempActions.length === 0) {
+        $list.html('<div class="dnd-sk-no-spells">No creature actions</div>');
+        return;
+    }
+    let html = '';
+    for (let i = 0; i < _skTempActions.length; i++) {
+        const a = _skTempActions[i];
+        const checked = a.enabled ? 'checked' : '';
+        const dimClass = a.enabled ? '' : ' dnd-sk-action-disabled';
+        html += `<div class="dnd-sk-action-row${dimClass}">
+            <label class="dnd-sk-action-toggle">
+                <input type="checkbox" data-action-idx="${i}" ${checked} />
+                <strong>${escHtml(a.name)}.</strong>
+            </label>
+            <span class="dnd-sk-action-text" title="${escHtml(a.text)}">${escHtml(a.text)}</span>
+        </div>`;
+    }
+    $list.html(html);
+}
+
+function formatWeaponDesc(w) {
+    let desc = `${w.damageDice} ${w.damageType}`;
+    if (w.bonus) desc = `${w.bonus} ${desc}`;
+    if (w.versatileDice) desc += `, versatile ${w.versatileDice}`;
+    if (w.range) desc += `, range ${w.range}`;
+    const props = (w.properties || []).filter(p => p !== 'Versatile' || !w.versatileDice).join(', ');
+    if (props) desc += ` [${props}]`;
+    return desc;
+}
+
+function renderWeaponsList() {
+    const $list = $('#dnd-sk-weapons-list');
+    if (_skTempWeapons.length === 0) {
+        $list.html('<div class="dnd-sk-no-spells">No extra weapons</div>');
+        return;
+    }
+    let html = '';
+    for (let i = 0; i < _skTempWeapons.length; i++) {
+        const w = _skTempWeapons[i];
+        html += `<div class="dnd-sk-equip-item" data-item-name="${escHtml(w.name)}">
+            <span>${escHtml(w.name)} &mdash; ${formatWeaponDesc(w)}</span>
+            <button class="dnd-sk-equip-remove" data-equip-idx="${i}" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+        </div>`;
+    }
+    $list.html(html);
+}
+
+function updateAcPreview() {
+    const hasShield = $('#dnd-sk-shield-check').prop('checked');
+
+    let armorObj = null;
+    if (_skSelectedArmorName) {
+        const useMagic = !!$('#dnd-sk-magic-armor-check').prop('checked');
+        const item = searchEquipment(_skSelectedArmorName, 'armor', useMagic).find(i => i.name === _skSelectedArmorName);
+        if (item) armorObj = armorFromItem(item);
+    }
+
+    const baseDex = _skTempCreature?.dex ?? 10;
+    const dexMod = Math.floor((baseDex - 10) / 2);
+    const baseAc = _skTempCreature ? (typeof _skTempCreature.ac?.[0] === 'number' ? _skTempCreature.ac[0] : _skTempCreature.ac?.[0]?.ac ?? 10) : 10;
+    const ac = computeEquippedAC(armorObj, hasShield, dexMod, baseAc, 0);
+    $('#dnd-sk-ac-preview').text(`AC ${ac}`);
+}
+
+let _skEquipSearchDebounce = null;
+function onSkEquipSearch() {
+    clearTimeout(_skEquipSearchDebounce);
+    _skEquipSearchDebounce = setTimeout(() => {
+        const query = /** @type {string} */ ($('#dnd-sk-equip-search').val());
+        if (!query || query.length < 2) { $('#dnd-sk-equip-results').html(''); return; }
+        const useMagic = !!$('#dnd-sk-magic-check').prop('checked');
+        const results = searchEquipment(query, 'weapon', useMagic);
+        const $results = $('#dnd-sk-equip-results');
+        if (results.length === 0) { $results.html('<em>No results</em>'); return; }
+        const items = results.map(item => {
+            const dmg = item.dmg1 || '?';
+            const cat = item.weaponCategory || '';
+            const rawB = item.bonusWeapon || '';
+            const bonus = rawB ? ` (${String(rawB).startsWith('+') ? rawB : '+' + rawB})` : '';
+            const rarity = item._magic && item.rarity && !RARITY_HIDDEN.has(item.rarity) ? ` · ${item.rarity}` : '';
+            const src = item._magic ? ` · ${item.source || '?'}` : '';
+            return `<div class="dnd-sk-dd-item dnd-sk-equip-result" data-item-name="${escHtml(item.name)}" data-item-source="${escHtml(item.source || '')}"><span class="dnd-sk-dd-name">${escHtml(item.name)}${bonus}</span><span class="dnd-sk-dd-info">${dmg}, ${cat}${rarity}${src}</span></div>`;
+        });
+        $results.html(items.join(''));
+    }, 250);
+}
+
+function addWeaponFromSearch(itemName, itemSource) {
+    const useMagic = !!$('#dnd-sk-magic-check').prop('checked');
+    let item = searchEquipment(itemName, 'weapon', useMagic).find(i =>
+        i.name === itemName && (!itemSource || i.source === itemSource),
+    );
+    if (!item) return;
+    if (_skTempWeapons.some(w => w.name === itemName)) {
+        toastr.warning(`${itemName} is already equipped`);
+        return;
+    }
+    _skTempWeapons.push(weaponFromItem(item));
+    renderWeaponsList();
+    $('#dnd-sk-equip-search').val('');
+    $('#dnd-sk-equip-results').html('');
+}
+
+function removeWeaponByIndex(idx) {
+    if (idx >= 0 && idx < _skTempWeapons.length) {
+        _skTempWeapons.splice(idx, 1);
+        renderWeaponsList();
+    }
+}
+
+// ─── Items & Gear ───────────────────────────────────────────
+
+const RARITY_HIDDEN = new Set(['unknown', 'unknown (magic)', 'none']);
+
+function renderItemsList() {
+    const $list = $('#dnd-sk-items-list');
+    if (_skTempItems.length === 0) {
+        $list.html('<div class="dnd-sk-no-spells">No items</div>');
+        return;
+    }
+    let html = '';
+    for (let i = 0; i < _skTempItems.length; i++) {
+        const it = _skTempItems[i];
+        const rarity = it.rarity && !RARITY_HIDDEN.has(it.rarity) ? ` (${it.rarity})` : '';
+        html += `<div class="dnd-sk-equip-item" data-item-name="${escHtml(it.name)}">
+            <span>${escHtml(it.name)}${rarity}</span>
+            <button class="dnd-sk-item-remove" data-item-idx="${i}" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+        </div>`;
+    }
+    $list.html(html);
+}
+
+function addItemCustom() {
+    const name = /** @type {string} */ ($('#dnd-sk-item-input').val()).trim();
+    if (!name) return;
+    if (_skTempItems.some(it => it.name.toLowerCase() === name.toLowerCase())) {
+        toastr.warning(`${name} is already in the list`);
+        return;
+    }
+    _skTempItems.push({ name, rarity: null, source: null });
+    renderItemsList();
+    $('#dnd-sk-item-input').val('');
+    $('#dnd-sk-item-results').html('');
+}
+
+function addItemFromSearch(itemName) {
+    const match = searchMagicItems(itemName).find(i => i.name === itemName);
+    const item = match || { name: itemName, rarity: null, source: null };
+    if (_skTempItems.some(it => it.name.toLowerCase() === item.name.toLowerCase())) {
+        toastr.warning(`${item.name} is already in the list`);
+        return;
+    }
+    _skTempItems.push({ name: item.name, rarity: item.rarity || null, source: item.source || null });
+    renderItemsList();
+    $('#dnd-sk-item-input').val('');
+    $('#dnd-sk-item-results').html('');
+}
+
+function removeItemByIndex(idx) {
+    if (idx >= 0 && idx < _skTempItems.length) {
+        _skTempItems.splice(idx, 1);
+        renderItemsList();
+    }
+}
+
+let _skItemSearchDebounce = null;
+function onSkItemSearch() {
+    clearTimeout(_skItemSearchDebounce);
+    _skItemSearchDebounce = setTimeout(async () => {
+        const query = /** @type {string} */ ($('#dnd-sk-item-input').val());
+        if (!query || query.length < 2) { $('#dnd-sk-item-results').html(''); return; }
+        if (!isMagicWeaponsLoaded()) {
+            await fetchMagicItems();
+        }
+        const results = searchMagicItems(query);
+        const $results = $('#dnd-sk-item-results');
+        if (results.length === 0) { $results.html(''); return; }
+        const items = results.map(item => {
+            const rarity = item.rarity && !RARITY_HIDDEN.has(item.rarity) ? ` · ${item.rarity}` : '';
+            const src = item.source ? ` · ${item.source}` : '';
+            return `<div class="dnd-sk-dd-item dnd-sk-item-result" data-item-name="${escHtml(item.name)}"><span class="dnd-sk-dd-name">${escHtml(item.name)}</span><span class="dnd-sk-dd-info">${item.type || '?'}${rarity}${src}</span></div>`;
+        });
+        $results.html(items.join(''));
+    }, 300);
 }
 
 function populateProfSection(type, savedSave, savedSkills, savedExpertise) {
@@ -589,10 +962,61 @@ function populateProfSection(type, savedSave, savedSkills, savedExpertise) {
         }
     });
 
+    renderCreatureSkillsDisplay();
+    renderLanguageSelection();
+
     $('#dnd-sk-prof-section').show();
 }
 
-function populateAsiSection(type, savedChoices) {
+let _skTempChosenLanguages = [];
+
+function renderCreatureSkillsDisplay() {
+    const crSkills = _skTempCreature?.skill;
+    if (!crSkills || Object.keys(crSkills).length === 0) {
+        $('#dnd-sk-creature-skills-row').hide();
+        return;
+    }
+    const items = Object.entries(crSkills).map(([sk, val]) => `${sk} ${val}`);
+    $('#dnd-sk-creature-skills-list').text(items.join(', '));
+    $('#dnd-sk-creature-skills-row').show();
+}
+
+function renderLanguageSelection() {
+    const langStr = _skTempCreature
+        ? (Array.isArray(_skTempCreature.languages) ? _skTempCreature.languages.join(', ') : (_skTempCreature.languages || ''))
+        : '';
+    if (!langStr) { $('#dnd-sk-lang-row').hide(); return; }
+
+    const parsed = parseCreatureLanguages(langStr);
+    $('#dnd-sk-lang-fixed').text(parsed.fixed.length > 0 ? parsed.fixed.join(', ') : langStr);
+    $('#dnd-sk-lang-row').show();
+
+    if (parsed.choiceCount > 0) {
+        $('#dnd-sk-lang-choice-label').text(`Choose ${parsed.choiceCount} language${parsed.choiceCount > 1 ? 's' : ''}:`);
+        const available = DND_LANGUAGES.filter(l => !parsed.fixed.includes(l));
+        let html = '';
+        for (const lang of available) {
+            const checked = _skTempChosenLanguages.includes(lang) ? ' checked' : '';
+            html += `<label class="dnd-sk-check"><input type="checkbox" data-lang="${escHtml(lang)}"${checked} /> ${escHtml(lang)}</label>`;
+        }
+        $('#dnd-sk-lang-choices').html(html);
+        $('#dnd-sk-lang-choice-row').show();
+
+        $('#dnd-sk-lang-choices').off('change').on('change', 'input[type="checkbox"]', function () {
+            const checked = $('#dnd-sk-lang-choices input:checked');
+            if (checked.length > parsed.choiceCount) {
+                $(this).prop('checked', false);
+                return;
+            }
+            _skTempChosenLanguages = [];
+            checked.each(function () { _skTempChosenLanguages.push($(this).data('lang')); });
+        });
+    } else {
+        $('#dnd-sk-lang-choice-row').hide();
+    }
+}
+
+async function populateAsiSection(type, savedChoices, savedFeatData) {
     const asiLevels = ASI_LEVELS[type];
     if (!asiLevels) { $('#dnd-sk-asi-section').hide(); return; }
 
@@ -600,52 +1024,314 @@ function populateAsiSection(type, savedChoices) {
     const applicable = asiLevels.filter(l => l <= level);
     if (applicable.length === 0) { $('#dnd-sk-asi-section').hide(); return; }
 
+    await fetchFeats();
+    const allFeats = getLoadedFeats();
+
     const abilities = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
     const optionsHtml = abilities.map(a => `<option value="${a}">${a.toUpperCase()}</option>`).join('');
 
     const $rows = $('#dnd-sk-asi-rows');
     let html = '';
     for (const asiLvl of applicable) {
-        const choice = (savedChoices || {})[asiLvl] || ['str', 'str'];
+        const choice = (savedChoices || {})[asiLvl];
+        const isFeat = choice && choice.feat;
         html += `<div class="dnd-sk-asi-row" data-asi-level="${asiLvl}">
             <span class="dnd-sk-asi-badge">Lv ${asiLvl}</span>
-            <select class="dnd-sk-asi-select" data-asi-idx="0">${optionsHtml}</select>
-            <select class="dnd-sk-asi-select" data-asi-idx="1">${optionsHtml}</select>
+            <label class="dnd-sk-check"><input type="checkbox" class="dnd-sk-asi-feat-toggle" data-asi-level="${asiLvl}" ${isFeat ? 'checked' : ''}/> Feat</label>
+            <div class="dnd-sk-asi-ability-picks" ${isFeat ? 'style="display:none;"' : ''}>
+                <select class="dnd-sk-asi-select" data-asi-idx="0">${optionsHtml}</select>
+                <select class="dnd-sk-asi-select" data-asi-idx="1">${optionsHtml}</select>
+            </div>
+            <div class="dnd-sk-asi-feat-picks" ${isFeat ? '' : 'style="display:none;"'}>
+                <select class="dnd-sk-feat-select" data-asi-level="${asiLvl}"><option value="">-- Pick Feat --</option></select>
+                <div class="dnd-sk-feat-ability-row" data-asi-level="${asiLvl}"></div>
+            </div>
         </div>`;
     }
     $rows.html(html);
 
     for (const asiLvl of applicable) {
-        const choice = (savedChoices || {})[asiLvl] || ['str', 'str'];
+        const choice = (savedChoices || {})[asiLvl];
         const $row = $rows.find(`[data-asi-level="${asiLvl}"]`);
-        $row.find('[data-asi-idx="0"]').val(choice[0] || 'str');
-        $row.find('[data-asi-idx="1"]').val(choice[1] || 'str');
+        if (choice?.feat) {
+            populateFeatDropdown($row.find('.dnd-sk-feat-select'), allFeats, asiLvl, choice.feat);
+            $row.find('.dnd-sk-feat-select').val(choice.feat);
+            renderFeatAbilityChoice($row, choice.feat, choice.featAbility, (savedFeatData || {})[choice.feat]);
+        } else {
+            const c = choice || ['str', 'str'];
+            $row.find('[data-asi-idx="0"]').val(c[0] || 'str');
+            $row.find('[data-asi-idx="1"]').val(c[1] || 'str');
+        }
     }
+
+    $rows.off('change', '.dnd-sk-asi-feat-toggle').on('change', '.dnd-sk-asi-feat-toggle', function () {
+        const $row = $(this).closest('.dnd-sk-asi-row');
+        const lvl = parseInt($row.data('asi-level'));
+        if ($(this).prop('checked')) {
+            $row.find('.dnd-sk-asi-ability-picks').hide();
+            $row.find('.dnd-sk-asi-feat-picks').show();
+            populateFeatDropdown($row.find('.dnd-sk-feat-select'), allFeats, lvl);
+        } else {
+            $row.find('.dnd-sk-asi-ability-picks').show();
+            $row.find('.dnd-sk-asi-feat-picks').hide();
+        }
+    });
+
+    $rows.off('change', '.dnd-sk-feat-select').on('change', '.dnd-sk-feat-select', function () {
+        const featName = $(this).val();
+        const $row = $(this).closest('.dnd-sk-asi-row');
+        renderFeatAbilityChoice($row, featName);
+    });
 
     $('#dnd-sk-asi-section').show();
 }
 
-function showSpellsSection(existingSk) {
+function populateFeatDropdown($select, allFeats, asiLvl, selectedFeat) {
+    const type = /** @type {string} */ ($('#dnd-sk-type').val());
+    const level = getSidekickLevel();
+    $select.html('<option value="">-- Pick Feat --</option>');
+    const eligible = allFeats.filter(f => {
+        const cat = f.category || '';
+        return cat === 'G' || cat === 'O';
+    });
+    for (const f of eligible.sort((a, b) => a.name.localeCompare(b.name))) {
+        const sel = f.name === selectedFeat ? ' selected' : '';
+        const abInfo = parseFeatAbility(f);
+        let abHint = '';
+        if (abInfo) {
+            const parts = [];
+            for (const [ab, val] of Object.entries(abInfo.fixed)) parts.push(`${ab.toUpperCase()} +${val}`);
+            if (abInfo.choose) parts.push(`Choose ${abInfo.choose.count} from ${abInfo.choose.from.map(a => a.toUpperCase()).join('/')}`);
+            abHint = parts.length > 0 ? ` [${parts.join(', ')}]` : '';
+        }
+        $select.append(`<option value="${escHtml(f.name)}"${sel}>${escHtml(f.name)}${abHint}</option>`);
+    }
+}
+
+function renderFeatAbilityChoice($row, featName, savedChoice, savedFeatData) {
+    const $container = $row.find('.dnd-sk-feat-ability-row');
+    if (!featName) { $container.html(''); return; }
+    const feat = lookupFeatByName(featName);
+    if (!feat) { $container.html(''); return; }
+
+    let html = '';
+
+    const abInfo = parseFeatAbility(feat);
+    if (abInfo) {
+        for (const [ab, val] of Object.entries(abInfo.fixed)) {
+            html += `<span class="dnd-sk-feat-fixed">${ab.toUpperCase()} +${val}</span> `;
+        }
+        if (abInfo.choose) {
+            const opts = abInfo.choose.from.map(a => {
+                const sel = savedChoice === a ? ' selected' : '';
+                return `<option value="${a}"${sel}>${a.toUpperCase()}</option>`;
+            }).join('');
+            html += `<select class="dnd-sk-feat-ability-select">${opts}</select> +1 `;
+        }
+    }
+
+    const uiDesc = getFeatUIDescriptor(featName);
+    if (uiDesc) {
+        html += renderFeatConfigUI(featName, uiDesc, savedFeatData || {});
+    }
+
+    $container.html(html || '<em>No ability boost</em>');
+}
+
+function renderFeatConfigUI(featName, uiDesc, savedData) {
+    const c = uiDesc.config;
+    let html = '<div class="dnd-sk-feat-config">';
+
+    if (uiDesc.type === 'skillsAndTools') {
+        html += `<div class="dnd-sk-feat-config-label">${escHtml(c.label)}</div>`;
+        const savedSkills = savedData.selectedSkills || [];
+        const savedTools = savedData.selectedTools || [];
+        html += '<div class="dnd-sk-feat-config-picks">';
+        for (let i = 0; i < c.skillCount; i++) {
+            const saved = i < savedSkills.length ? savedSkills[i] : (i < c.skillCount - savedTools.length ? '' : '');
+            const allSaved = [...savedSkills, ...savedTools];
+            const val = allSaved[i] || '';
+            html += `<select class="dnd-sk-feat-skill-tool-pick" data-feat="${escHtml(featName)}" data-idx="${i}">`;
+            html += '<option value="">-- Pick --</option>';
+            html += '<optgroup label="Skills">';
+            for (const sk of ALL_SKILLS) {
+                const sel = val === sk ? ' selected' : '';
+                html += `<option value="${sk}"${sel}>${SKILL_LABELS[sk]}</option>`;
+            }
+            html += '</optgroup><optgroup label="Tools & Instruments">';
+            for (const tool of DND_TOOLS) {
+                const sel = val === tool ? ' selected' : '';
+                html += `<option value="${escHtml(tool)}"${sel}>${escHtml(tool)}</option>`;
+            }
+            html += '</optgroup></select>';
+        }
+        html += '</div>';
+    } else if (uiDesc.type === 'skillExpert') {
+        html += `<div class="dnd-sk-feat-config-label">${escHtml(c.label)}</div>`;
+        html += '<div class="dnd-sk-feat-config-picks">';
+        html += `<select class="dnd-sk-feat-skill-pick" data-feat="${escHtml(featName)}" data-key="selectedSkill">`;
+        html += '<option value="">Proficiency</option>';
+        for (const sk of ALL_SKILLS) {
+            const sel = savedData.selectedSkill === sk ? ' selected' : '';
+            html += `<option value="${sk}"${sel}>${SKILL_LABELS[sk]}</option>`;
+        }
+        html += '</select>';
+        html += `<select class="dnd-sk-feat-skill-pick" data-feat="${escHtml(featName)}" data-key="selectedExpertise">`;
+        html += '<option value="">Expertise</option>';
+        for (const sk of ALL_SKILLS) {
+            const sel = savedData.selectedExpertise === sk ? ' selected' : '';
+            html += `<option value="${sk}"${sel}>${SKILL_LABELS[sk]}</option>`;
+        }
+        html += '</select></div>';
+    } else if (uiDesc.type === 'magicInitiate') {
+        html += `<div class="dnd-sk-feat-config-label">${escHtml(c.label)}</div>`;
+        html += '<div class="dnd-sk-feat-config-picks">';
+        html += `<select class="dnd-sk-feat-mi-list" data-feat="${escHtml(featName)}">`;
+        for (const list of c.lists) {
+            const sel = savedData.spellList === list ? ' selected' : '';
+            html += `<option value="${list}"${sel}>${list}</option>`;
+        }
+        html += '</select>';
+        html += `<div class="dnd-sk-feat-mi-spells" data-feat="${escHtml(featName)}"></div>`;
+        html += '</div>';
+    } else if (uiDesc.type === 'spellPick') {
+        html += `<div class="dnd-sk-feat-config-label">${escHtml(c.label)}</div>`;
+        if (c.fixedSpells?.length) {
+            html += `<div><em>Always: ${c.fixedSpells.join(', ')}</em></div>`;
+        }
+        html += `<div class="dnd-sk-feat-mi-spells" data-feat="${escHtml(featName)}"></div>`;
+    } else if (uiDesc.type === 'damageTypePick') {
+        html += `<select class="dnd-sk-feat-dmgtype-pick" data-feat="${escHtml(featName)}">`;
+        for (const opt of c.options) {
+            const sel = savedData.damageType === opt ? ' selected' : '';
+            html += `<option value="${opt}"${sel}>${opt}</option>`;
+        }
+        html += '</select>';
+    } else if (uiDesc.type === 'ritualCaster') {
+        html += `<div class="dnd-sk-feat-config-label">${escHtml(c.label)}</div>`;
+        html += `<div class="dnd-sk-feat-mi-spells" data-feat="${escHtml(featName)}"></div>`;
+    }
+
+    html += '</div>';
+    return html;
+}
+
+function populateClassFeatureChoices(type, existingSk) {
+    const level = getSidekickLevel();
+    let anyVisible = false;
+
+    if (type === 'expert' && level >= 15) {
+        const profSkills = [];
+        $('#dnd-sk-skill-checks input:checked').each(function () { profSkills.push($(this).data('skill')); });
+        const allProf = [...profSkills, ...(existingSk?.creatureSkillProficiencies || [])];
+        const saved = existingSk?.expertise15 || [];
+        let html = '';
+        for (const sk of [...new Set(allProf)]) {
+            const checked = saved.includes(sk) ? ' checked' : '';
+            html += `<label class="dnd-sk-check"><input type="checkbox" data-exp15="${sk}"${checked} /> ${SKILL_LABELS[sk] || sk}</label>`;
+        }
+        $('#dnd-sk-expertise15-checks').html(html);
+        $('#dnd-sk-expertise15-checks').off('change').on('change', 'input', function () {
+            if ($('#dnd-sk-expertise15-checks input:checked').length > 2) $(this).prop('checked', false);
+        });
+        $('#dnd-sk-expertise15-row').show();
+        anyVisible = true;
+    } else {
+        $('#dnd-sk-expertise15-row').hide();
+    }
+
+    if (type === 'expert' && level >= 18) {
+        $('#dnd-sk-sharp-mind-select').val(existingSk?.sharpMindSave || '');
+        $('#dnd-sk-sharp-mind-row').show();
+        anyVisible = true;
+    } else {
+        $('#dnd-sk-sharp-mind-row').hide();
+    }
+
+    if (type === 'spellcaster' && level >= 14) {
+        const $sel = $('#dnd-sk-empowered-select');
+        $sel.html('<option value="">-- Select --</option>');
+        for (const [code, label] of Object.entries(SPELL_SCHOOLS)) {
+            $sel.append(`<option value="${code}">${label}</option>`);
+        }
+        $sel.val(existingSk?.empoweredSchool || '');
+        $('#dnd-sk-empowered-row').show();
+        anyVisible = true;
+    } else {
+        $('#dnd-sk-empowered-row').hide();
+    }
+
+    $('#dnd-sk-class-features-section').toggle(anyVisible);
+}
+
+async function showSpellsSection(existingSk) {
     const level = getSidekickLevel();
     const idx = Math.min(level, 20) - 1;
     const maxCantrips = CANTRIP_PROGRESSION[idx] || 2;
     const maxSpells = SPELLS_KNOWN_PROGRESSION[idx] || 1;
 
-    const cantrips = existingSk?.knownCantrips || [];
-    const spells = existingSk?.knownSpells || [];
+    _skTempCantrips = existingSk?.knownCantrips?.slice() || [];
+    _skTempSpells = existingSk?.knownSpells?.slice() || [];
 
-    $('#dnd-sk-cantrip-count').text(`Cantrips (${cantrips.length}/${maxCantrips}):`);
-    $('#dnd-sk-spell-count').text(`Spells (${spells.length}/${maxSpells}):`);
+    $('#dnd-sk-cantrip-count').text(`Cantrips (${_skTempCantrips.length}/${maxCantrips}):`);
+    $('#dnd-sk-spell-count').text(`Spells (${_skTempSpells.length}/${maxSpells}):`);
 
-    renderSpellTags('#dnd-sk-cantrip-tags', cantrips);
-    renderSpellTags('#dnd-sk-spell-tags', spells);
+    renderSpellTags('#dnd-sk-cantrip-tags', _skTempCantrips);
+    renderSpellTags('#dnd-sk-spell-tags', _skTempSpells);
 
-    $('#dnd-sk-cantrip-results').html('');
-    $('#dnd-sk-spell-results').html('');
     $('#dnd-sk-cantrip-search').val('');
     $('#dnd-sk-spell-search').val('');
+    $('#dnd-sk-cantrip-dropdown').html('<div class="dnd-sk-dd-empty">Loading spells...</div>');
+    $('#dnd-sk-spell-dropdown').html('<div class="dnd-sk-dd-empty">Loading spells...</div>');
 
     $('#dnd-sk-spells-section').show();
+
+    await preloadSpellData();
+    refreshSpellDropdown(true);
+    refreshSpellDropdown(false);
+}
+
+function getSelectedSpellList(isCantrip) {
+    return isCantrip ? _skTempCantrips : _skTempSpells;
+}
+
+function refreshSpellDropdown(isCantrip) {
+    const dropId = isCantrip ? '#dnd-sk-cantrip-dropdown' : '#dnd-sk-spell-dropdown';
+    const searchId = isCantrip ? '#dnd-sk-cantrip-search' : '#dnd-sk-spell-search';
+    const $drop = $(dropId);
+    const query = ($(searchId).val() || '').toLowerCase().trim();
+
+    const subtype = /** @type {string} */ ($('#dnd-sk-subtype').val());
+    const subInfo = SIDEKICK_TYPES.spellcaster.subtypes.find(s => s.key === subtype);
+    if (!subInfo) {
+        $drop.html('<div class="dnd-sk-dd-empty">Select a subtype first</div>');
+        return;
+    }
+
+    const level = getSidekickLevel();
+    const maxLevel = getMaxSpellLevel(level);
+    let spells = getSpellsForClass(subInfo.list, maxLevel, isCantrip);
+
+    if (query) {
+        spells = spells.filter(s => s.name.toLowerCase().includes(query));
+    }
+
+    const selected = new Set(getSelectedSpellList(isCantrip).map(n => n.toLowerCase()));
+
+    if (spells.length === 0) {
+        $drop.html('<div class="dnd-sk-dd-empty">No spells found</div>');
+        return;
+    }
+
+    const items = spells.map(s => {
+        const esc = escHtml(s.name);
+        const school = spellSchoolLabel(s.school);
+        const lvl = s.level === 0 ? 'cantrip' : `Lv${s.level}`;
+        const info = [lvl, school, s.source].filter(Boolean).join(' · ');
+        const sel = selected.has(s.name.toLowerCase()) ? ' dnd-sk-dd-selected' : '';
+        return `<div class="dnd-sk-dd-item dnd-sk-spell-dd-item${sel}" data-spell-name="${esc}" data-is-cantrip="${isCantrip}"><span class="dnd-sk-dd-name">${esc}</span><span class="dnd-sk-dd-info">${info}</span></div>`;
+    });
+    $drop.html(items.join(''));
 }
 
 function renderSpellTags(selector, spells) {
@@ -655,39 +1341,9 @@ function renderSpellTags(selector, spells) {
         return;
     }
     const tags = spells.map(name =>
-        `<span class="dnd-sk-spell-tag">${$('<span>').text(name).html()} <button class="dnd-sk-spell-remove" data-spell="${$('<span>').text(name).html()}">&times;</button></span>`
+        `<span class="dnd-sk-spell-tag" data-spell-name="${escHtml(name)}">${escHtml(name)} <button class="dnd-sk-spell-remove" data-spell="${escHtml(name)}">&times;</button></span>`
     );
     $el.html(tags.join(''));
-}
-
-let _skSpellDebounce = null;
-async function onSkSpellSearch(isCantrip) {
-    clearTimeout(_skSpellDebounce);
-    _skSpellDebounce = setTimeout(async () => {
-        const inputId = isCantrip ? '#dnd-sk-cantrip-search' : '#dnd-sk-spell-search';
-        const resultsId = isCantrip ? '#dnd-sk-cantrip-results' : '#dnd-sk-spell-results';
-        const query = /** @type {string} */ ($(inputId).val());
-        if (!query || query.length < 2) { $(resultsId).html(''); return; }
-
-        const subtype = /** @type {string} */ ($('#dnd-sk-subtype').val());
-        const subInfo = SIDEKICK_TYPES.spellcaster.subtypes.find(s => s.key === subtype);
-        if (!subInfo) { $(resultsId).html('<em>Select a subtype first</em>'); return; }
-
-        const level = getSidekickLevel();
-        const maxLevel = getMaxSpellLevel(level);
-        const results = await searchSpellsForSidekick(query, subInfo.list, maxLevel, isCantrip);
-
-        const $results = $(resultsId);
-        if (results.length === 0) {
-            $results.html('<em>No results</em>');
-            return;
-        }
-        const items = results.map(s => {
-            const lvl = s.level === 0 ? 'cantrip' : `Lv ${s.level}`;
-            return `<div class="dnd-sk-spell-result" data-spell-name="${$('<span>').text(s.name).html()}" data-is-cantrip="${isCantrip}">${s.name} (${lvl})</div>`;
-        });
-        $results.html(items.join(''));
-    }, 300);
 }
 
 function addSpellToSidekick(name, isCantrip) {
@@ -698,21 +1354,17 @@ function addSpellToSidekick(name, isCantrip) {
     const idx = Math.min(level, 20) - 1;
     const max = isCantrip ? (CANTRIP_PROGRESSION[idx] || 2) : (SPELLS_KNOWN_PROGRESSION[idx] || 1);
 
-    const $tags = $(tagsId);
-    const existing = [];
-    $tags.find('.dnd-sk-spell-tag').each(function () {
-        existing.push($(this).text().replace('×', '').trim());
-    });
-
-    if (existing.includes(name)) return;
-    if (existing.length >= max) {
+    const list = getSelectedSpellList(isCantrip);
+    if (list.some(s => s.toLowerCase() === name.toLowerCase())) return;
+    if (list.length >= max) {
         toastr.warning(`Maximum ${max} ${isCantrip ? 'cantrips' : 'spells'} allowed at this level`);
         return;
     }
 
-    existing.push(name);
-    renderSpellTags(tagsId, existing);
-    $(countId).text(`${isCantrip ? 'Cantrips' : 'Spells'} (${existing.length}/${max}):`);
+    list.push(name);
+    renderSpellTags(tagsId, list);
+    $(countId).text(`${isCantrip ? 'Cantrips' : 'Spells'} (${list.length}/${max}):`);
+    refreshSpellDropdown(isCantrip);
 }
 
 function removeSpellFromSidekick(name, isCantrip) {
@@ -723,13 +1375,12 @@ function removeSpellFromSidekick(name, isCantrip) {
     const idx = Math.min(level, 20) - 1;
     const max = isCantrip ? (CANTRIP_PROGRESSION[idx] || 2) : (SPELLS_KNOWN_PROGRESSION[idx] || 1);
 
-    const existing = [];
-    $(tagsId).find('.dnd-sk-spell-tag').each(function () {
-        existing.push($(this).text().replace('×', '').trim());
-    });
-    const filtered = existing.filter(s => s !== name);
-    renderSpellTags(tagsId, filtered);
-    $(countId).text(`${isCantrip ? 'Cantrips' : 'Spells'} (${filtered.length}/${max}):`);
+    const list = getSelectedSpellList(isCantrip);
+    const idx2 = list.findIndex(s => s.toLowerCase() === name.toLowerCase());
+    if (idx2 >= 0) list.splice(idx2, 1);
+    renderSpellTags(tagsId, list);
+    $(countId).text(`${isCantrip ? 'Cantrips' : 'Spells'} (${list.length}/${max}):`);
+    refreshSpellDropdown(isCantrip);
 }
 
 function saveSidekickFromModal() {
@@ -759,22 +1410,74 @@ function saveSidekickFromModal() {
     const asiChoices = {};
     $('#dnd-sk-asi-rows .dnd-sk-asi-row').each(function () {
         const lvl = parseInt($(this).data('asi-level'));
-        const a1 = $(this).find('[data-asi-idx="0"]').val();
-        const a2 = $(this).find('[data-asi-idx="1"]').val();
-        asiChoices[lvl] = [a1, a2];
+        const isFeat = $(this).find('.dnd-sk-asi-feat-toggle').prop('checked');
+        if (isFeat) {
+            const featName = $(this).find('.dnd-sk-feat-select').val() || null;
+            const featAbility = $(this).find('.dnd-sk-feat-ability-select').val() || null;
+            asiChoices[lvl] = { feat: featName, featAbility };
+        } else {
+            const a1 = $(this).find('[data-asi-idx="0"]').val();
+            const a2 = $(this).find('[data-asi-idx="1"]').val();
+            asiChoices[lvl] = [a1, a2];
+        }
     });
 
-    const knownCantrips = [];
-    $('#dnd-sk-cantrip-tags .dnd-sk-spell-tag').each(function () {
-        knownCantrips.push($(this).text().replace('×', '').trim());
+    const featData = {};
+    $('#dnd-sk-asi-rows .dnd-sk-feat-config').each(function () {
+        const $cfg = $(this);
+        const $row = $cfg.closest('.dnd-sk-asi-row');
+        const featName = $row.find('.dnd-sk-feat-select').val();
+        if (!featName) return;
+        const data = {};
+
+        const $stPicks = $cfg.find('.dnd-sk-feat-skill-tool-pick');
+        if ($stPicks.length > 0) {
+            data.selectedSkills = [];
+            data.selectedTools = [];
+            $stPicks.each(function () {
+                const val = $(this).val();
+                if (!val) return;
+                if (ALL_SKILLS.includes(val)) data.selectedSkills.push(val);
+                else data.selectedTools.push(val);
+            });
+        }
+
+        const $skillPicks = $cfg.find('.dnd-sk-feat-skill-pick');
+        $skillPicks.each(function () {
+            const key = $(this).data('key');
+            if (key) data[key] = $(this).val() || null;
+        });
+
+        const $miList = $cfg.find('.dnd-sk-feat-mi-list');
+        if ($miList.length) data.spellList = $miList.val() || null;
+
+        const $dmgType = $cfg.find('.dnd-sk-feat-dmgtype-pick');
+        if ($dmgType.length) data.damageType = $dmgType.val() || null;
+
+        featData[featName] = data;
     });
-    const knownSpells = [];
-    $('#dnd-sk-spell-tags .dnd-sk-spell-tag').each(function () {
-        knownSpells.push($(this).text().replace('×', '').trim());
-    });
+
+    const knownCantrips = _skTempCantrips.slice();
+    const knownSpells = _skTempSpells.slice();
+
+    const expertise15 = [];
+    $('#dnd-sk-expertise15-checks input:checked').each(function () { expertise15.push($(this).data('exp15')); });
+    const sharpMindSave = /** @type {string} */ ($('#dnd-sk-sharp-mind-select').val()) || null;
+    const empoweredSchool = /** @type {string} */ ($('#dnd-sk-empowered-select').val()) || null;
 
     const hireGoldPerDay = parseInt($('#dnd-sk-hire-gold').val()) || 0;
+    const hirePayMode = /** @type {string} */ ($('#dnd-sk-hire-paymode').val()) || 'owed';
+    const hirePaidAmount = parseInt($('#dnd-sk-hire-paid').val()) || 0;
     const hireDate = /** @type {string} */ ($('#dnd-sk-hire-date').val()).trim() || null;
+
+    // Equipment: armor + shield
+    let equippedArmor = null;
+    if (_skSelectedArmorName) {
+        const useMagic = !!$('#dnd-sk-magic-armor-check').prop('checked');
+        const item = searchEquipment(_skSelectedArmorName, 'armor', useMagic).find(i => i.name === _skSelectedArmorName);
+        if (item) equippedArmor = armorFromItem(item);
+    }
+    const hasShield = !!$('#dnd-sk-shield-check').prop('checked');
 
     const editId = _skEditId;
     if (editId) {
@@ -788,32 +1491,65 @@ function saveSidekickFromModal() {
         sk.skillProficiencies = skillProficiencies;
         sk.skillExpertise = skillExpertise;
         sk.asiChoices = asiChoices;
+        sk.featData = featData;
+        sk.expertise15 = expertise15;
+        sk.sharpMindSave = sharpMindSave;
+        sk.empoweredSchool = empoweredSchool;
         sk.knownCantrips = knownCantrips;
         sk.knownSpells = knownSpells;
         sk.hireGoldPerDay = hireGoldPerDay;
+        sk.hirePayMode = hirePayMode;
+        sk.hirePaidAmount = hirePaidAmount;
         sk.hireDate = hireDate;
+        sk.equippedArmor = equippedArmor;
+        sk.hasShield = hasShield;
+        sk.creatureActions = _skTempActions;
+        sk.creatureTraits = _skTempTraits;
+        sk.weapons = _skTempWeapons;
+        sk.items = _skTempItems.slice();
+        sk.chosenLanguages = _skTempChosenLanguages.slice();
 
-        if (_skTempCreature && _skTempCreature.name !== sk.creatureName) {
-            Object.assign(sk, buildCreatureFields(_skTempCreature));
-            sk.weapons = _skTempWeapons;
-            sk.specialActions = _skTempSpecial;
+        if (_skTempCreature) {
+            if (_skTempCreature.name !== sk.creatureName) {
+                Object.assign(sk, buildCreatureFields(_skTempCreature));
+            } else {
+                if (!sk.creatureSkillProficiencies) {
+                    sk.creatureSkillProficiencies = extractCreatureSkillProficiencies(_skTempCreature);
+                }
+                if (!sk.languagesFixed) {
+                    const langRaw = Array.isArray(_skTempCreature.languages) ? _skTempCreature.languages.join(', ') : (_skTempCreature.languages || '');
+                    const parsed = parseCreatureLanguages(langRaw);
+                    sk.languagesFixed = parsed.fixed;
+                    sk.languageChoiceCount = parsed.choiceCount;
+                }
+            }
         }
     } else {
         if (!_skTempCreature) { $error.text('Select a base creature.').show(); return; }
         const newSk = createSidekickFromCreature(_skTempCreature, {
             name, race, type, subtype, saveProficiency,
-            skillProficiencies, skillExpertise, hireGoldPerDay, hireDate,
+            skillProficiencies, skillExpertise, hireGoldPerDay, hirePayMode, hirePaidAmount, hireDate,
         });
         newSk.asiChoices = asiChoices;
+        newSk.featData = featData;
+        newSk.expertise15 = expertise15;
+        newSk.sharpMindSave = sharpMindSave;
+        newSk.empoweredSchool = empoweredSchool;
         newSk.knownCantrips = knownCantrips;
         newSk.knownSpells = knownSpells;
+        newSk.creatureActions = _skTempActions;
+        newSk.creatureTraits = _skTempTraits;
         newSk.weapons = _skTempWeapons;
-        newSk.specialActions = _skTempSpecial;
+        newSk.items = _skTempItems.slice();
+        newSk.chosenLanguages = _skTempChosenLanguages.slice();
+        newSk.equippedArmor = equippedArmor;
+        newSk.hasShield = hasShield;
         sidekicks.push(newSk);
     }
 
     saveSidekicks(sidekicks);
     renderSidekickCards();
+    hideTooltip();
     $('#dnd-sidekick-config-popup').hide();
     $('#dnd-sidekick-container').removeClass('dnd-collapsed');
     toastr.success(`Sidekick "${name}" ${editId ? 'updated' : 'added'}`);
@@ -821,12 +1557,21 @@ function saveSidekickFromModal() {
 
 function buildCreatureFields(creature) {
     const hd = (creature.hp?.formula || '').match(/(\d+)d(\d+)/);
+    const speedParts = [];
+    if (creature.speed) {
+        for (const [k, v] of Object.entries(creature.speed)) {
+            if (typeof v === 'number') speedParts.push(`${k} ${v} ft.`);
+        }
+    }
+    const langRaw = Array.isArray(creature.languages) ? creature.languages.join(', ') : (creature.languages || '');
+    const langParsed = parseCreatureLanguages(langRaw);
     return {
         creatureName: creature.name,
         creatureSource: creature.source,
         baseHp: creature.hp || { average: 10, formula: '2d8' },
         baseAc: typeof creature.ac?.[0] === 'number' ? creature.ac[0] : creature.ac?.[0]?.ac ?? 10,
         baseSpeed: creature.speed?.walk ?? 30,
+        speedFull: speedParts.join(', ') || '30 ft.',
         baseSize: Array.isArray(creature.size) ? creature.size[0] : creature.size || 'M',
         baseStr: creature.str ?? 10,
         baseDex: creature.dex ?? 10,
@@ -838,7 +1583,45 @@ function buildCreatureFields(creature) {
         hitDiceCount: hd ? parseInt(hd[1]) : 1,
         creatureSkills: creature.skill || {},
         creatureSaves: creature.save || {},
+        creatureSkillProficiencies: extractCreatureSkillProficiencies(creature),
+        senses: Array.isArray(creature.senses) ? creature.senses.join(', ') : (creature.senses || ''),
+        languages: langRaw,
+        languagesFixed: langParsed.fixed,
+        languageChoiceCount: langParsed.choiceCount,
     };
+}
+
+// ─── Sidekick data migration ────────────────────────────────
+
+function migrateSidekickData() {
+    if (!sidekicks || sidekicks.length === 0) return;
+    let dirty = false;
+    for (const sk of sidekicks) {
+        if (!sk.creatureSkillProficiencies && sk.creatureSkills) {
+            const profs = [];
+            for (const [rawKey, valStr] of Object.entries(sk.creatureSkills)) {
+                const camel = rawKey.replace(/\s+/g, '').charAt(0).toLowerCase() + rawKey.replace(/\s+/g, '').slice(1);
+                const ab = { acrobatics:'dex', animalHandling:'wis', arcana:'int', athletics:'str', deception:'cha', history:'int', insight:'wis', intimidation:'cha', investigation:'int', medicine:'wis', nature:'int', perception:'wis', performance:'cha', persuasion:'cha', religion:'int', sleightOfHand:'dex', stealth:'dex', survival:'wis' }[camel];
+                if (!ab) continue;
+                const baseScore = sk['base' + ab.charAt(0).toUpperCase() + ab.slice(1)] ?? 10;
+                const baseMod = Math.floor((baseScore - 10) / 2);
+                if (parseInt(valStr) > baseMod) profs.push(camel);
+            }
+            sk.creatureSkillProficiencies = profs;
+            dirty = true;
+        }
+        if (!sk.languagesFixed && sk.languages) {
+            const parsed = parseCreatureLanguages(sk.languages);
+            sk.languagesFixed = parsed.fixed;
+            sk.languageChoiceCount = parsed.choiceCount;
+            dirty = true;
+        }
+        if (!sk.chosenLanguages) {
+            sk.chosenLanguages = [];
+            dirty = true;
+        }
+    }
+    if (dirty) saveSidekicks(sidekicks);
 }
 
 // ─── Refresh from chat ──────────────────────────────────────
@@ -891,6 +1674,12 @@ function onMessageReceived(messageIndex) {
         refreshSpellLog();
         renderSpellLog();
     }
+
+    // Re-save event state so it survives SillyTavern's own chat_metadata save
+    if (extensionSettings.randomEventsEnabled && lastEventRoll) {
+        saveRandomEventState();
+    }
+    updateRandomEventDisplay();
 }
 
 // ─── Message swiped (refresh state from newly visible swipe) ─
@@ -922,6 +1711,7 @@ function onChatChanged() {
     loadSpellTrackerDisabled();
     loadSendAttributesOnRoll();
     loadSpellInjectEnabled();
+    loadAutoLongRest();
     loadSpellLog();
     loadSpellbook();
     refreshHeaderFromChat();
@@ -945,6 +1735,96 @@ function onChatChanged() {
 
     loadSidekicks();
     renderSidekickCards();
+
+    loadRandomEventState();
+    updateRandomEventDisplay();
+
+    // V1
+    if (extensionSettings.v1Enabled) {
+        loadCharacterV1();
+        renderV1CharacterPanel();
+        renderV1Spellbook();
+    }
+}
+
+// ─── Random event display ───────────────────────────────────
+
+function updateRandomEventDisplay() {
+    const enabled = extensionSettings.randomEventsEnabled;
+    const roll = lastEventRoll;
+    const $stripTag = $('#dnd-strip-event-tag');
+    const $panelTag = $('#dnd-panel-event-tag');
+    const $opts = $('#dnd-random-event-options');
+
+    $opts.toggle(extensionSettings.randomEventsEnabled ?? false);
+
+    if (!enabled || !roll) {
+        $stripTag.hide();
+        $panelTag.hide();
+        return;
+    }
+
+    const hasSeverity = !!roll.severity;
+    let label;
+    let tooltip;
+
+    if (hasSeverity) {
+        const cat = roll.categoryMeta?.label || roll.category;
+        label = `${roll.roll}`;
+        tooltip = `d100: ${roll.roll} | ${roll.severity.label}: ${cat}\nShift-click to edit thresholds`;
+    } else if (roll.cooldownActive) {
+        label = `${roll.roll}`;
+        tooltip = `d100: ${roll.roll} | No Event (cooldown ${roll.cooldownRemaining})\nShift-click to edit thresholds`;
+    } else {
+        label = `${roll.roll}`;
+        tooltip = `d100: ${roll.roll} | No Event\nShift-click to edit thresholds`;
+    }
+
+    $stripTag.text(label).attr('title', tooltip).show();
+    $stripTag.toggleClass('dnd-event-triggered', hasSeverity);
+
+    $panelTag.text(label).attr('title', tooltip).show();
+    $panelTag.toggleClass('dnd-event-triggered', hasSeverity);
+}
+
+// ─── Threshold modal ────────────────────────────────────────
+
+function openThresholdModal() {
+    const tiers = getSeverityTiers();
+    for (const tier of tiers) {
+        $(`.dnd-event-tier-min[data-tier="${tier.id}"]`).val(tier.min);
+        $(`.dnd-event-tier-max[data-tier="${tier.id}"]`).val(tier.max);
+    }
+    updateThresholdSummary();
+    $('#dnd-event-threshold-popup').css('display', 'flex');
+}
+
+function updateThresholdSummary() {
+    const minors = parseInt($('.dnd-event-tier-min[data-tier="minor"]').val()) || 71;
+    const noEventMax = minors - 1;
+    $('#dnd-event-threshold-summary').text(`Rolls 1\u2013${noEventMax} = no event`);
+}
+
+function saveThresholds() {
+    const overrides = {};
+    for (const tier of DEFAULT_SEVERITY_TIERS) {
+        const min = parseInt($(`.dnd-event-tier-min[data-tier="${tier.id}"]`).val());
+        const max = parseInt($(`.dnd-event-tier-max[data-tier="${tier.id}"]`).val());
+        if (!isNaN(min) && !isNaN(max)) {
+            overrides[tier.id] = { min, max };
+        }
+    }
+    extensionSettings.eventThresholds = overrides;
+    saveSettings();
+    $('#dnd-event-threshold-popup').hide();
+}
+
+function resetThresholds() {
+    for (const tier of DEFAULT_SEVERITY_TIERS) {
+        $(`.dnd-event-tier-min[data-tier="${tier.id}"]`).val(tier.min);
+        $(`.dnd-event-tier-max[data-tier="${tier.id}"]`).val(tier.max);
+    }
+    updateThresholdSummary();
 }
 
 // ─── Attribute editor ───────────────────────────────────────
@@ -1024,6 +1904,180 @@ function saveAttrEditor() {
     saveAttributes(schema, chatAttributes);
 }
 
+// ─── V1 Custom Species Editor ────────────────────────────────
+
+function openSpeciesEditorModal() {
+    const popup = document.getElementById('dnd-v1-species-editor-popup');
+    if (!popup) return;
+    popup.style.display = 'flex';
+    showSpeciesListView();
+}
+
+function showSpeciesListView() {
+    document.getElementById('dnd-v1-species-list-view').style.display = '';
+    document.getElementById('dnd-v1-species-form-view').style.display = 'none';
+    document.getElementById('dnd-v1-species-form-save').style.display = 'none';
+    document.getElementById('dnd-v1-species-form-back').style.display = 'none';
+
+    const list = document.getElementById('dnd-v1-species-list');
+    if (!list) return;
+
+    const species = listCustomSpecies();
+    if (species.length === 0) {
+        list.innerHTML = '<div class="dnd-v1-info-text">No custom species yet</div>';
+        return;
+    }
+
+    list.innerHTML = species.map(s => `
+        <div class="dnd-v1-species-list-item" data-id="${s.id}">
+            <span class="species-name">${escHtml(s.name)}</span>
+            <span class="dnd-v1-info-text">${s.size} | Speed ${s.speed}ft</span>
+            <span class="species-actions">
+                <button class="dnd-btn-sm v1-species-edit" data-id="${s.id}" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                <button class="dnd-btn-sm v1-species-delete" data-id="${s.id}" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
+            </span>
+        </div>
+    `).join('');
+
+    list.querySelectorAll('.v1-species-edit').forEach(btn => {
+        btn.onclick = () => openSpeciesForm(btn.dataset.id);
+    });
+    list.querySelectorAll('.v1-species-delete').forEach(btn => {
+        btn.onclick = () => {
+            if (confirm('Delete this custom species?')) {
+                deleteCustomSpecies(btn.dataset.id);
+                showSpeciesListView();
+            }
+        };
+    });
+}
+
+function openSpeciesForm(editId) {
+    document.getElementById('dnd-v1-species-list-view').style.display = 'none';
+    document.getElementById('dnd-v1-species-form-view').style.display = '';
+    document.getElementById('dnd-v1-species-form-save').style.display = '';
+    document.getElementById('dnd-v1-species-form-back').style.display = '';
+
+    const data = editId ? (listCustomSpecies().find(s => s.id === editId) || blankCustomSpecies()) : blankCustomSpecies();
+    document.getElementById('dnd-v1-species-form-id').value = editId || '';
+
+    document.getElementById('dnd-v1-cs-name').value = data.name || '';
+    document.getElementById('dnd-v1-cs-size').value = data.size || 'Medium';
+    document.getElementById('dnd-v1-cs-speed').value = data.speed ?? 30;
+    document.getElementById('dnd-v1-cs-darkvision').value = data.darkvision ?? 0;
+    document.getElementById('dnd-v1-cs-resistances').value = (data.resistances || []).join(', ');
+    document.getElementById('dnd-v1-cs-languages').value = (data.languages || []).join(', ');
+    document.getElementById('dnd-v1-cs-lang-choices').value = data.languageChoiceCount ?? 0;
+
+    // Creature type dropdown
+    const typeSelect = document.getElementById('dnd-v1-cs-creature-type');
+    if (typeSelect) {
+        typeSelect.innerHTML = V1_CREATURE_TYPES.map(t =>
+            `<option value="${t}" ${t === data.creatureType ? 'selected' : ''}>${t}</option>`
+        ).join('');
+    }
+
+    // Ability boosts
+    const boostGrid = document.getElementById('dnd-v1-cs-ability-boosts');
+    if (boostGrid) {
+        boostGrid.innerHTML = V1_ABILITY_KEYS.map(ab => {
+            const val = data.abilityBoosts?.[ab] || 0;
+            return `<div><label style="font-size:0.75em;display:block;text-align:center;">${V1_ABILITY_LABELS[ab]}</label><input type="number" min="0" max="5" value="${val}" data-ability="${ab}" class="v1-cs-boost" /></div>`;
+        }).join('');
+    }
+
+    // Traits
+    const traitsList = document.getElementById('dnd-v1-cs-traits-list');
+    if (traitsList) {
+        traitsList.innerHTML = '';
+        for (const trait of (data.traits || [])) {
+            addSpeciesTraitRow(trait.name, trait.description);
+        }
+    }
+}
+
+function addSpeciesTraitRow(name = '', description = '') {
+    const list = document.getElementById('dnd-v1-cs-traits-list');
+    if (!list) return;
+
+    const div = document.createElement('div');
+    div.className = 'dnd-v1-trait-item';
+    div.innerHTML = `
+        <span class="trait-remove" title="Remove trait">✕</span>
+        <input type="text" class="v1-trait-name" placeholder="Trait name" value="${escHtml(name)}" />
+        <textarea class="v1-trait-desc" placeholder="Mechanical description">${escHtml(description)}</textarea>
+    `;
+    div.querySelector('.trait-remove').onclick = () => div.remove();
+    list.appendChild(div);
+}
+
+function saveSpeciesForm() {
+    const id = document.getElementById('dnd-v1-species-form-id')?.value || '';
+    const name = document.getElementById('dnd-v1-cs-name')?.value?.trim() || '';
+    if (!name) { toastr.warning('Species name is required'); return; }
+
+    const data = {
+        name,
+        size: document.getElementById('dnd-v1-cs-size')?.value || 'Medium',
+        speed: parseInt(document.getElementById('dnd-v1-cs-speed')?.value) || 30,
+        darkvision: parseInt(document.getElementById('dnd-v1-cs-darkvision')?.value) || 0,
+        resistances: (document.getElementById('dnd-v1-cs-resistances')?.value || '').split(',').map(s => s.trim()).filter(Boolean),
+        languages: (document.getElementById('dnd-v1-cs-languages')?.value || '').split(',').map(s => s.trim()).filter(Boolean),
+        languageChoiceCount: parseInt(document.getElementById('dnd-v1-cs-lang-choices')?.value) || 0,
+        creatureType: document.getElementById('dnd-v1-cs-creature-type')?.value || 'Humanoid',
+    };
+
+    // Ability boosts
+    const boosts = {};
+    let hasBoosts = false;
+    document.querySelectorAll('.v1-cs-boost').forEach(inp => {
+        const val = parseInt(inp.value) || 0;
+        if (val > 0) {
+            boosts[inp.dataset.ability] = val;
+            hasBoosts = true;
+        }
+    });
+    data.abilityBoosts = hasBoosts ? boosts : null;
+
+    // Traits
+    const traits = [];
+    document.querySelectorAll('.dnd-v1-trait-item').forEach(div => {
+        const tName = div.querySelector('.v1-trait-name')?.value?.trim() || '';
+        const tDesc = div.querySelector('.v1-trait-desc')?.value?.trim() || '';
+        if (tName) traits.push({ name: tName, description: tDesc });
+    });
+    data.traits = traits;
+
+    if (id) {
+        updateCustomSpecies(id, data);
+        toastr.success(`Updated "${name}"`);
+    } else {
+        createCustomSpecies(data);
+        toastr.success(`Created "${name}"`);
+    }
+
+    showSpeciesListView();
+}
+
+// ─── V1 panel visibility ─────────────────────────────────────
+
+function applyV1PanelVisibility() {
+    const v1 = extensionSettings.v1Enabled;
+    // V1 panels
+    const v1Container = document.getElementById('dnd-v1-character-container');
+    if (v1Container) v1Container.style.display = v1 ? '' : 'none';
+
+    const v1Spellbook = document.getElementById('dnd-v1-spellbook-container');
+    if (v1Spellbook) v1Spellbook.style.display = v1 ? '' : 'none';
+
+    // Legacy panels — hide when V1 is active
+    const legacyChar = document.getElementById('dnd-character-container');
+    if (legacyChar) legacyChar.style.display = v1 ? 'none' : '';
+
+    const legacySpellbook = document.getElementById('dnd-spellbook-container');
+    if (legacySpellbook) legacySpellbook.style.display = v1 ? 'none' : '';
+}
+
 // ─── UI init / teardown ─────────────────────────────────────
 
 async function initUI() {
@@ -1045,6 +2099,7 @@ async function initUI() {
     loadSpellTrackerDisabled();
     loadSendAttributesOnRoll();
     loadSpellInjectEnabled();
+    loadAutoLongRest();
     loadSpellLog();
     refreshHeaderFromChat();
     if (!spellTrackerDisabled) refreshSpellLog();
@@ -1070,7 +2125,21 @@ async function initUI() {
 
     // Sidekicks
     loadSidekicks();
+    migrateSidekickData();
     renderSidekickCards();
+
+    if (sidekicks && sidekicks.length > 0) {
+        fetchEquipmentItems().then(() => fetchMagicItems());
+    }
+
+    // V1 Character System
+    applyV1PanelVisibility();
+    if (extensionSettings.v1Enabled) {
+        loadCharacterV1();
+        renderV1CharacterPanel();
+        initV1Spellbook();
+        renderV1Spellbook();
+    }
 
     // ─── Event bindings ─────────────────────────────────
 
@@ -1245,6 +2314,52 @@ async function initUI() {
     $('#dnd-char-source-select').on('change', onCharSourceChanged);
     $('#dnd-character-config-save').on('click', saveCharacterFromModal);
 
+    // V1 Character panel events
+    $(document).on('click', '#dnd-v1-character-create', () => openV1ConfigModal(null));
+    $('#dnd-v1-character-edit').on('click', (e) => {
+        e.stopPropagation();
+        if (characterV1) openV1ConfigModal(characterV1.id);
+        else openV1ConfigModal(null);
+    });
+    $('#dnd-v1-character-clear').on('click', (e) => {
+        e.stopPropagation();
+        setCharacterV1(null);
+        saveCharacterV1(null);
+        renderV1CharacterPanel();
+        renderV1Spellbook();
+        toastr.info('V1 Character removed');
+    });
+    // V1 Detail modal
+    $(document).on('click', '#dnd-v1-character-content .dnd-v1-stat-card', () => {
+        if (!characterV1) return;
+        renderV1DetailModal();
+        $('#dnd-v1-detail-popup').show();
+    });
+    $('#dnd-v1-detail-close').on('click', () => $('#dnd-v1-detail-popup').hide());
+    $('#dnd-v1-detail-edit').on('click', () => {
+        $('#dnd-v1-detail-popup').hide();
+        if (characterV1) openV1ConfigModal(characterV1.id);
+    });
+    // V1 Collapsible header shift+click to configure
+    $(document).on('click', '[data-section="v1-character"]', function (e) {
+        if (e.shiftKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (characterV1) openV1ConfigModal(characterV1.id);
+            else openV1ConfigModal(null);
+        }
+    });
+
+    // V1 Custom Species Editor
+    $(document).on('click', '#dnd-v1-manage-species', () => openSpeciesEditorModal());
+    $('#dnd-v1-species-editor-close, #dnd-v1-species-editor-done').on('click', () => {
+        $('#dnd-v1-species-editor-popup').hide();
+    });
+    $('#dnd-v1-species-new').on('click', () => openSpeciesForm(null));
+    $('#dnd-v1-species-form-back').on('click', () => showSpeciesListView());
+    $('#dnd-v1-species-form-save').on('click', () => saveSpeciesForm());
+    $('#dnd-v1-cs-add-trait').on('click', () => addSpeciesTraitRow());
+
     // Sidekick — add button
     $('#dnd-sidekick-add').on('click', (e) => {
         e.stopPropagation();
@@ -1263,7 +2378,7 @@ async function initUI() {
     });
 
     // Sidekick detail modal
-    $('#dnd-sk-detail-close').on('click', () => $('#dnd-sidekick-detail-popup').hide());
+    $('#dnd-sk-detail-close').on('click', () => { hideTooltip(); $('#dnd-sidekick-detail-popup').hide(); });
     $('#dnd-sk-detail-edit').on('click', () => {
         const id = $('#dnd-sk-detail-body').attr('data-sidekick-id');
         if (id) {
@@ -1277,19 +2392,40 @@ async function initUI() {
     });
 
     // Sidekick config modal
-    $('#dnd-sk-config-close, #dnd-sk-config-cancel').on('click', () => $('#dnd-sidekick-config-popup').hide());
+    $('#dnd-sk-config-close, #dnd-sk-config-cancel').on('click', () => { hideTooltip(); $('#dnd-sidekick-config-popup').hide(); });
     $('#dnd-sk-type').on('change', onSkTypeChanged);
-    $('#dnd-sk-creature-source').on('change', onSkCreatureSourceChanged);
+    $('#dnd-sk-subtype').on('change', async () => {
+        if ($('#dnd-sk-type').val() === 'spellcaster') {
+            $('#dnd-sk-cantrip-dropdown').html('<div class="dnd-sk-dd-empty">Loading spells...</div>');
+            $('#dnd-sk-spell-dropdown').html('<div class="dnd-sk-dd-empty">Loading spells...</div>');
+            await preloadSpellData();
+            refreshSpellDropdown(true);
+            refreshSpellDropdown(false);
+        }
+    });
+    $('#dnd-sk-creature-type-filter').on('change', onSkCreatureTypeFilter);
     $('#dnd-sk-creature-search').on('input', onSkCreatureSearch);
-    $('#dnd-sk-creature-select').on('change', onSkCreatureSelected);
+    $(document).on('click', '#dnd-sk-creature-dropdown .dnd-sk-dd-item', function () {
+        const name = $(this).data('creature-name');
+        if (name) onSkCreatureNamePicked(name);
+    });
+    $('#dnd-sk-creature-source').on('change', onSkCreatureSourceChanged);
+    $('#dnd-sk-load-source-btn').on('click', onSkLoadExtraSource);
     $('#dnd-sk-config-save').on('click', saveSidekickFromModal);
 
-    // Sidekick spell search
-    $('#dnd-sk-cantrip-search').on('input', () => onSkSpellSearch(true));
-    $('#dnd-sk-spell-search').on('input', () => onSkSpellSearch(false));
+    // Sidekick spell filter (fuzzy search in dropdown)
+    let _skSpellDebounce = null;
+    $('#dnd-sk-cantrip-search').on('input', () => {
+        clearTimeout(_skSpellDebounce);
+        _skSpellDebounce = setTimeout(() => refreshSpellDropdown(true), 200);
+    });
+    $('#dnd-sk-spell-search').on('input', () => {
+        clearTimeout(_skSpellDebounce);
+        _skSpellDebounce = setTimeout(() => refreshSpellDropdown(false), 200);
+    });
 
-    // Sidekick spell result click (delegated)
-    $(document).on('click', '.dnd-sk-spell-result', function () {
+    // Sidekick spell dropdown click (delegated)
+    $(document).on('click', '.dnd-sk-spell-dd-item', function () {
         const name = $(this).data('spell-name');
         const isCantrip = $(this).data('is-cantrip') === true || $(this).data('is-cantrip') === 'true';
         if (name) addSpellToSidekick(name, isCantrip);
@@ -1302,6 +2438,94 @@ async function initUI() {
         const $parent = $(this).closest('.dnd-sk-spell-tags');
         const isCantrip = $parent.attr('id') === 'dnd-sk-cantrip-tags';
         if (name) removeSpellFromSidekick(name, isCantrip);
+    });
+
+    // Creature action toggle (delegated)
+    $(document).on('change', '#dnd-sk-actions-list input[type="checkbox"]', function () {
+        const idx = parseInt($(this).data('action-idx'));
+        if (!isNaN(idx) && _skTempActions[idx]) {
+            _skTempActions[idx].enabled = $(this).prop('checked');
+            renderActionsList();
+        }
+    });
+
+    // Creature trait toggle (delegated)
+    $(document).on('change', '#dnd-sk-traits-list input[type="checkbox"]', function () {
+        const idx = parseInt($(this).data('trait-idx'));
+        if (!isNaN(idx) && _skTempTraits[idx]) {
+            _skTempTraits[idx].enabled = $(this).prop('checked');
+            renderTraitsList();
+        }
+    });
+
+    // Magic weapons toggle
+    $('#dnd-sk-magic-check').on('change', async function () {
+        if ($(this).prop('checked') && !isMagicWeaponsLoaded()) {
+            $(this).parent().addClass('dnd-sk-loading');
+            await fetchMagicItems();
+            $(this).parent().removeClass('dnd-sk-loading');
+        }
+        onSkEquipSearch();
+    });
+
+    // Sidekick equipment search
+    $('#dnd-sk-equip-search').on('input', onSkEquipSearch);
+
+    // Equipment search result click (delegated)
+    $(document).on('click', '.dnd-sk-equip-result', function () {
+        const itemName = $(this).data('item-name');
+        const itemSource = $(this).data('item-source') || '';
+        if (itemName) addWeaponFromSearch(itemName, itemSource);
+    });
+
+    // Weapon remove button (delegated)
+    $(document).on('click', '.dnd-sk-equip-remove', function (e) {
+        e.stopPropagation();
+        const idx = parseInt($(this).data('equip-idx'));
+        if (!isNaN(idx)) removeWeaponByIndex(idx);
+    });
+
+    // Items & Gear
+    $('#dnd-sk-item-input').on('input', onSkItemSearch);
+    $('#dnd-sk-item-input').on('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); addItemCustom(); }
+    });
+    $('#dnd-sk-item-add-btn').on('click', addItemCustom);
+    $(document).on('click', '.dnd-sk-item-result', function () {
+        const name = $(this).data('item-name');
+        if (name) addItemFromSearch(name);
+    });
+    $(document).on('click', '.dnd-sk-item-remove', function (e) {
+        e.stopPropagation();
+        const idx = parseInt($(this).data('item-idx'));
+        if (!isNaN(idx)) removeItemByIndex(idx);
+    });
+
+    // Armor search + clear + magic toggle
+    $('#dnd-sk-armor-search').on('input', onSkArmorSearch);
+    $('#dnd-sk-armor-clear').on('click', () => { setSelectedArmor(null); $('#dnd-sk-armor-search').val(''); $('#dnd-sk-armor-results').html(''); });
+    $(document).on('click', '.dnd-sk-armor-result', function () {
+        const name = $(this).data('item-name');
+        if (name) {
+            setSelectedArmor(name);
+            $('#dnd-sk-armor-search').val('');
+            $('#dnd-sk-armor-results').html('');
+        }
+    });
+    $('#dnd-sk-magic-armor-check').on('change', async function () {
+        if ($(this).prop('checked') && !isMagicWeaponsLoaded()) {
+            $(this).parent().addClass('dnd-sk-loading');
+            await fetchMagicItems();
+            $(this).parent().removeClass('dnd-sk-loading');
+        }
+        onSkArmorSearch();
+    });
+    $('#dnd-sk-shield-check').on('change', updateAcPreview);
+
+    // Payment mode toggle
+    $('#dnd-sk-hire-paymode').on('change', function () {
+        const mode = $(this).val();
+        $('#dnd-sk-hire-paid-row').toggle(mode === 'owed');
     });
 
     // Sidekick hire date "Set Current" button
@@ -1338,6 +2562,10 @@ async function initUI() {
         $('#dnd-setting-injection-depth').val(extensionSettings.injectionDepth ?? 0);
         $('#dnd-setting-send-attributes').prop('checked', sendAttributesOnRoll);
         $('#dnd-setting-spell-inject').prop('checked', spellInjectEnabled);
+        $('#dnd-setting-auto-long-rest').prop('checked', autoLongRestEnabled);
+        $('#dnd-setting-random-events').prop('checked', extensionSettings.randomEventsEnabled ?? false);
+        $('#dnd-setting-event-role').val(extensionSettings.randomEventRole || 'user');
+        updateRandomEventDisplay();
         $('#dnd-setting-weather-visuals').prop('checked', extensionSettings.weatherVisuals?.enabled ?? true);
         $('#dnd-setting-weather-particles').val(extensionSettings.weatherVisuals?.particleCount ?? 200);
         $('#dnd-setting-lighting-overlay').prop('checked', extensionSettings.lightingOverlay?.enabled ?? true);
@@ -1372,6 +2600,36 @@ async function initUI() {
         setSpellInjectEnabled($(this).prop('checked'));
         saveSpellInjectEnabled(spellInjectEnabled);
     });
+    $('#dnd-setting-auto-long-rest').on('change', function () {
+        setAutoLongRestEnabled($(this).prop('checked'));
+        saveAutoLongRest(autoLongRestEnabled);
+        if (!spellTrackerDisabled) {
+            hardRefreshSpellLog();
+            renderSpellLog();
+        }
+    });
+    $('#dnd-setting-random-events').on('change', function () {
+        extensionSettings.randomEventsEnabled = $(this).prop('checked');
+        saveSettings();
+        updateRandomEventDisplay();
+    });
+    $('#dnd-setting-event-role').on('change', function () {
+        extensionSettings.randomEventRole = String($(this).val());
+        saveSettings();
+    });
+
+    // Event tags: shift-click opens threshold modal (both strip and expanded panel)
+    $('#dnd-strip-event-tag, #dnd-panel-event-tag').on('click', function (e) {
+        if (e.shiftKey) {
+            openThresholdModal();
+        }
+    });
+
+    // Threshold modal
+    $('#dnd-event-threshold-close').on('click', () => $('#dnd-event-threshold-popup').hide());
+    $('#dnd-event-threshold-save').on('click', saveThresholds);
+    $('#dnd-event-threshold-reset').on('click', resetThresholds);
+    $('.dnd-event-tier-min, .dnd-event-tier-max').on('input', updateThresholdSummary);
 
     // Weather visuals settings
     $('#dnd-setting-weather-visuals')
@@ -1451,6 +2709,19 @@ jQuery(async () => {
             destroyUI();
         } else if (extensionSettings.enabled && !wasEnabled) {
             await initUI();
+        }
+    });
+
+    // V1 toggle handler
+    $('#dnd-v1-enabled').prop('checked', extensionSettings.v1Enabled).on('change', function () {
+        extensionSettings.v1Enabled = $(this).prop('checked');
+        saveSettings();
+        applyV1PanelVisibility();
+        if (extensionSettings.v1Enabled) {
+            loadCharacterV1();
+            renderV1CharacterPanel();
+            initV1Spellbook();
+            renderV1Spellbook();
         }
     });
 

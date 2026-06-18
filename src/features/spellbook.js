@@ -19,8 +19,8 @@ const SCHOOL_NAMES = {
 };
 
 const DATA_URLS = [
-    src => `https://cdn.jsdelivr.net/gh/5etools-mirror-3/5etools-src@main/data/spells/spells-${src}.json`,
-    src => `https://cdn.jsdelivr.net/gh/5etools-mirror-3/homebrew@master/spell/${src}.json`,
+    src => `https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/spells/spells-${src}.json`,
+    src => `https://raw.githubusercontent.com/5etools-mirror-3/homebrew/master/spell/${src}.json`,
     src => `https://5e.tools/data/spells/spells-${src}.json`,
 ];
 

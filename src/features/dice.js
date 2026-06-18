@@ -10,7 +10,7 @@ import { MODIFIER_DEFS } from './modifiers.js';
 /**
  * Secure random roll using crypto.getRandomValues() with rejection sampling.
  */
-function secureRoll(sides) {
+export function secureRoll(sides) {
     const array = new Uint32Array(1);
     const limit = Math.floor(0xFFFFFFFF / sides) * sides;
     let val;

@@ -4,9 +4,11 @@
  * stat scaling engine, and sidekick class constants.
  */
 
-import { character, bestiaryCache, weaponItemCache, setWeaponItemCache } from '../core/state.js';
+import { character, bestiaryCache, equipmentItemCache, setEquipmentItemCache, extensionSettings } from '../core/state.js';
+import { collectFeatEffects } from './featEffects.js';
+import { characterV1 } from '../v1/core/state.js';
 
-const CDN_DATA = 'https://cdn.jsdelivr.net/gh/5etools-mirror-3/5etools-src@main/data';
+const CDN_DATA = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data';
 
 // ─── Constants ──────────────────────────────────────────────
 
@@ -127,6 +129,37 @@ export async function fetchBestiarySource(sourceKey) {
     return promise;
 }
 
+const DEFAULT_BESTIARY_SOURCES = ['ESK', 'MM', 'XMM'];
+
+export async function preloadBestiarySources() {
+    const index = await fetchBestiaryIndex();
+    if (!index) return;
+    await Promise.all(
+        DEFAULT_BESTIARY_SOURCES
+            .filter(k => index[k])
+            .map(k => fetchBestiarySource(k)),
+    );
+}
+
+export function getLoadedSourceKeys() {
+    return [...bestiaryCache.keys()];
+}
+
+export function getAvailableSourceKeys() {
+    return _bestiaryIndex ? Object.keys(_bestiaryIndex).sort() : [];
+}
+
+function getCreatureTypeStr(m) {
+    const t = m.type;
+    if (typeof t === 'string') return t;
+    if (t && typeof t === 'object') {
+        const inner = t.type;
+        if (typeof inner === 'string') return inner;
+        if (inner && typeof inner === 'object' && Array.isArray(inner.choose)) return inner.choose[0] || '?';
+    }
+    return '?';
+}
+
 export function getCreatureList(sourceKey) {
     const monsters = bestiaryCache.get(sourceKey);
     if (!monsters) return [];
@@ -136,33 +169,70 @@ export function getCreatureList(sourceKey) {
             name: m.name,
             source: m.source || sourceKey,
             cr: m.cr ?? '?',
-            type: typeof m.type === 'string' ? m.type : m.type?.type || '?',
+            type: getCreatureTypeStr(m),
             size: Array.isArray(m.size) ? m.size[0] : m.size || '?',
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function searchCreatures(query, sourceKeys) {
-    if (!query || query.length < 2) return [];
-    const q = query.toLowerCase();
+export const CREATURE_TYPES = [
+    'aberration', 'beast', 'celestial', 'construct', 'dragon', 'elemental',
+    'fey', 'fiend', 'giant', 'humanoid', 'monstrosity', 'ooze', 'plant', 'undead',
+];
+
+/**
+ * Search creatures across all cached bestiary sources.
+ * Deduplicates by name. Filters by creature type and/or name query.
+ * If typeFilter is set but query is empty, lists all creatures of that type.
+ */
+export function searchCreatures(query, typeFilter) {
+    const hasQuery = query && query.length >= 2;
+    if (!hasQuery && !typeFilter) return [];
+    const q = hasQuery ? query.toLowerCase() : null;
+    const tf = typeFilter ? typeFilter.toLowerCase() : null;
+    const seen = new Set();
     const results = [];
-    for (const key of sourceKeys) {
-        const monsters = bestiaryCache.get(key);
-        if (!monsters) continue;
+    for (const [, monsters] of bestiaryCache) {
         for (const m of monsters) {
             if (m._copy || !m.name) continue;
-            if (m.name.toLowerCase().includes(q)) {
-                results.push({
-                    name: m.name,
-                    source: m.source || key,
-                    cr: m.cr ?? '?',
-                    type: typeof m.type === 'string' ? m.type : m.type?.type || '?',
-                    size: Array.isArray(m.size) ? m.size[0] : m.size || '?',
-                });
-            }
+            if (seen.has(m.name)) continue;
+            const mType = getCreatureTypeStr(m).toLowerCase();
+            if (tf && mType !== tf) continue;
+            if (q && !m.name.toLowerCase().includes(q)) continue;
+            seen.add(m.name);
+            const hp = m.hp?.average ?? '?';
+            const ac = typeof m.ac?.[0] === 'number' ? m.ac[0] : m.ac?.[0]?.ac ?? '?';
+            results.push({
+                name: m.name,
+                source: m.source,
+                cr: m.cr ?? '?',
+                type: getCreatureTypeStr(m),
+                size: Array.isArray(m.size) ? m.size[0] : m.size || '?',
+                hp, ac,
+            });
         }
     }
-    return results.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 50);
+    return results.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 80);
+}
+
+/**
+ * Find all source versions of a creature by name across all cached sources.
+ */
+export function findCreatureVersions(name) {
+    const versions = [];
+    for (const [, monsters] of bestiaryCache) {
+        for (const m of monsters) {
+            if (m._copy || m.name !== name) continue;
+            versions.push({
+                name: m.name,
+                source: m.source,
+                cr: m.cr ?? '?',
+                hp: m.hp?.average ?? '?',
+                ac: typeof m.ac?.[0] === 'number' ? m.ac[0] : m.ac?.[0]?.ac ?? '?',
+            });
+        }
+    }
+    return versions;
 }
 
 export function getCreatureStats(name, source) {
@@ -173,97 +243,492 @@ export function getCreatureStats(name, source) {
     return null;
 }
 
-// ─── Weapon Items ───────────────────────────────────────────
+// ─── Equipment Items (Weapons + Armor + Shields) ────────────
 
-let _weaponItemInflight = null;
+const ARMOR_TYPES = new Set(['LA', 'MA', 'HA']);
 
-export async function fetchWeaponItems() {
-    if (weaponItemCache) return weaponItemCache;
-    if (_weaponItemInflight) return _weaponItemInflight;
-    _weaponItemInflight = fetch(`${CDN_DATA}/items-base.json`, { signal: AbortSignal.timeout(20000) })
+let _equipItemInflight = null;
+
+export async function fetchEquipmentItems() {
+    if (equipmentItemCache) return equipmentItemCache;
+    if (_equipItemInflight) return _equipItemInflight;
+    _equipItemInflight = fetch(`${CDN_DATA}/items-base.json`, { signal: AbortSignal.timeout(20000) })
         .then(r => r.ok ? r.json() : null)
         .then(data => {
             const items = data?.baseitem || [];
             const cache = new Map();
             for (const item of items) {
-                if (!item.weapon && !item.weaponCategory) continue;
+                const rawType = (item.type || '').split('|')[0];
+                const isWeapon = !!(item.weapon || item.weaponCategory);
+                const isArmor = ARMOR_TYPES.has(rawType);
+                const isShield = rawType === 'S';
+                if (!isWeapon && !isArmor && !isShield) continue;
                 const key = item.name.toLowerCase();
-                if (!cache.has(key)) cache.set(key, item);
+                if (cache.has(key)) continue;
+                cache.set(key, {
+                    ...item,
+                    _kind: isWeapon ? 'weapon' : isArmor ? 'armor' : 'shield',
+                    _armorType: isArmor ? rawType : isShield ? 'S' : null,
+                });
             }
-            setWeaponItemCache(cache);
+            setEquipmentItemCache(cache);
             return cache;
         })
-        .catch(err => { console.warn('[D&D 5e Lite] Weapon items fetch failed:', err); return null; })
-        .finally(() => { _weaponItemInflight = null; });
-    return _weaponItemInflight;
+        .catch(err => { console.warn('[D&D 5e Lite] Equipment items fetch failed:', err); return null; })
+        .finally(() => { _equipItemInflight = null; });
+    return _equipItemInflight;
 }
 
-export function enrichWeaponFromItems(weapon) {
-    if (!weaponItemCache) return weapon;
-    const item = weaponItemCache.get(weapon.name.toLowerCase());
-    if (!item) return weapon;
-    const props = (item.property || []).map(p => p.split('|')[0]);
-    weapon.properties = props;
-    weapon.finesse = props.includes('F');
-    if (props.includes('V') && item.dmg2) {
-        weapon.versatileDice = item.dmg2;
+let _magicWeaponCache = null;
+let _magicArmorCache = null;
+let _magicItemCache = null;
+let _magicItemInflight = null;
+
+export async function fetchMagicItems() {
+    if (_magicWeaponCache && _magicItemCache) return;
+    if (_magicItemInflight) return _magicItemInflight;
+    _magicItemInflight = (async () => {
+        try {
+            const [itemsResp, variantsResp] = await Promise.all([
+                fetch(`${CDN_DATA}/items.json`, { signal: AbortSignal.timeout(25000) }),
+                fetch(`${CDN_DATA}/magicvariants.json`, { signal: AbortSignal.timeout(20000) }),
+            ]);
+            const itemsData = itemsResp.ok ? await itemsResp.json() : {};
+            const variantsData = variantsResp.ok ? await variantsResp.json() : {};
+
+            const weaponCache = new Map();
+            const armorCache = new Map();
+            const itemCache = new Map();
+
+            for (const item of (itemsData.item || [])) {
+                const key = `${item.name}|${item.source}`.toLowerCase();
+                const rawType = (item.type || '').split('|')[0];
+                const isWeapon = !!(item.weaponCategory && (item.dmg1 || item.dmgType));
+                const isArmor = ARMOR_TYPES.has(rawType);
+                const isShield = rawType === 'S';
+
+                if (isWeapon) {
+                    if (!weaponCache.has(key)) weaponCache.set(key, { ...item, _kind: 'weapon', _magic: true });
+                } else if (isArmor || isShield) {
+                    if (!armorCache.has(key)) armorCache.set(key, {
+                        ...item,
+                        _kind: isArmor ? 'armor' : 'shield',
+                        _armorType: isArmor ? rawType : 'S',
+                        _magic: true,
+                    });
+                } else {
+                    if (!itemCache.has(key)) itemCache.set(key, { ...item, _magic: true });
+                }
+            }
+
+            const baseWeapons = [];
+            const baseArmors = [];
+            if (equipmentItemCache) {
+                for (const [, item] of equipmentItemCache) {
+                    if (item._kind === 'weapon') baseWeapons.push(item);
+                    else if (item._kind === 'armor') baseArmors.push(item);
+                }
+            }
+
+            for (const variant of (variantsData.magicvariant || [])) {
+                const reqs = variant.requires || [];
+                const inh = variant.inherits || {};
+                const prefix = inh.namePrefix || '';
+                if (!prefix) continue;
+
+                if (reqs.some(r => r.weapon)) {
+                    for (const base of baseWeapons) {
+                        const vName = `${prefix}${base.name}`;
+                        const vKey = `${vName}|${inh.source || ''}`.toLowerCase();
+                        if (weaponCache.has(vKey)) continue;
+                        weaponCache.set(vKey, {
+                            ...base, name: vName,
+                            source: inh.source || base.source,
+                            bonusWeapon: inh.bonusWeapon || null,
+                            rarity: inh.rarity || null,
+                            _kind: 'weapon', _magic: true, _variant: true,
+                        });
+                    }
+                }
+                if (reqs.some(r => r.armor)) {
+                    for (const base of baseArmors) {
+                        const vName = `${prefix}${base.name}`;
+                        const vKey = `${vName}|${inh.source || ''}`.toLowerCase();
+                        if (armorCache.has(vKey)) continue;
+                        armorCache.set(vKey, {
+                            ...base, name: vName,
+                            source: inh.source || base.source,
+                            bonusAc: inh.bonusAc || null,
+                            rarity: inh.rarity || null,
+                            _magic: true, _variant: true,
+                        });
+                    }
+                }
+            }
+
+            _magicWeaponCache = weaponCache;
+            _magicArmorCache = armorCache;
+            _magicItemCache = itemCache;
+        } catch (err) {
+            console.warn('[D&D 5e Lite] Magic items fetch failed:', err);
+            _magicWeaponCache = _magicWeaponCache || new Map();
+            _magicArmorCache = _magicArmorCache || new Map();
+            _magicItemCache = _magicItemCache || new Map();
+        } finally {
+            _magicItemInflight = null;
+        }
+    })();
+    return _magicItemInflight;
+}
+
+export const fetchMagicWeapons = fetchMagicItems;
+
+export function isMagicWeaponsLoaded() {
+    return !!_magicWeaponCache;
+}
+
+export function lookupItemByName(name) {
+    if (!name) return null;
+    const key = name.toLowerCase();
+    for (const cache of [_magicItemCache, _magicWeaponCache, _magicArmorCache]) {
+        if (!cache) continue;
+        for (const [k, item] of cache) {
+            if (k.startsWith(key + '|') || k === key) return item;
+        }
     }
-    if (item.range) weapon.range = item.range;
-    return weapon;
+    if (equipmentItemCache) {
+        const base = equipmentItemCache.get(key);
+        if (base) return base;
+    }
+    return null;
 }
 
-// ─── Creature Action Parsing ────────────────────────────────
-
-const RE_ATK_TYPE  = /{@atk\s+([\w,]+)}/;
-const RE_DAMAGE    = /{@damage\s+([^}]+)}/;
-const RE_DMG_TYPE  = /(\w+)\s+damage/;
-const RE_RANGE     = /range\s+([\d/]+)\s*ft/i;
-const RE_VERSATILE = /(\d+d\d+(?:\s*\+\s*\d+)?)\)\s*\w+\s+damage\s+if\s+used\s+with\s+two\s+hands/i;
-
-function stripDamageMod(diceStr) {
-    return diceStr.replace(/\s*[+\-]\s*\d+\s*$/, '').trim();
+export function lookupSpellByName(name) {
+    if (!name) return null;
+    const key = name.toLowerCase();
+    for (const src of SPELL_SOURCES) {
+        const spells = _spellSourceCache.get(src) || [];
+        for (const s of spells) {
+            if (s.name.toLowerCase() === key) return s;
+        }
+    }
+    return null;
 }
 
-export function parseCreatureActions(creature) {
-    const weapons = [];
-    const specialActions = [];
-    if (!creature?.action) return { weapons, specialActions };
+export function lookupCreatureByName(name) {
+    if (!name) return null;
+    for (const [, monsters] of bestiaryCache) {
+        for (const m of monsters) {
+            if (m.name === name && !m._copy) return m;
+        }
+    }
+    return null;
+}
 
-    for (const action of creature.action) {
-        const text = Array.isArray(action.entries) ? action.entries.join(' ') : '';
-        const atkMatch = text.match(RE_ATK_TYPE);
+export function searchMagicItems(query) {
+    if (!_magicItemCache || !query || query.length < 2) return [];
+    const q = query.toLowerCase();
+    const results = [];
+    const seen = new Set();
+    for (const [key, item] of _magicItemCache) {
+        if (!key.includes(q)) continue;
+        if (seen.has(item.name.toLowerCase())) continue;
+        seen.add(item.name.toLowerCase());
+        results.push(item);
+    }
+    return results.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 25);
+}
 
-        if (atkMatch) {
-            const damageMatch = text.match(RE_DAMAGE);
-            const dmgTypeMatch = text.match(RE_DMG_TYPE);
-            const rangeMatch = text.match(RE_RANGE);
-            const versMatch = text.match(RE_VERSATILE);
-
-            const weapon = {
-                name: action.name,
-                attackType: atkMatch[1],
-                damageDice: damageMatch ? stripDamageMod(damageMatch[1]) : '?',
-                damageType: dmgTypeMatch ? dmgTypeMatch[1] : 'unknown',
-                properties: [],
-                versatileDice: versMatch ? stripDamageMod(versMatch[1]) : null,
-                range: rangeMatch ? rangeMatch[1] : null,
-                finesse: false,
-            };
-            weapons.push(weapon);
-        } else if (action.name?.toLowerCase() !== 'multiattack') {
-            const condensed = text
-                .replace(/{@\w+\s+([^}|]+)(?:\|[^}]*)?\}/g, '$1')
-                .replace(/\s+/g, ' ')
-                .trim();
-            if (condensed) {
-                specialActions.push({
-                    name: action.name,
-                    text: condensed.length > 200 ? condensed.slice(0, 197) + '...' : condensed,
-                });
+/**
+ * Search equipment items by name, filtered by kind ('weapon', 'armor', 'shield', or 'all').
+ * Set includeMagic=true to also search cached magic weapons.
+ */
+export function searchEquipment(query, kind, includeMagic) {
+    if (!equipmentItemCache) return [];
+    if (!query || query.length < 2) {
+        if (kind === 'armor' || kind === 'shield') return getAllByKind(kind);
+        return [];
+    }
+    const q = query.toLowerCase();
+    const results = [];
+    const seen = new Set();
+    for (const [key, item] of equipmentItemCache) {
+        if (kind && kind !== 'all' && item._kind !== kind) continue;
+        if (!key.includes(q)) continue;
+        results.push(item);
+        seen.add(item.name.toLowerCase());
+    }
+    if (includeMagic) {
+        if (_magicWeaponCache && kind === 'weapon') {
+            for (const [key, item] of _magicWeaponCache) {
+                if (!key.includes(q)) continue;
+                if (seen.has(item.name.toLowerCase())) continue;
+                seen.add(item.name.toLowerCase());
+                results.push(item);
+            }
+        }
+        if (_magicArmorCache && (kind === 'armor' || kind === 'shield' || kind === 'all')) {
+            for (const [key, item] of _magicArmorCache) {
+                if (kind !== 'all' && item._kind !== kind) continue;
+                if (!key.includes(q)) continue;
+                if (seen.has(item.name.toLowerCase())) continue;
+                seen.add(item.name.toLowerCase());
+                results.push(item);
             }
         }
     }
-    return { weapons, specialActions };
+    return results.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 30);
+}
+
+function getAllByKind(kind) {
+    if (!equipmentItemCache) return [];
+    const results = [];
+    for (const [, item] of equipmentItemCache) {
+        if (item._kind === kind) results.push(item);
+    }
+    return results.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+const WEAPON_PROP_LABELS = {
+    '2H': 'Two-Handed', A: 'Ammunition', AF: 'Ammunition', BF: 'Burst Fire',
+    F: 'Finesse', H: 'Heavy', L: 'Light', LD: 'Loading',
+    R: 'Reach', RLD: 'Reload', S: 'Special', T: 'Thrown',
+    V: 'Versatile', Vst: 'Vestige',
+};
+
+function expandPropertyCodes(rawProps) {
+    if (!rawProps?.length) return [];
+    const seen = new Set();
+    const result = [];
+    for (const raw of rawProps) {
+        const code = typeof raw === 'string' ? raw.split('|')[0] : raw?.uid?.split('|')[0] || '';
+        if (!code || seen.has(code)) continue;
+        seen.add(code);
+        result.push(WEAPON_PROP_LABELS[code] || code);
+    }
+    return result;
+}
+
+/**
+ * Build a compact weapon descriptor from a CDN item entry.
+ */
+export function weaponFromItem(item) {
+    const codes = (item.property || []).map(p =>
+        typeof p === 'string' ? p.split('|')[0] : p?.uid?.split('|')[0] || '',
+    );
+    const labels = expandPropertyCodes(item.property || []);
+    const dmgTypes = { B: 'bludgeoning', P: 'piercing', S: 'slashing', N: 'necrotic', R: 'radiant', F: 'fire', C: 'cold', L: 'lightning' };
+    const rawBonus = item.bonusWeapon || null;
+    const bonus = rawBonus ? (String(rawBonus).startsWith('+') ? rawBonus : `+${rawBonus}`) : null;
+    return {
+        name: item.name,
+        attackType: item.range ? 'rw' : 'mw',
+        damageDice: item.dmg1 || '?',
+        damageType: dmgTypes[item.dmgType] || item.dmgType || 'unknown',
+        properties: labels,
+        versatileDice: codes.includes('V') && item.dmg2 ? item.dmg2 : null,
+        range: item.range || null,
+        finesse: codes.includes('F'),
+        bonus,
+        rarity: item.rarity || null,
+    };
+}
+
+/**
+ * Build a compact armor descriptor from a CDN item entry.
+ */
+export function armorFromItem(item) {
+    const rawType = (item._armorType || item.type || '').split('|')[0];
+    let ac = item.ac ?? 10;
+    if (item.bonusAc) ac += parseInt(item.bonusAc) || 0;
+    return {
+        name: item.name,
+        type: rawType,
+        ac,
+        stealthDisadv: !!item.stealth,
+        strReq: item.strength ? parseInt(item.strength) : 0,
+    };
+}
+
+// ─── AC Calculation ─────────────────────────────────────────
+
+/**
+ * Compute AC from equipped armor, shield, and DEX modifier.
+ * Falls back to baseAc if no armor is configured.
+ */
+export function computeEquippedAC(equippedArmor, hasShield, dexMod, baseAc, warriorDefBonus) {
+    let ac;
+    if (!equippedArmor) {
+        ac = baseAc ?? (10 + dexMod);
+    } else {
+        const type = equippedArmor.type;
+        if (type === 'LA') {
+            ac = equippedArmor.ac + dexMod;
+        } else if (type === 'MA') {
+            ac = equippedArmor.ac + Math.min(dexMod, 2);
+        } else {
+            ac = equippedArmor.ac;
+        }
+    }
+    if (hasShield) ac += 2;
+    if (warriorDefBonus) ac += warriorDefBonus;
+    return ac;
+}
+
+// ─── Creature Action Extraction ─────────────────────────────
+
+const ATK_LABELS = {
+    mw: 'Melee Weapon Attack:',
+    rw: 'Ranged Weapon Attack:',
+    ms: 'Melee Spell Attack:',
+    rs: 'Ranged Spell Attack:',
+    'mw,rw': 'Melee or Ranged Weapon Attack:',
+    'rw,mw': 'Melee or Ranged Weapon Attack:',
+    'ms,rs': 'Melee or Ranged Spell Attack:',
+};
+
+export function strip5eMarkup(text) {
+    return text
+        .replace(/{@atk\s+([^}]+)}/g, (_, k) => ATK_LABELS[k.trim()] || `${k.trim()} Attack:`)
+        .replace(/{@h}/g, 'Hit: ')
+        .replace(/{@hit\s+([^}]+)}/g, (_, n) => `+${n.trim()}`)
+        .replace(/{@dc\s+([^}]+)}/g, (_, n) => `DC ${n.trim()}`)
+        .replace(/{@damage\s+([^}]+)}/g, (_, d) => d.trim())
+        .replace(/{@dice\s+([^}]+)}/g, (_, d) => d.trim())
+        .replace(/{@recharge\s*([^}]*)}/g, (_, n) => n ? `(Recharge ${n.trim()})` : '(Recharge)')
+        .replace(/{@\w+\s+([^}|]+)(?:\|[^}]*)?\}/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+/**
+ * Extract creature actions with parsed combat data for scaling.
+ * Stores original hit/damage/DC values so they can be recalculated at higher levels.
+ */
+export function extractCreatureActions(creature) {
+    if (!creature?.action) return [];
+    const prof = crProfBonus(creature.cr);
+    const actions = [];
+    for (const action of creature.action) {
+        const rawText = Array.isArray(action.entries) ? action.entries.join(' ') : '';
+        const text = strip5eMarkup(rawText);
+        if (!text) continue;
+
+        const hitMatch = rawText.match(/{@hit\s+(\d+)}/);
+        const dmgMatch = rawText.match(/{@damage\s+([^}]+)}/);
+        const dcMatch = rawText.match(/{@dc\s+(\d+)}/);
+        const atkMatch = rawText.match(/{@atk\s+([^}]+)}/);
+
+        let abilityMod = null;
+        if (hitMatch) {
+            abilityMod = parseInt(hitMatch[1]) - prof;
+        }
+
+        actions.push({
+            name: action.name || 'Action',
+            text: text.length > 300 ? text.slice(0, 297) + '...' : text,
+            enabled: true,
+            origHit: hitMatch ? parseInt(hitMatch[1]) : null,
+            origDamage: dmgMatch ? dmgMatch[1].trim() : null,
+            origDc: dcMatch ? parseInt(dcMatch[1]) : null,
+            origAbilityMod: abilityMod,
+            origProf: prof,
+            atkType: atkMatch ? atkMatch[1].trim() : null,
+        });
+    }
+    return actions;
+}
+
+function crProfBonus(cr) {
+    if (!cr) return 2;
+    const val = typeof cr === 'object' ? parseFloat(cr.cr || cr) : parseFloat(cr);
+    if (isNaN(val) || val < 5) return 2;
+    if (val < 9) return 3;
+    if (val < 13) return 4;
+    if (val < 17) return 5;
+    if (val < 21) return 6;
+    if (val < 25) return 7;
+    if (val < 29) return 8;
+    return 9;
+}
+
+/**
+ * Extract creature traits as toggleable items (e.g. Feline Agility, Pack Tactics).
+ */
+export function extractCreatureTraits(creature) {
+    if (!creature?.trait) return [];
+    const traits = [];
+    for (const t of creature.trait) {
+        const rawText = Array.isArray(t.entries) ? t.entries.join(' ') : '';
+        const text = strip5eMarkup(rawText);
+        if (!text) continue;
+        traits.push({
+            name: t.name || 'Trait',
+            text,
+            enabled: true,
+        });
+    }
+    return traits;
+}
+
+// ─── Creature Skill Proficiency Detection ───────────────────
+
+/**
+ * Determine which skills the creature has proficiency in by comparing
+ * the skill total in creature.skill to the raw ability modifier.
+ * Any skill whose total > ability mod is considered proficient.
+ */
+export function extractCreatureSkillProficiencies(creature) {
+    if (!creature?.skill) return [];
+    const profSkills = [];
+    for (const [rawKey, valStr] of Object.entries(creature.skill)) {
+        const sk = rawKey.replace(/\s+/g, '');
+        const camel = sk.charAt(0).toLowerCase() + sk.slice(1);
+        const ab = SKILL_ABILITIES[camel];
+        if (!ab) continue;
+        const total = parseInt(valStr);
+        if (isNaN(total)) continue;
+        const baseScore = creature[ab] ?? 10;
+        const baseMod = Math.floor((baseScore - 10) / 2);
+        if (total > baseMod) profSkills.push(camel);
+    }
+    return profSkills;
+}
+
+// ─── Language Parsing ───────────────────────────────────────
+
+const DND_LANGUAGES = [
+    'Common', 'Dwarvish', 'Elvish', 'Giant', 'Gnomish', 'Goblin', 'Halfling', 'Orc',
+    'Abyssal', 'Celestial', 'Draconic', 'Deep Speech', 'Infernal', 'Primordial',
+    'Sylvan', 'Undercommon', 'Aquan', 'Auran', 'Ignan', 'Terran',
+    'Druidic', 'Thieves\' Cant', 'Aarakocra', 'Gith', 'Modron', 'Slaad',
+    'Sphinx', 'Kraul', 'Loxodon', 'Minotaur', 'Vedalken',
+];
+
+export { DND_LANGUAGES };
+
+/**
+ * Parse a creature language string and return fixed languages + how many are player-chosen.
+ * E.g. "Common plus any one language" → { fixed: ['Common'], choiceCount: 1 }
+ */
+export function parseCreatureLanguages(langStr) {
+    if (!langStr) return { fixed: [], choiceCount: 0 };
+    const fixed = [];
+    let choiceCount = 0;
+
+    const anyMatch = langStr.match(/any\s+(\w+)\s+language/i);
+    if (anyMatch) {
+        const numWords = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+        choiceCount = numWords[anyMatch[1].toLowerCase()] || parseInt(anyMatch[1]) || 1;
+    }
+
+    for (const lang of DND_LANGUAGES) {
+        if (langStr.toLowerCase().includes(lang.toLowerCase())) {
+            fixed.push(lang);
+        }
+    }
+
+    return { fixed, choiceCount };
 }
 
 // ─── Hit Dice Parsing ───────────────────────────────────────
@@ -299,13 +764,30 @@ export function computeSidekickStats(sidekick, level) {
 
     const asiLevels = ASI_LEVELS[sidekick.type] || [];
     const asiChoices = sidekick.asiChoices || {};
+    const chosenFeats = [];
     for (const asiLvl of asiLevels) {
         if (asiLvl > level) break;
         const choice = asiChoices[asiLvl];
-        if (!choice || !Array.isArray(choice) || choice.length < 2) continue;
-        const [a1, a2] = choice;
-        if (a1 && scores[a1] !== undefined) scores[a1] = Math.min(20, scores[a1] + 1);
-        if (a2 && scores[a2] !== undefined) scores[a2] = Math.min(20, scores[a2] + 1);
+        if (!choice) continue;
+        if (choice.feat) {
+            if (choice.feat) chosenFeats.push(choice.feat);
+            const feat = lookupFeatByName(choice.feat);
+            if (feat) {
+                const abInfo = parseFeatAbility(feat);
+                if (abInfo) {
+                    for (const [ab, val] of Object.entries(abInfo.fixed)) {
+                        if (scores[ab] !== undefined) scores[ab] = Math.min(20, scores[ab] + val);
+                    }
+                    if (abInfo.choose && choice.featAbility && scores[choice.featAbility] !== undefined) {
+                        scores[choice.featAbility] = Math.min(20, scores[choice.featAbility] + 1);
+                    }
+                }
+            }
+        } else if (Array.isArray(choice) && choice.length >= 2) {
+            const [a1, a2] = choice;
+            if (a1 && scores[a1] !== undefined) scores[a1] = Math.min(20, scores[a1] + 1);
+            if (a2 && scores[a2] !== undefined) scores[a2] = Math.min(20, scores[a2] + 1);
+        }
     }
 
     const mods = {};
@@ -316,21 +798,42 @@ export function computeSidekickStats(sidekick, level) {
     const hitDice = parseHitDice(sidekick.baseHp?.formula);
     const totalHitDice = hitDice.count + (level - 1);
     const avgPerDie = Math.floor(hitDice.faces / 2) + 1;
-    const hp = Math.max(1, totalHitDice * (avgPerDie + mods.con));
+
+    const featEffects = collectFeatEffects(chosenFeats, sidekick.featData || {}, {
+        level, scores, mods, proficiency,
+        featAbilityMod: 0,
+    });
+
+    const baseAvgHp = sidekick.baseHp?.average ?? (hitDice.count * avgPerDie);
+    const baseCon = sidekick.baseCon ?? 10;
+    const baseConMod = Math.floor((baseCon - 10) / 2);
+    const conModDelta = mods.con - baseConMod;
+    const extraLevelDice = level - 1;
+    const hp = Math.max(1,
+        baseAvgHp
+        + (conModDelta * hitDice.count)
+        + (extraLevelDice * (avgPerDie + mods.con))
+        + featEffects.hpBonus,
+    );
 
     const saves = {};
+    const sharpMindSave = (sidekick.type === 'expert' && level >= 18) ? sidekick.sharpMindSave : null;
     for (const a of abilities) {
-        const isProficient = sidekick.saveProficiency === a;
+        const isProficient = sidekick.saveProficiency === a || sharpMindSave === a;
         saves[a] = { mod: mods[a] + (isProficient ? proficiency : 0), proficient: isProficient };
     }
 
     const skills = {};
     const profSkills = sidekick.skillProficiencies || [];
+    const creatureProf = sidekick.creatureSkillProficiencies || [];
     const expertise = sidekick.skillExpertise || [];
+    const expertise15 = (sidekick.type === 'expert' && level >= 15) ? (sidekick.expertise15 || []) : [];
+    const featSkills = featEffects.extraSkills || [];
+    const featExpertise = featEffects.extraExpertise || [];
     for (const sk of ALL_SKILLS) {
         const ab = SKILL_ABILITIES[sk];
-        const isProf = profSkills.includes(sk);
-        const isExpert = expertise.includes(sk);
+        const isProf = profSkills.includes(sk) || creatureProf.includes(sk) || featSkills.includes(sk);
+        const isExpert = expertise.includes(sk) || expertise15.includes(sk) || featExpertise.includes(sk);
         let bonus = mods[ab] || 0;
         if (isExpert) bonus += proficiency * 2;
         else if (isProf) bonus += proficiency;
@@ -366,17 +869,140 @@ export function computeSidekickStats(sidekick, level) {
         else if (level >= 6) extraAttack = 2;
     }
 
+    const warriorDefBonus = (sidekick.type === 'warrior' && level >= 10) ? 1 : 0;
+    const ac = computeEquippedAC(
+        sidekick.equippedArmor || null,
+        !!sidekick.hasShield,
+        mods.dex,
+        sidekick.baseAc,
+        warriorDefBonus,
+    );
+
     const features = buildFeatureSummary(sidekick, level, { proficiency, mods, scores, spellcasting, extraAttack });
 
+    const attackerBonus = (sidekick.type === 'warrior' && sidekick.subtype === 'attacker') ? 2 : 0;
+
+    const computedActions = computeActionStats(sidekick.creatureActions || [], proficiency, mods, attackerBonus);
+    const computedWeapons = computeWeaponStats(sidekick.weapons || [], proficiency, mods, attackerBonus);
+
+    let potentCantripMod = 0;
+    let empoweredSchool = null;
+    let empoweredMod = 0;
+    if (sidekick.type === 'spellcaster' && spellcasting) {
+        const spAbMod = mods[spellcasting.ability] || 0;
+        if (level >= 6) potentCantripMod = spAbMod;
+        if (level >= 14 && sidekick.empoweredSchool) {
+            empoweredSchool = sidekick.empoweredSchool;
+            empoweredMod = spAbMod;
+        }
+    }
+
     return {
-        scores, mods, proficiency, hp, saves, skills,
+        scores, mods, proficiency, hp, ac, saves, skills,
         spellcasting, extraAttack, features,
         hitDieFaces: hitDice.faces,
         totalHitDice,
+        computedActions,
+        computedWeapons,
+        potentCantripMod,
+        empoweredSchool,
+        empoweredMod,
+        chosenFeats,
+        featEffects,
     };
 }
 
+// ─── Combat Stat Computation ────────────────────────────────
+
+/**
+ * Recalculate creature action to-hit and DCs based on sidekick prof bonus.
+ * The delta between sidekick prof and creature original prof is applied.
+ */
+function computeActionStats(actions, sidekickProf, mods, attackerBonus) {
+    return actions.map(a => {
+        if (!a.enabled) return { ...a, computedHit: null, computedDamage: null, computedDc: null };
+        const origProf = a.origProf ?? 2;
+        const profDelta = sidekickProf - origProf;
+        let hit = null;
+        let damage = a.origDamage || null;
+        let dc = null;
+
+        if (a.origHit != null) {
+            hit = a.origHit + profDelta + attackerBonus;
+        }
+        if (a.origDc != null) {
+            dc = a.origDc + profDelta;
+        }
+
+        if (a.origAbilityMod != null && a.origDamage) {
+            const origMod = a.origAbilityMod;
+            const atkType = a.atkType || '';
+            let relevantMod = origMod;
+            if (atkType.includes('mw')) relevantMod = Math.max(mods.str, mods.dex);
+            else if (atkType.includes('rw')) relevantMod = mods.dex;
+            else relevantMod = Math.max(mods.str, mods.dex);
+
+            const modDelta = relevantMod - origMod;
+            if (modDelta !== 0 && hit != null) hit += modDelta;
+
+            damage = scaleDamageString(a.origDamage, origMod, relevantMod);
+        }
+
+        return { ...a, computedHit: hit, computedDamage: damage, computedDc: dc };
+    });
+}
+
+/**
+ * Compute to-hit and damage for extra weapons based on sidekick ability mods + prof.
+ */
+function computeWeaponStats(weapons, prof, mods, attackerBonus) {
+    return weapons.map(w => {
+        const isFinesse = w.finesse || (w.properties || []).some(p => p === 'Finesse');
+        const isRanged = w.attackType === 'rw';
+        let abilityMod;
+        if (isFinesse) abilityMod = Math.max(mods.str, mods.dex);
+        else if (isRanged) abilityMod = mods.dex;
+        else abilityMod = mods.str;
+
+        const bonusNum = w.bonus ? parseInt(String(w.bonus).replace(/[^-\d]/g, '')) || 0 : 0;
+        const hit = abilityMod + prof + bonusNum + attackerBonus;
+        const totalDmgMod = abilityMod + bonusNum;
+        const dmgStr = totalDmgMod >= 0 ? `${w.damageDice} + ${totalDmgMod}` : `${w.damageDice} - ${Math.abs(totalDmgMod)}`;
+        const versatileDmg = w.versatileDice
+            ? (totalDmgMod >= 0 ? `${w.versatileDice} + ${totalDmgMod}` : `${w.versatileDice} - ${Math.abs(totalDmgMod)}`)
+            : null;
+
+        return {
+            ...w,
+            computedHit: hit,
+            computedDamage: dmgStr,
+            computedVersatile: versatileDmg,
+            computedAbilityMod: abilityMod,
+        };
+    });
+}
+
+/**
+ * Adjust damage dice string when ability modifier changes.
+ * E.g. "1d6 + 3" with origMod=3, newMod=4 → "1d6 + 4"
+ */
+function scaleDamageString(dmgStr, origMod, newMod) {
+    if (!dmgStr || origMod === newMod) return dmgStr;
+    const m = dmgStr.match(/^(\d+d\d+)\s*([+-]\s*\d+)?$/);
+    if (!m) return dmgStr;
+    const dice = m[1];
+    const oldBonus = m[2] ? parseInt(m[2].replace(/\s/g, '')) : 0;
+    const newBonus = oldBonus + (newMod - origMod);
+    if (newBonus === 0) return dice;
+    return newBonus > 0 ? `${dice} + ${newBonus}` : `${dice} - ${Math.abs(newBonus)}`;
+}
+
 // ─── Feature Summary ────────────────────────────────────────
+
+export const SPELL_SCHOOLS = {
+    A: 'Abjuration', C: 'Conjuration', D: 'Divination', E: 'Enchantment',
+    I: 'Illusion', N: 'Necromancy', T: 'Transmutation', V: 'Evocation',
+};
 
 function buildFeatureSummary(sidekick, level, ctx) {
     const feats = [];
@@ -384,30 +1010,41 @@ function buildFeatureSummary(sidekick, level, ctx) {
 
     if (type === 'warrior') {
         const sub = sidekick.subtype;
-        if (sub === 'attacker') feats.push('Martial Role (Attacker, +2 attack)');
-        else if (sub === 'defender') feats.push('Martial Role (Defender, reaction: impose disadvantage)');
-        if (level >= 2) feats.push(`Second Wind (1d10+${level})`);
-        if (level >= 3) feats.push('Improved Critical (19-20)');
-        if (ctx.extraAttack >= 2) feats.push(`Extra Attack (${ctx.extraAttack})`);
-        if (level >= 7) feats.push('Battle Readiness (adv. on initiative)');
-        if (level >= 10) feats.push('Improved Defense (+1 AC)');
-        if (level >= 11) feats.push('Indomitable (1 reroll/LR)');
-        if (level >= 18) feats.push('Indomitable (2 rerolls/LR)');
+        if (sub === 'attacker') feats.push({ name: 'Martial Role (Attacker)', text: '1st-level Warrior feature. The sidekick gains a +2 bonus to its attack rolls.' });
+        else if (sub === 'defender') feats.push({ name: 'Martial Role (Defender)', text: '1st-level Warrior feature. The sidekick can use its reaction to impose disadvantage on the attack roll of a creature within 5 feet of it whose target isn\'t the sidekick, provided the sidekick can see the attacker.' });
+        if (level >= 2) feats.push({ name: `Second Wind (1d10+${level})`, text: `2nd-level Warrior feature. The sidekick can use a bonus action to regain 1d10 + ${level} hit points. Once it uses this feature, it must finish a short or long rest before it can use it again.` });
+        if (level >= 3) feats.push({ name: 'Improved Critical (19-20)', text: '3rd-level Warrior feature. The sidekick\'s weapon attacks score a critical hit on a roll of 19 or 20 on the d20.' });
+        if (ctx.extraAttack >= 2) feats.push({ name: `Extra Attack (${ctx.extraAttack})`, text: `6th-level Warrior feature. The sidekick can attack ${ctx.extraAttack} times whenever it takes the Attack action on its turn.` });
+        if (level >= 7) feats.push({ name: 'Battle Readiness', text: '7th-level Warrior feature. The sidekick has advantage on initiative rolls.' });
+        if (level >= 10) feats.push({ name: 'Improved Defense (+1 AC)', text: '10th-level Warrior feature. The sidekick\'s AC increases by 1.' });
+        if (level >= 11 && level < 18) feats.push({ name: 'Indomitable (1/LR)', text: '11th-level Warrior feature. The sidekick can reroll a saving throw that it fails, but it must use the new roll. It can use this feature once per long rest.' });
+        if (level >= 18) feats.push({ name: 'Indomitable (2/LR)', text: '18th-level Warrior feature. The sidekick can reroll a saving throw that it fails, but it must use the new roll. It can use this feature twice per long rest.' });
     } else if (type === 'expert') {
-        feats.push('Helpful (Help as bonus action)');
-        if (level >= 3) feats.push('Expertise (2 skills)');
-        if (level >= 6) feats.push('Coordinated Strike (+2d6 on Help-aided attack)');
-        if (level >= 7) feats.push('Evasion');
-        if (level >= 9) feats.push('Inspiring Help (+1d6 to helped ally)');
-        if (level >= 11) feats.push('Reliable Talent (min 10 on proficient checks)');
-        if (level >= 14) feats.push('Cunning Action');
-        if (level >= 15) feats.push('Expertise (4 skills total)');
-        if (level >= 18) feats.push('Sharp Mind (+1 save prof)');
-        if (level >= 20) feats.push('Inspiring Help (+2d6)');
+        feats.push({ name: 'Helpful', text: '1st-level Expert feature. The sidekick can take the Help action as a bonus action.' });
+        if (level >= 3) feats.push({ name: 'Expertise (2 skills)', text: '3rd-level Expert feature. Choose two of the sidekick\'s skill proficiencies. The sidekick\'s proficiency bonus is doubled for any ability check it makes that uses either of the chosen proficiencies.' });
+        if (level >= 6) feats.push({ name: 'Coordinated Strike', text: '6th-level Expert feature. When the sidekick uses its Helpful feature, the creature who receives the help also gains a 2d6 bonus to the damage roll of its next successful attack before the start of the sidekick\'s next turn.' });
+        if (level >= 7) feats.push({ name: 'Evasion', text: '7th-level Expert feature. When the sidekick is subjected to an effect that allows it to make a Dexterity saving throw to take only half damage, it instead takes no damage on a success, and half damage on a failure.' });
+        if (level >= 9) feats.push({ name: 'Inspiring Help', text: '9th-level Expert feature. When the sidekick takes the Help action, the creature who receives the help gains 1d6 temporary hit points.' });
+        if (level >= 11) feats.push({ name: 'Reliable Talent', text: '11th-level Expert feature. Whenever the sidekick makes an ability check that lets it add its proficiency bonus, it can treat a d20 roll of 9 or lower as a 10.' });
+        if (level >= 14) feats.push({ name: 'Cunning Action', text: '14th-level Expert feature. On each of its turns, the sidekick can use a bonus action to take the Dash, Disengage, or Hide action.' });
+        if (level >= 15) {
+            const exp15 = (sidekick.expertise15 || []).map(s => SKILL_LABELS[s] || s).join(', ');
+            feats.push({ name: 'Expertise (15th)', text: `15th-level Expert feature. Choose two of the sidekick's skill proficiencies. The sidekick's proficiency bonus is doubled for ability checks using those skills.${exp15 ? ' Chosen: ' + exp15 : ' (not yet selected)'}`, needsChoice: !exp15 });
+        }
+        if (level >= 18) {
+            const save18 = sidekick.sharpMindSave || null;
+            feats.push({ name: 'Sharp Mind', text: `18th-level Expert feature. The sidekick gains proficiency in one saving throw: Intelligence, Wisdom, or Charisma.${save18 ? ' Chosen: ' + save18.toUpperCase() : ' (not yet selected)'}`, needsChoice: !save18 });
+        }
+        if (level >= 20) feats.push({ name: 'Inspiring Help (+2d6)', text: '20th-level Expert feature. The temporary hit points from Inspiring Help increase to 2d6.' });
     } else if (type === 'spellcaster') {
-        if (level >= 6) feats.push('Potent Cantrips (add ability mod to cantrip dmg)');
-        if (level >= 14) feats.push('Empowered Spells (add ability mod to spell dmg/heal)');
-        if (level >= 18) feats.push('Focused Casting (adv. on concentration saves)');
+        const abMod = ctx.spellcasting ? ctx.mods[ctx.spellcasting.ability] || 0 : 0;
+        if (level >= 6) feats.push({ name: `Potent Cantrips (+${abMod} dmg)`, text: `6th-level Spellcaster feature. The sidekick can add its spellcasting ability modifier (+${abMod}) to the damage it deals with any cantrip.` });
+        if (level >= 14) {
+            const school14 = sidekick.empoweredSchool || null;
+            const schoolLabel = school14 ? (SPELL_SCHOOLS[school14] || school14) : null;
+            feats.push({ name: `Empowered Spells${schoolLabel ? ' (' + schoolLabel + ')' : ''}`, text: `14th-level Spellcaster feature. Choose one school of magic. Whenever the sidekick casts a spell of that school by expending a spell slot, the sidekick can add its spellcasting ability modifier (+${abMod}) to the spell's damage roll or healing roll, if any.${schoolLabel ? ' Chosen school: ' + schoolLabel : ' (not yet selected)'}`, needsChoice: !schoolLabel });
+        }
+        if (level >= 18) feats.push({ name: 'Focused Casting', text: '18th-level Spellcaster feature. The sidekick has advantage on Constitution saving throws that it makes to maintain concentration on a spell.' });
     }
 
     return feats;
@@ -425,10 +1062,99 @@ export function getMaxSpellLevel(sidekickLevel) {
     return 0;
 }
 
+// ─── Feat Data ──────────────────────────────────────────────
+
+let _featCache = null;
+let _featInflight = null;
+
+export async function fetchFeats() {
+    if (_featCache) return _featCache;
+    if (_featInflight) return _featInflight;
+    _featInflight = fetch(`${CDN_DATA}/feats.json`, { signal: AbortSignal.timeout(20000) })
+        .then(r => r.ok ? r.json() : {})
+        .then(data => {
+            _featCache = (data.feat || []).filter(f => f.source === 'XPHB');
+            return _featCache;
+        })
+        .catch(() => { _featCache = []; return []; })
+        .finally(() => { _featInflight = null; });
+    return _featInflight;
+}
+
+export function getLoadedFeats() { return _featCache || []; }
+
+/**
+ * Parse a feat's ability boost configuration into a normalized form.
+ * Returns { fixed: {str:1,...}, choose: {from:[...], count:N} } or null.
+ */
+export function parseFeatAbility(feat) {
+    if (!feat?.ability?.length) return null;
+    const fixed = {};
+    let choose = null;
+    for (const entry of feat.ability) {
+        if (entry.hidden) continue;
+        if (entry.choose) {
+            choose = { from: entry.choose.from || [], count: entry.choose.count || entry.choose.amount || 1 };
+        } else {
+            for (const [ab, val] of Object.entries(entry)) {
+                if (['str','dex','con','int','wis','cha'].includes(ab)) {
+                    fixed[ab] = (fixed[ab] || 0) + val;
+                }
+            }
+        }
+    }
+    if (Object.keys(fixed).length === 0 && !choose) return null;
+    return { fixed, choose };
+}
+
+/**
+ * Check if a sidekick meets a feat's prerequisites.
+ */
+export function checkFeatPrereqs(feat, sidekick, level, stats) {
+    if (!feat.prerequisite?.length) return { met: true, reasons: [] };
+    const reasons = [];
+    let anyMet = false;
+    for (const p of feat.prerequisite) {
+        let thisOk = true;
+        if (p.level && level < p.level) { thisOk = false; reasons.push(`Level ${p.level}+`); }
+        if (p.ability) {
+            const abOk = p.ability.some(abReq => {
+                return Object.entries(abReq).every(([ab, min]) => (stats?.scores?.[ab] ?? 10) >= min);
+            });
+            if (!abOk) { thisOk = false; reasons.push('Ability score too low'); }
+        }
+        if (p.spellcasting2020 && sidekick.type !== 'spellcaster') { thisOk = false; reasons.push('Requires spellcasting'); }
+        if (p.proficiency) {
+            for (const prof of p.proficiency) {
+                if (prof.armor === 'light' || prof.armor === 'medium' || prof.armor === 'heavy') {
+                    reasons.push(`Requires ${prof.armor} armor proficiency`);
+                    thisOk = false;
+                }
+                if (prof.armor === 'shield') {
+                    reasons.push('Requires shield proficiency');
+                    thisOk = false;
+                }
+            }
+        }
+        if (thisOk) anyMet = true;
+    }
+    return { met: anyMet, reasons: [...new Set(reasons)] };
+}
+
+export function lookupFeatByName(name) {
+    if (!_featCache || !name) return null;
+    const key = name.toLowerCase();
+    return _featCache.find(f => f.name.toLowerCase() === key) || null;
+}
+
 // ─── Spell Search ───────────────────────────────────────────
+
+const SPELL_SOURCES = ['xphb', 'tce', 'xge'];
 
 const _spellSourceCache = new Map();
 let _spellSourceInflight = new Map();
+let _spellClassLookup = null;
+let _spellClassLookupInflight = null;
 
 export async function fetchSpellSource(source) {
     if (_spellSourceCache.has(source)) return _spellSourceCache.get(source);
@@ -447,41 +1173,168 @@ export async function fetchSpellSource(source) {
     return promise;
 }
 
-function spellMatchesClassList(spell, classList) {
-    if (!spell?.classes?.fromClassList) return false;
-    const lists = classList.split('|');
-    return spell.classes.fromClassList.some(c => lists.includes(c.name));
+async function fetchSpellClassLookup() {
+    if (_spellClassLookup) return _spellClassLookup;
+    if (_spellClassLookupInflight) return _spellClassLookupInflight;
+    _spellClassLookupInflight = fetch(
+        `${CDN_DATA}/generated/gendata-spell-source-lookup.json`,
+        { signal: AbortSignal.timeout(25000) },
+    )
+        .then(r => r.ok ? r.json() : {})
+        .then(data => { _spellClassLookup = data; return data; })
+        .catch(() => { _spellClassLookup = {}; return {}; })
+        .finally(() => { _spellClassLookupInflight = null; });
+    return _spellClassLookupInflight;
 }
 
-export async function searchSpellsForSidekick(query, classList, maxSpellLevel, isCantrip) {
-    const sources = ['phb', 'xge', 'tce'];
+function spellBelongsToClasses(spellName, spellSource, classList) {
+    if (!_spellClassLookup) return false;
+    const srcKey = spellSource.toLowerCase();
+    const nameKey = spellName.toLowerCase();
+    const entry = _spellClassLookup[srcKey]?.[nameKey];
+    if (!entry) return false;
+    const targets = classList.split('|');
+    for (const section of [entry.class, entry.classVariant]) {
+        if (!section) continue;
+        for (const classSrc of Object.values(section)) {
+            for (const className of Object.keys(classSrc)) {
+                if (targets.includes(className)) return true;
+            }
+        }
+    }
+    return false;
+}
+
+export async function preloadSpellData() {
+    await Promise.all([
+        fetchSpellClassLookup(),
+        ...SPELL_SOURCES.map(s => fetchSpellSource(s)),
+    ]);
+}
+
+export function getSpellsForClass(classList, maxSpellLevel, isCantrip) {
     const allSpells = [];
-    for (const src of sources) {
-        const spells = await fetchSpellSource(src);
-        if (spells) allSpells.push(...spells);
+    const seen = new Set();
+    for (const src of SPELL_SOURCES) {
+        const spells = _spellSourceCache.get(src) || [];
+        for (const s of spells) {
+            const key = s.name.toLowerCase();
+            if (seen.has(key)) continue;
+            if (!spellBelongsToClasses(s.name, s.source, classList)) continue;
+            if (isCantrip && s.level !== 0) continue;
+            if (!isCantrip && (s.level < 1 || s.level > maxSpellLevel)) continue;
+            seen.add(key);
+            allSpells.push({ name: s.name, level: s.level, school: s.school, source: s.source });
+        }
+    }
+    return allSpells.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+}
+
+const SCHOOL_LABELS = {
+    A: 'Abjur', C: 'Conj', D: 'Div', E: 'Ench',
+    V: 'Evoc', I: 'Illus', N: 'Necro', T: 'Trans',
+};
+export function spellSchoolLabel(code) {
+    return SCHOOL_LABELS[code] || code || '';
+}
+
+// ─── Spell Damage Extraction ────────────────────────────────
+
+const CANTRIP_BREAKPOINTS = [1, 5, 11, 17];
+
+/**
+ * Extract spell damage/healing info from a cached spell object.
+ * For cantrips, scales damage dice by character level breakpoints.
+ * potentMod: ability modifier added to cantrip damage (Potent Cantrips feature).
+ * empoweredSchool/empoweredMod: school + modifier for Empowered Spells.
+ */
+export function getSpellDamageInfo(spellName, characterLevel, potentMod, empoweredSchool, empoweredMod) {
+    const spell = lookupSpellByName(spellName);
+    if (!spell) return null;
+
+    const dmgTypes = spell.damageInflict || [];
+    const dmgType = dmgTypes[0] || '';
+    const isCantrip = spell.level === 0;
+    const school = spell.school || '';
+    const miscTags = spell.miscTags || [];
+    const isHealing = miscTags.includes('HL');
+    const savingThrow = (spell.savingThrow || [])[0] || null;
+    const spellAttack = (spell.spellAttack || [])[0] || null;
+    const conditionInflict = spell.conditionInflict || [];
+
+    const entriesStr = (spell.entries || []).map(e => typeof e === 'string' ? e : '').join(' ');
+
+    let baseDice = null;
+    const dmgMatch = entriesStr.match(/{@damage\s+([^}]+)}/);
+    if (dmgMatch) baseDice = dmgMatch[1].trim();
+
+    let healDice = null;
+    if (isHealing && !baseDice) {
+        const healMatch = entriesStr.match(/{@dice\s+([^}]+)}/);
+        if (healMatch) healDice = healMatch[1].trim();
     }
 
-    const q = query.toLowerCase();
-    const targetLevel = isCantrip ? 0 : null;
+    let bonusMod = 0;
+    if (isCantrip && potentMod) bonusMod = potentMod;
+    else if (!isCantrip && empoweredSchool && school === empoweredSchool && empoweredMod) bonusMod = empoweredMod;
 
-    return allSpells
-        .filter(s => {
-            if (!s.name?.toLowerCase().includes(q)) return false;
-            if (!spellMatchesClassList(s, classList)) return false;
-            if (targetLevel !== null) return s.level === targetLevel;
-            return s.level >= 1 && s.level <= maxSpellLevel;
-        })
-        .map(s => ({ name: s.name, level: s.level, school: s.school, source: s.source }))
-        .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
-        .slice(0, 30);
+    if (isCantrip && spell.scalingLevelDice?.scaling) {
+        const scaling = spell.scalingLevelDice.scaling;
+        let dice = baseDice || scaling['1'] || null;
+        for (const bp of CANTRIP_BREAKPOINTS) {
+            if (characterLevel >= bp && scaling[String(bp)]) dice = scaling[String(bp)];
+        }
+        if (dice && bonusMod) dice = `${dice} + ${bonusMod}`;
+        if (healDice && bonusMod) healDice = `${healDice} + ${bonusMod}`;
+        return { dice, type: dmgType, isCantrip: true, scaling, school, isHealing, healDice, savingThrow, spellAttack, conditionInflict, spellLevel: spell.level };
+    }
+
+    let dice = baseDice;
+    if (dice && bonusMod) dice = `${dice} + ${bonusMod}`;
+    if (healDice && bonusMod) healDice = `${healDice} + ${bonusMod}`;
+    return { dice, type: dmgType, isCantrip: false, scaling: null, school, isHealing, healDice, savingThrow, spellAttack, conditionInflict, spellLevel: spell.level };
+}
+
+const SCHOOL_NAMES = { A: 'Abjuration', C: 'Conjuration', D: 'Divination', E: 'Enchantment', I: 'Illusion', N: 'Necromancy', T: 'Transmutation', V: 'Evocation' };
+
+/**
+ * Build a compact spell annotation for the prompt.
+ * E.g. "Cure Wounds (heal 2d8+mod, touch)" or "Thunderwave (2d8 thunder, CON save)"
+ */
+export function buildSpellAnnotation(spellName, info) {
+    if (!info) return spellName;
+    const parts = [];
+    if (info.isHealing && info.healDice) parts.push(`heal ${info.healDice}+mod`);
+    else if (info.dice) parts.push(`${info.dice}${info.type ? ' ' + info.type : ''}`);
+    if (info.savingThrow) parts.push(`${info.savingThrow.substring(0, 3).toUpperCase()} save`);
+    else if (info.spellAttack) parts.push(info.spellAttack === 'R' ? 'ranged atk' : 'melee atk');
+    if (info.conditionInflict?.length > 0) parts.push(info.conditionInflict.join('/'));
+    if (parts.length === 0) {
+        const spell = lookupSpellByName(spellName);
+        if (spell) {
+            const schoolName = SCHOOL_NAMES[spell.school] || '';
+            if (schoolName) parts.push(schoolName.toLowerCase());
+        }
+    }
+    return parts.length > 0 ? `${spellName} (${parts.join(', ')})` : spellName;
 }
 
 // ─── Sidekick CRUD Helpers ──────────────────────────────────
 
 export function createSidekickFromCreature(creature, config) {
     const hd = parseHitDice(creature.hp?.formula);
-    const { weapons, specialActions } = parseCreatureActions(creature);
-    for (const w of weapons) enrichWeaponFromItems(w);
+    const creatureActions = extractCreatureActions(creature);
+    const creatureTraits = extractCreatureTraits(creature);
+    const creatureSkillProf = extractCreatureSkillProficiencies(creature);
+    const senses = Array.isArray(creature.senses) ? creature.senses.join(', ') : (creature.senses || '');
+    const langRaw = Array.isArray(creature.languages) ? creature.languages.join(', ') : (creature.languages || '');
+    const langParsed = parseCreatureLanguages(langRaw);
+    const speedParts = [];
+    if (creature.speed) {
+        for (const [k, v] of Object.entries(creature.speed)) {
+            if (typeof v === 'number') speedParts.push(`${k} ${v} ft.`);
+        }
+    }
 
     return {
         id: `sk_${Date.now()}`,
@@ -494,6 +1347,7 @@ export function createSidekickFromCreature(creature, config) {
         baseHp: creature.hp || { average: 10, formula: '2d8' },
         baseAc: typeof creature.ac?.[0] === 'number' ? creature.ac[0] : creature.ac?.[0]?.ac ?? 10,
         baseSpeed: creature.speed?.walk ?? 30,
+        speedFull: speedParts.join(', ') || '30 ft.',
         baseSize: Array.isArray(creature.size) ? creature.size[0] : creature.size || 'M',
         baseStr: creature.str ?? 10,
         baseDex: creature.dex ?? 10,
@@ -503,8 +1357,17 @@ export function createSidekickFromCreature(creature, config) {
         baseCha: creature.cha ?? 10,
         hitDieFaces: hd.faces,
         hitDiceCount: hd.count,
-        weapons,
-        specialActions,
+        creatureActions,
+        creatureTraits,
+        creatureSkillProficiencies: creatureSkillProf,
+        senses,
+        languages: langRaw,
+        languagesFixed: langParsed.fixed,
+        languageChoiceCount: langParsed.choiceCount,
+        chosenLanguages: [],
+        weapons: [],
+        equippedArmor: null,
+        hasShield: false,
         saveProficiency: config.saveProficiency || null,
         skillProficiencies: config.skillProficiencies || [],
         skillExpertise: config.skillExpertise || [],
@@ -513,13 +1376,19 @@ export function createSidekickFromCreature(creature, config) {
         asiChoices: {},
         knownCantrips: [],
         knownSpells: [],
+        items: [],
         hireGoldPerDay: config.hireGoldPerDay ?? 0,
         hireDate: config.hireDate || null,
+        hirePayMode: config.hirePayMode || 'owed',
+        hirePaidAmount: config.hirePaidAmount ?? 0,
         enabled: true,
     };
 }
 
 export function getSidekickLevel() {
+    if (extensionSettings.v1Enabled && characterV1?.level) {
+        return characterV1.level;
+    }
     return character?.level ?? 1;
 }
 
@@ -664,10 +1533,13 @@ export function parseDndDate(dateStr) {
 }
 
 /**
- * Calculate the gold owed to a sidekick based on hire date, current date, and rate.
- * Returns { daysElapsed, goldOwed } or null if dates can't be compared.
+ * Calculate the gold owed to a sidekick based on hire date, current date, rate, and payments.
+ * payMode: 'owed' (accumulates debt), 'daily' (paid each day, no debt tracked)
+ * paidAmount: gold already paid as a lump sum (reduces owed in 'owed' mode)
+ * Returns { daysElapsed, totalCost, goldOwed } or null if dates can't be compared.
  */
-export function calculateHireCost(hireDate, currentDate, goldPerDay) {
+export function calculateHireCost(hireDate, currentDate, goldPerDay, payMode, paidAmount) {
+    if (payMode === 'free') return { daysElapsed: 0, totalCost: 0, goldOwed: 0 };
     if (!hireDate || !currentDate || !goldPerDay) return null;
 
     const hd = parseDndDate(hireDate);
@@ -676,5 +1548,12 @@ export function calculateHireCost(hireDate, currentDate, goldPerDay) {
     if (hd.format !== cd.format) return null;
 
     const daysElapsed = Math.max(0, cd.dayNumber - hd.dayNumber);
-    return { daysElapsed, goldOwed: daysElapsed * goldPerDay };
+    const totalCost = daysElapsed * goldPerDay;
+
+    if (payMode === 'daily') {
+        return { daysElapsed, totalCost, goldOwed: 0 };
+    }
+
+    const paid = paidAmount || 0;
+    return { daysElapsed, totalCost, goldOwed: Math.max(0, totalCost - paid) };
 }

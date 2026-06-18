@@ -6,7 +6,7 @@
  */
 
 import { getContext } from '../../../../../extensions.js';
-import { spellLog, setSpellLog } from '../core/state.js';
+import { spellLog, setSpellLog, autoLongRestEnabled } from '../core/state.js';
 import { saveSpellLog, loadSpellLog } from '../core/persistence.js';
 import { parseHeader } from './headerParser.js';
 
@@ -212,7 +212,7 @@ function scanChatForSpells({ skipLastAssistant = false } = {}) {
                 const dateChanged = lastDateNorm
                     && newDateNorm !== lastDateNorm
                     && newDateTokens !== lastDateTokens;
-                if (dateChanged) {
+                if (dateChanged && autoLongRestEnabled) {
                     parsed.push({
                         type: 'rest',
                         date: newDate,

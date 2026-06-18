@@ -7,8 +7,8 @@
 import { character, classDataCache, setCharacter } from '../core/state.js';
 import { saveCharacter } from '../core/persistence.js';
 
-const CDN_BASE = 'https://cdn.jsdelivr.net/gh/5etools-mirror-3/5etools-src@main/data/class';
-const CDN_DATA = 'https://cdn.jsdelivr.net/gh/5etools-mirror-3/5etools-src@main/data';
+const CDN_BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/class';
+const CDN_DATA = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data';
 
 let _classIndex = null;
 let _indexInflight = null;

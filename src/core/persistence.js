@@ -5,7 +5,7 @@
 
 import { getContext } from '../../../../../extensions.js';
 import { saveSettingsDebounced, chat_metadata, saveChatDebounced } from '../../../../../../script.js';
-import { extensionName, extensionSettings, defaultAttributeSchema, buildDefaultAttributes, setChatAttributes, setChatAttributeSchema, setQuests, setInventory, setSpellLog, setSpellTrackerDisabled, setSendAttributesOnRoll, setSpellInjectEnabled, setSpellbook, setCharacter, setSidekicks } from './state.js';
+import { extensionName, extensionSettings, defaultAttributeSchema, buildDefaultAttributes, setChatAttributes, setChatAttributeSchema, setQuests, setInventory, setSpellLog, setSpellTrackerDisabled, setSendAttributesOnRoll, setSpellInjectEnabled, setAutoLongRestEnabled, setSpellbook, setCharacter, setSidekicks, eventCooldown, lastEventRoll, eventLog, setEventCooldown, setLastEventRoll, setEventLog } from './state.js';
 
 /**
  * Save extension settings to SillyTavern storage.
@@ -232,6 +232,24 @@ export function loadSpellInjectEnabled() {
 }
 
 /**
+ * Save the per-chat "auto long rest detection" flag.
+ * @param {boolean} enabled
+ */
+export function saveAutoLongRest(enabled) {
+    if (!chat_metadata) return;
+    chat_metadata.dnd5e_autoLongRestEnabled = enabled !== false;
+    saveChatDebounced();
+}
+
+/**
+ * Load the per-chat "auto long rest detection" flag into runtime state.
+ */
+export function loadAutoLongRest() {
+    const val = chat_metadata?.dnd5e_autoLongRestEnabled;
+    setAutoLongRestEnabled(val !== false);
+}
+
+/**
  * Save spellbook data to chat metadata.
  * @param {object|null} data - The spellbook object { name, items, sources } or null to clear
  */
@@ -287,4 +305,25 @@ export function loadSidekicks() {
     } else {
         setSidekicks([]);
     }
+}
+
+/**
+ * Save random event state to chat metadata (cooldown, last roll, event log).
+ */
+export function saveRandomEventState() {
+    if (!chat_metadata) return;
+    chat_metadata.dnd5e_eventCooldown = eventCooldown;
+    chat_metadata.dnd5e_lastEventRoll = lastEventRoll;
+    chat_metadata.dnd5e_eventLog = eventLog;
+    saveChatDebounced();
+}
+
+/**
+ * Load random event state from chat metadata into runtime state.
+ */
+export function loadRandomEventState() {
+    setEventCooldown(chat_metadata?.dnd5e_eventCooldown ?? 0);
+    setLastEventRoll(chat_metadata?.dnd5e_lastEventRoll ?? null);
+    const storedLog = chat_metadata?.dnd5e_eventLog;
+    setEventLog(Array.isArray(storedLog) ? storedLog : []);
 }

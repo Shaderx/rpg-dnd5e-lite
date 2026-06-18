@@ -33,6 +33,11 @@ export const extensionSettings = {
     lastModifierRolls: {},
     allyCount: 1,
 
+    // Random events
+    randomEventsEnabled: false,
+    randomEventRole: 'user',
+    eventThresholds: null,
+
     // Strip widgets
     stripWidgetsEnabled: true,
 
@@ -69,7 +74,13 @@ export const extensionSettings = {
         enabled: true,
         intensity: 1.0,
         blendMode: 'soft-light'
-    }
+    },
+
+    // V1 character system toggle (false = legacy mode)
+    v1Enabled: false,
+
+    // Custom species stored globally (persist across chats)
+    v1CustomSpecies: [],
 };
 
 // Per-chat attribute schema and values (stored in chat_metadata)
@@ -104,6 +115,10 @@ export function setSendAttributesOnRoll(val) { sendAttributesOnRoll = val; }
 export let spellInjectEnabled = false;
 export function setSpellInjectEnabled(val) { spellInjectEnabled = val; }
 
+// Per-chat flag: when true, date changes in assistant headers auto-insert long rest entries.
+export let autoLongRestEnabled = true;
+export function setAutoLongRestEnabled(val) { autoLongRestEnabled = val; }
+
 // Spellbook: per-chat imported spell list from 5e.tools sublist JSON.
 // Stores { name, items: [{h}], sources: [] } from the imported file.
 export let spellbook = null;
@@ -127,12 +142,23 @@ export function setSidekicks(val) { sidekicks = val; }
 // In-memory cache of 5e.tools bestiary data (sourceKey -> monster array).
 export const bestiaryCache = new Map();
 
-// In-memory cache of weapon items from items-base.json (weaponName lowercase -> item object).
-export let weaponItemCache = null;
-export function setWeaponItemCache(val) { weaponItemCache = val; }
+// In-memory cache of equipment items from items-base.json (name lowercase -> item object).
+// Includes weapons, armor, and shields.
+export let equipmentItemCache = null;
+export function setEquipmentItemCache(val) { equipmentItemCache = val; }
 
 export let pendingDiceRoll = null;
 export function setPendingDiceRoll(val) { pendingDiceRoll = val; }
+
+// Random event state: per-chat cooldown, last roll result, and event history.
+export let eventCooldown = 0;
+export function setEventCooldown(val) { eventCooldown = val; }
+
+export let lastEventRoll = null;
+export function setLastEventRoll(val) { lastEventRoll = val; }
+
+export let eventLog = [];
+export function setEventLog(val) { eventLog = val; }
 
 // Header info parsed from LLM messages
 export let headerInfo = {

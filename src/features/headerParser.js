@@ -74,6 +74,7 @@ export function parseHeader(text) {
         }
     }
 
+    delete result._weatherConfirmed;
     return result;
 }
 
@@ -146,12 +147,26 @@ function parseKnownSection(section, result) {
     return false;
 }
 
+const TEMP_PATTERN = /°[CF]\b/i;
+
 function parseUnknownSection(section, result) {
     if (KNOWN_LEADERS.test(section)) return;
 
     const emoji = extractLeadingEmoji(section);
+    const hasTemp = TEMP_PATTERN.test(section);
+
+    if (hasTemp) {
+        if (result.weather && !result._weatherConfirmed) {
+            result.extras.push({ emoji: result.weatherEmoji || null, text: result.weather });
+        }
+        result.weatherEmoji = emoji || null;
+        result.weather = emoji ? section.substring(emoji.length).trim() : section;
+        result._weatherConfirmed = true;
+        return;
+    }
+
     if (emoji) {
-        if (!result.weather && !result.weatherEmoji) {
+        if (!result.weather) {
             result.weatherEmoji = emoji;
             result.weather = section.substring(emoji.length).trim();
         } else {

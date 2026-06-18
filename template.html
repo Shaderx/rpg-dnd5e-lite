@@ -84,6 +84,9 @@
             <div class="dnd-strip-quests-list"></div>
         </div>
 
+        <!-- Strip: random event d100 (sleek inline before reload) -->
+        <span id="dnd-strip-event-tag" class="dnd-strip-event-tag" style="display:none;" title="Random Event">--</span>
+
         <button id="dnd-strip-reload" class="dnd-strip-reload-btn" title="Refresh from chat">
             <i class="fa-solid fa-rotate"></i>
         </button>
@@ -95,6 +98,7 @@
         <div class="dnd-panel-header">
             <h3><i class="fa-solid fa-dice-d20"></i> <span id="dnd-panel-title">D&D 5e Lite</span></h3>
             <div class="dnd-header-actions">
+                <span id="dnd-panel-event-tag" class="dnd-panel-event-tag" style="display:none;" title="Random Event">--</span>
                 <button id="dnd-refresh-btn" class="dnd-header-btn" title="Refresh from chat">
                     <i class="fa-solid fa-rotate"></i>
                 </button>
@@ -249,6 +253,106 @@
                 <div class="dnd-collapsible-body">
                     <div id="dnd-character-content" class="dnd-character-content">
                         <div class="dnd-empty-state">No character configured</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- V1 Character (full builder, shown when v1Enabled) -->
+            <div id="dnd-v1-character-container" class="dnd-collapsible dnd-collapsed" style="display:none;">
+                <div class="dnd-collapsible-header" data-section="v1-character" title="Click to toggle, Shift+click to configure">
+                    <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
+                    <i class="fa-solid fa-id-card"></i>
+                    <span id="dnd-v1-character-title">Character (V1)</span>
+                    <button id="dnd-v1-character-edit" class="dnd-section-action-btn" title="Edit character">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button id="dnd-v1-character-clear" class="dnd-section-action-btn" title="Remove character">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                <div class="dnd-collapsible-body">
+                    <div id="dnd-v1-character-content" class="dnd-v1-character-content">
+                        <div class="dnd-empty-state">
+                            <span>No character configured</span>
+                            <button id="dnd-v1-character-create" class="dnd-btn dnd-btn-primary dnd-btn-sm">Create Character</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- V1 Spellbook (interactive spell list with tooltips, shown when v1Enabled) -->
+            <div id="dnd-v1-spellbook-container" class="dnd-collapsible dnd-collapsed" style="display:none;">
+                <div class="dnd-collapsible-header" data-section="v1-spellbook" title="Click to toggle">
+                    <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
+                    <i class="fa-solid fa-book-open"></i>
+                    <span id="dnd-v1-spellbook-title">Spellbook</span>
+                    <button id="dnd-v1-spellbook-add" class="dnd-section-action-btn" title="Add spells">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+                <div class="dnd-collapsible-body">
+                    <div id="dnd-v1-spellbook-filter" class="dnd-v1-spellbook-filter" style="display:none;">
+                        <input type="text" id="dnd-v1-spellbook-search" class="dnd-panel-input" placeholder="Filter spells..." autocomplete="off" />
+                        <select id="dnd-v1-spellbook-level-filter" class="dnd-panel-select">
+                            <option value="all">All Levels</option>
+                            <option value="0">Cantrips</option>
+                            <option value="1">1st Level</option>
+                            <option value="2">2nd Level</option>
+                            <option value="3">3rd Level</option>
+                            <option value="4">4th Level</option>
+                            <option value="5">5th Level</option>
+                            <option value="6">6th Level</option>
+                            <option value="7">7th Level</option>
+                            <option value="8">8th Level</option>
+                            <option value="9">9th Level</option>
+                        </select>
+                    </div>
+                    <div id="dnd-v1-spellbook-list" class="dnd-spellbook-list">
+                        <div class="dnd-empty-state">No spells configured</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- V1 Add Spell Modal -->
+            <div id="dnd-v1-add-spell-modal" class="dnd-modal-overlay" style="display:none;">
+                <div class="dnd-modal dnd-modal-spellbook-import">
+                    <div class="dnd-modal-header">
+                        <span>Add Spells</span>
+                        <button class="dnd-modal-close" id="dnd-v1-add-spell-close"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="dnd-modal-body">
+                        <div class="dnd-setting-row">
+                            <label>Class:</label>
+                            <select id="dnd-v1-add-spell-class">
+                                <option value="">All Classes</option>
+                                <option value="bard">Bard</option>
+                                <option value="cleric">Cleric</option>
+                                <option value="druid">Druid</option>
+                                <option value="paladin">Paladin</option>
+                                <option value="ranger">Ranger</option>
+                                <option value="sorcerer">Sorcerer</option>
+                                <option value="warlock">Warlock</option>
+                                <option value="wizard">Wizard</option>
+                            </select>
+                        </div>
+                        <div class="dnd-setting-row">
+                            <label>Level:</label>
+                            <select id="dnd-v1-add-spell-level">
+                                <option value="all">All Levels</option>
+                                <option value="0">Cantrips</option>
+                                <option value="1">1st Level</option>
+                                <option value="2">2nd Level</option>
+                                <option value="3">3rd Level</option>
+                                <option value="4">4th Level</option>
+                                <option value="5">5th Level</option>
+                                <option value="6">6th Level</option>
+                                <option value="7">7th Level</option>
+                                <option value="8">8th Level</option>
+                                <option value="9">9th Level</option>
+                            </select>
+                        </div>
+                        <input type="text" id="dnd-v1-add-spell-search" placeholder="Search spells by name..." autocomplete="off" />
+                        <div id="dnd-v1-add-spell-results" class="dnd-v1-add-spell-results"></div>
                     </div>
                 </div>
             </div>
@@ -435,6 +539,24 @@
                 <input type="checkbox" id="dnd-setting-spell-inject" />
                 <span>Inject spell info from [Spell, Lv] in message</span>
             </label>
+            <label class="dnd-toggle-label">
+                <input type="checkbox" id="dnd-setting-auto-long-rest" />
+                <span>Auto-detect long rests from date changes</span>
+            </label>
+            <label class="dnd-toggle-label">
+                <input type="checkbox" id="dnd-setting-random-events" />
+                <i class="fa-solid fa-dice"></i>
+                <span>Random events (d100 each turn)</span>
+            </label>
+            <div id="dnd-random-event-options" class="dnd-random-event-options" style="display:none;">
+                <div class="dnd-setting-row">
+                    <span>Inject as:</span>
+                    <select id="dnd-setting-event-role">
+                        <option value="user">User</option>
+                        <option value="system">System</option>
+                    </select>
+                </div>
+            </div>
 
             <div style="margin-top:0.8em; padding-top:0.8em; border-top:1px solid var(--dnd-border);">
                 <label class="dnd-toggle-label" style="margin-bottom:0.5em;">
@@ -474,6 +596,48 @@
                     </select>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Random Event Threshold Modal -->
+<div id="dnd-event-threshold-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-event-threshold">
+        <div class="dnd-modal-header">
+            <span>Event Thresholds (d100)</span>
+            <button class="dnd-modal-close" id="dnd-event-threshold-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body">
+            <p class="dnd-event-threshold-hint">Roll 1 to the Minor minimum = no event. Adjust ranges below.</p>
+            <div class="dnd-event-tier-row">
+                <span class="dnd-event-tier-label">Minor</span>
+                <input type="number" class="dnd-event-tier-min" data-tier="minor" min="1" max="100" />
+                <span class="dnd-event-tier-sep">&ndash;</span>
+                <input type="number" class="dnd-event-tier-max" data-tier="minor" min="1" max="100" />
+            </div>
+            <div class="dnd-event-tier-row">
+                <span class="dnd-event-tier-label">Moderate</span>
+                <input type="number" class="dnd-event-tier-min" data-tier="moderate" min="1" max="100" />
+                <span class="dnd-event-tier-sep">&ndash;</span>
+                <input type="number" class="dnd-event-tier-max" data-tier="moderate" min="1" max="100" />
+            </div>
+            <div class="dnd-event-tier-row">
+                <span class="dnd-event-tier-label">Major</span>
+                <input type="number" class="dnd-event-tier-min" data-tier="major" min="1" max="100" />
+                <span class="dnd-event-tier-sep">&ndash;</span>
+                <input type="number" class="dnd-event-tier-max" data-tier="major" min="1" max="100" />
+            </div>
+            <div class="dnd-event-tier-row">
+                <span class="dnd-event-tier-label">Critical</span>
+                <input type="number" class="dnd-event-tier-min" data-tier="critical" min="1" max="100" />
+                <span class="dnd-event-tier-sep">&ndash;</span>
+                <input type="number" class="dnd-event-tier-max" data-tier="critical" min="1" max="100" />
+            </div>
+            <div class="dnd-event-threshold-summary" id="dnd-event-threshold-summary"></div>
+        </div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-event-threshold-reset" class="dnd-btn">Reset Defaults</button>
+            <button id="dnd-event-threshold-save" class="dnd-btn dnd-btn-primary">Save</button>
         </div>
     </div>
 </div>
@@ -592,16 +756,21 @@
 
             <div class="dnd-sk-config-section">
                 <div class="dnd-sk-config-section-title">Base Creature</div>
-                <div class="dnd-setting-row">
-                    <span>Source:</span>
-                    <select id="dnd-sk-creature-source">
-                        <option value="">-- Loading --</option>
+                <div class="dnd-sk-filter-row">
+                    <select id="dnd-sk-creature-type-filter">
+                        <option value="">All types</option>
                     </select>
+                    <input type="text" id="dnd-sk-creature-search" placeholder="Search name..." />
                 </div>
-                <div class="dnd-setting-row">
-                    <span>Creature:</span>
-                    <input type="text" id="dnd-sk-creature-search" placeholder="Search creature..." />
-                    <select id="dnd-sk-creature-select" style="display:none;"></select>
+                <div id="dnd-sk-creature-dropdown" class="dnd-sk-creature-dropdown"></div>
+                <div id="dnd-sk-source-row" class="dnd-setting-row dnd-sk-row-full" style="display:none;">
+                    <span>Source version:</span>
+                    <select id="dnd-sk-creature-source"></select>
+                </div>
+                <div class="dnd-setting-row dnd-sk-row-full" style="display:none;" id="dnd-sk-load-more-row">
+                    <span class="dnd-sk-load-more-label">Load more sources:</span>
+                    <select id="dnd-sk-load-extra-source"><option value="">-- Pick --</option></select>
+                    <button id="dnd-sk-load-source-btn" class="menu_button" title="Load">+</button>
                 </div>
                 <div id="dnd-sk-creature-preview" class="dnd-sk-creature-preview" style="display:none;"></div>
             </div>
@@ -620,36 +789,110 @@
                     <span>Expertise:</span>
                 </div>
                 <div id="dnd-sk-expertise-checks" class="dnd-sk-skill-checks" style="display:none;"></div>
+                <div id="dnd-sk-creature-skills-row" style="display:none;">
+                    <div class="dnd-sk-equip-sub-title" style="margin-top:0.5em;">Base Creature Skills</div>
+                    <div id="dnd-sk-creature-skills-list" class="dnd-sk-info-text"></div>
+                </div>
+                <div id="dnd-sk-lang-row" style="display:none;">
+                    <div class="dnd-sk-equip-sub-title" style="margin-top:0.5em;">Languages</div>
+                    <div id="dnd-sk-lang-fixed" class="dnd-sk-info-text"></div>
+                    <div id="dnd-sk-lang-choice-row" style="display:none;">
+                        <span id="dnd-sk-lang-choice-label">Choose language:</span>
+                        <div id="dnd-sk-lang-choices" class="dnd-sk-lang-choices"></div>
+                    </div>
+                </div>
             </div>
 
             <div class="dnd-sk-config-section" id="dnd-sk-asi-section" style="display:none;">
-                <div class="dnd-sk-config-section-title">ASI Allocations</div>
+                <div class="dnd-sk-config-section-title">ASI / Feats</div>
                 <div id="dnd-sk-asi-rows"></div>
             </div>
 
-            <div class="dnd-sk-config-section" id="dnd-sk-weapons-section" style="display:none;">
-                <div class="dnd-sk-config-section-title">Weapons</div>
-                <div id="dnd-sk-weapons-list"></div>
+            <div class="dnd-sk-config-section" id="dnd-sk-class-features-section" style="display:none;">
+                <div class="dnd-sk-config-section-title">Class Feature Choices</div>
+                <div id="dnd-sk-expertise15-row" style="display:none;">
+                    <span>Expertise (15th): Choose 2 skills</span>
+                    <div id="dnd-sk-expertise15-checks" class="dnd-sk-skill-checks"></div>
+                </div>
+                <div id="dnd-sk-sharp-mind-row" style="display:none;">
+                    <span>Sharp Mind (18th): Save proficiency</span>
+                    <select id="dnd-sk-sharp-mind-select">
+                        <option value="">-- Select --</option>
+                        <option value="int">INT</option>
+                        <option value="wis">WIS</option>
+                        <option value="cha">CHA</option>
+                    </select>
+                </div>
+                <div id="dnd-sk-empowered-row" style="display:none;">
+                    <span>Empowered Spells (14th): Choose school</span>
+                    <select id="dnd-sk-empowered-select">
+                        <option value="">-- Select --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="dnd-sk-config-section" id="dnd-sk-equip-section" style="display:none;">
+                <div class="dnd-sk-config-section-title">Equipment &amp; Actions</div>
+                <div class="dnd-setting-row">
+                    <span>Armor:</span>
+                    <span id="dnd-sk-armor-current" class="dnd-sk-armor-current">None</span>
+                    <button id="dnd-sk-armor-clear" class="dnd-btn-sm" title="Remove armor" style="margin-left:0.3em;">✕</button>
+                    <span style="flex:1;"></span>
+                    <label class="dnd-sk-check">
+                        <input type="checkbox" id="dnd-sk-shield-check" />
+                        Shield
+                    </label>
+                    <span id="dnd-sk-ac-preview" class="dnd-sk-ac-preview"></span>
+                </div>
+                <div class="dnd-sk-filter-row">
+                    <input type="text" id="dnd-sk-armor-search" placeholder="Search armor to equip..." style="flex:1;" />
+                    <label class="dnd-sk-magic-toggle" title="Include magic armor from CDN">
+                        <input type="checkbox" id="dnd-sk-magic-armor-check" /> <span>Magic</span>
+                    </label>
+                </div>
+                <div id="dnd-sk-armor-results" class="dnd-sk-spell-dropdown"></div>
+                <div class="dnd-sk-equip-sub-title">Creature Traits</div>
+                <div id="dnd-sk-traits-list" class="dnd-sk-actions-list"></div>
+                <div class="dnd-sk-equip-sub-title">Creature Actions</div>
+                <div id="dnd-sk-actions-list" class="dnd-sk-actions-list"></div>
+                <div class="dnd-sk-equip-sub-title">Extra Weapons</div>
+                <div id="dnd-sk-weapons-list" class="dnd-sk-equip-items"></div>
+                <div class="dnd-sk-filter-row">
+                    <input type="text" id="dnd-sk-equip-search" placeholder="Search weapons to add..." style="flex:1;" />
+                    <label class="dnd-sk-magic-toggle" title="Include magic weapons from CDN">
+                        <input type="checkbox" id="dnd-sk-magic-check" /> <span>Magic</span>
+                    </label>
+                </div>
+                <div id="dnd-sk-equip-results" class="dnd-sk-spell-dropdown"></div>
+                <div class="dnd-sk-equip-sub-title" style="margin-top:0.5em;">Items &amp; Gear</div>
+                <div id="dnd-sk-items-list" class="dnd-sk-equip-items"></div>
+                <div class="dnd-sk-filter-row">
+                    <input type="text" id="dnd-sk-item-input" placeholder="Type item name or search CDN..." style="flex:1;" />
+                    <button id="dnd-sk-item-add-btn" class="dnd-btn-sm" title="Add custom item">+</button>
+                </div>
+                <div id="dnd-sk-item-results" class="dnd-sk-spell-dropdown"></div>
             </div>
 
             <div class="dnd-sk-config-section" id="dnd-sk-spells-section" style="display:none;">
                 <div class="dnd-sk-config-section-title">Spells</div>
+
                 <div class="dnd-setting-row">
-                    <span id="dnd-sk-cantrip-count">Cantrips (0/2):</span>
+                    <span id="dnd-sk-cantrip-count" class="dnd-sk-spell-heading">Cantrips (0/2):</span>
                 </div>
                 <div id="dnd-sk-cantrip-tags" class="dnd-sk-spell-tags"></div>
                 <div class="dnd-setting-row">
-                    <input type="text" id="dnd-sk-cantrip-search" placeholder="Search cantrips..." />
+                    <input type="text" id="dnd-sk-cantrip-search" placeholder="Filter cantrips..." />
                 </div>
-                <div id="dnd-sk-cantrip-results" class="dnd-sk-spell-results"></div>
-                <div class="dnd-setting-row">
-                    <span id="dnd-sk-spell-count">Spells (0/1):</span>
+                <div id="dnd-sk-cantrip-dropdown" class="dnd-sk-spell-dropdown"></div>
+
+                <div class="dnd-setting-row" style="margin-top:0.5em;">
+                    <span id="dnd-sk-spell-count" class="dnd-sk-spell-heading">Spells (0/1):</span>
                 </div>
                 <div id="dnd-sk-spell-tags" class="dnd-sk-spell-tags"></div>
                 <div class="dnd-setting-row">
-                    <input type="text" id="dnd-sk-spell-search" placeholder="Search spells..." />
+                    <input type="text" id="dnd-sk-spell-search" placeholder="Filter spells..." />
                 </div>
-                <div id="dnd-sk-spell-results" class="dnd-sk-spell-results"></div>
+                <div id="dnd-sk-spell-dropdown" class="dnd-sk-spell-dropdown"></div>
             </div>
 
             <div class="dnd-sk-config-section">
@@ -657,6 +900,18 @@
                 <div class="dnd-setting-row">
                     <span>Gold/day:</span>
                     <input type="number" id="dnd-sk-hire-gold" min="0" value="0" style="width:4em;" />
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Payment:</span>
+                    <select id="dnd-sk-hire-paymode">
+                        <option value="owed">Track owed</option>
+                        <option value="daily">Paid daily</option>
+                        <option value="free">Oathbound / Free</option>
+                    </select>
+                </div>
+                <div class="dnd-setting-row" id="dnd-sk-hire-paid-row">
+                    <span>Paid (gp):</span>
+                    <input type="number" id="dnd-sk-hire-paid" min="0" value="0" style="width:5em;" />
                 </div>
                 <div class="dnd-setting-row">
                     <span>Hire date:</span>
@@ -670,6 +925,306 @@
         <div class="dnd-modal-footer">
             <button id="dnd-sk-config-save" class="dnd-btn dnd-btn-primary">Save</button>
             <button id="dnd-sk-config-cancel" class="dnd-btn">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- V1 Character Detail Modal -->
+<div id="dnd-v1-detail-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-v1-detail">
+        <div class="dnd-modal-header">
+            <span id="dnd-v1-detail-title">Character Details</span>
+            <button class="dnd-modal-close" id="dnd-v1-detail-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body" id="dnd-v1-detail-body"></div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-v1-detail-edit" class="dnd-btn dnd-btn-primary"><i class="fa-solid fa-pen"></i> Edit</button>
+        </div>
+    </div>
+</div>
+
+<!-- V1 Character Config Modal -->
+<div id="dnd-v1-config-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-v1-config">
+        <div class="dnd-modal-header">
+            <span id="dnd-v1-config-title">Create Character</span>
+            <button class="dnd-modal-close" id="dnd-v1-config-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body">
+            <input type="hidden" id="dnd-v1-config-id" value="" />
+
+            <!-- Step navigation -->
+            <div class="dnd-v1-steps">
+                <button class="dnd-v1-step-btn active" data-step="identity">Identity</button>
+                <button class="dnd-v1-step-btn" data-step="species">Species</button>
+                <button class="dnd-v1-step-btn" data-step="background">Background</button>
+                <button class="dnd-v1-step-btn" data-step="class">Class</button>
+                <button class="dnd-v1-step-btn" data-step="abilities">Abilities</button>
+                <button class="dnd-v1-step-btn" data-step="asi">Levels</button>
+                <button class="dnd-v1-step-btn" data-step="proficiencies">Profs</button>
+                <button class="dnd-v1-step-btn" data-step="equipment">Equipment</button>
+                <button class="dnd-v1-step-btn" data-step="spells">Spells</button>
+            </div>
+
+            <!-- Step: Identity -->
+            <div class="dnd-v1-step-panel" data-step="identity">
+                <div class="dnd-v1-section-title">Identity</div>
+                <div class="dnd-setting-row">
+                    <span>Name:</span>
+                    <input type="text" id="dnd-v1-name" placeholder="Character name" />
+                </div>
+            </div>
+
+            <!-- Step: Species -->
+            <div class="dnd-v1-step-panel" data-step="species" style="display:none;">
+                <div class="dnd-v1-section-title">Species</div>
+                <div class="dnd-setting-row">
+                    <span>Species:</span>
+                    <select id="dnd-v1-species"></select>
+                </div>
+                <button id="dnd-v1-manage-species" class="dnd-btn-sm" title="Manage custom species"><i class="fa-solid fa-cog"></i> Custom Species</button>
+                <div id="dnd-v1-species-preview" class="dnd-v1-preview-box" style="display:none;"></div>
+            </div>
+
+            <!-- Step: Background -->
+            <div class="dnd-v1-step-panel" data-step="background" style="display:none;">
+                <div class="dnd-v1-section-title">Background</div>
+                <div class="dnd-setting-row">
+                    <span>Background:</span>
+                    <select id="dnd-v1-background"></select>
+                </div>
+                <div id="dnd-v1-background-preview" class="dnd-v1-preview-box" style="display:none;"></div>
+                <div id="dnd-v1-bg-ability-boosts" style="display:none;">
+                    <div class="dnd-v1-sub-title">Ability Boosts</div>
+                    <div id="dnd-v1-bg-boost-controls" class="dnd-v1-boost-controls"></div>
+                </div>
+                <div id="dnd-v1-origin-feat-config" style="display:none;">
+                    <div class="dnd-v1-sub-title">Origin Feat Configuration</div>
+                    <div id="dnd-v1-origin-feat-body"></div>
+                </div>
+            </div>
+
+            <!-- Step: Class -->
+            <div class="dnd-v1-step-panel" data-step="class" style="display:none;">
+                <div class="dnd-v1-section-title">Class</div>
+                <div class="dnd-setting-row">
+                    <span>Class:</span>
+                    <select id="dnd-v1-class"></select>
+                </div>
+                <div class="dnd-setting-row" id="dnd-v1-subclass-row" style="display:none;">
+                    <span>Subclass:</span>
+                    <select id="dnd-v1-subclass"></select>
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Level:</span>
+                    <input type="number" id="dnd-v1-level" min="1" max="20" value="1" />
+                </div>
+                <div id="dnd-v1-class-preview" class="dnd-v1-preview-box" style="display:none;"></div>
+            </div>
+
+            <!-- Step: Ability Scores -->
+            <div class="dnd-v1-step-panel" data-step="abilities" style="display:none;">
+                <div class="dnd-v1-section-title">Ability Scores</div>
+                <div class="dnd-setting-row">
+                    <span>Method:</span>
+                    <select id="dnd-v1-ability-method">
+                        <option value="standard_array">Standard Array (15,14,13,12,10,8)</option>
+                        <option value="point_buy">Point Buy (27 points)</option>
+                        <option value="manual">Manual Entry</option>
+                    </select>
+                </div>
+                <div id="dnd-v1-ability-grid" class="dnd-v1-ability-grid"></div>
+                <div id="dnd-v1-point-buy-remaining" style="display:none;">Points remaining: <span>27</span></div>
+            </div>
+
+            <!-- Step: Level Features (ASI/Feats + per-level choices) -->
+            <div class="dnd-v1-step-panel" data-step="asi" style="display:none;">
+                <div class="dnd-v1-section-title">Level Features</div>
+                <div id="dnd-v1-asi-rows"></div>
+            </div>
+
+            <!-- Step: Proficiencies -->
+            <div class="dnd-v1-step-panel" data-step="proficiencies" style="display:none;">
+                <div class="dnd-v1-section-title">Proficiencies</div>
+                <div id="dnd-v1-bg-skills-display" style="display:none;">
+                    <div class="dnd-v1-sub-title">Background Skills</div>
+                    <div id="dnd-v1-bg-skills-list" class="dnd-v1-info-text"></div>
+                </div>
+                <div id="dnd-v1-feat-skills-display" style="display:none;">
+                    <div class="dnd-v1-sub-title">Feat-Granted Skills/Tools</div>
+                    <div id="dnd-v1-feat-skills-list" class="dnd-v1-info-text"></div>
+                </div>
+                <div class="dnd-setting-row">
+                    <span id="dnd-v1-skill-label">Skills (0/2):</span>
+                </div>
+                <div id="dnd-v1-skill-checks" class="dnd-v1-skill-checks"></div>
+                <div id="dnd-v1-expertise-section" style="display:none;">
+                    <div class="dnd-v1-sub-title">Expertise</div>
+                    <div id="dnd-v1-expertise-checks" class="dnd-v1-skill-checks"></div>
+                </div>
+                <div id="dnd-v1-tool-section">
+                    <div class="dnd-v1-sub-title">Tool Proficiencies</div>
+                    <div id="dnd-v1-tool-list" class="dnd-v1-info-text"></div>
+                </div>
+                <div id="dnd-v1-language-section">
+                    <div class="dnd-v1-sub-title">Languages</div>
+                    <div id="dnd-v1-language-list" class="dnd-v1-info-text"></div>
+                    <div id="dnd-v1-language-choices"></div>
+                </div>
+            </div>
+
+            <!-- Step: Equipment -->
+            <div class="dnd-v1-step-panel" data-step="equipment" style="display:none;">
+                <div class="dnd-v1-section-title">Equipment</div>
+                <div class="dnd-setting-row">
+                    <span>Armor:</span>
+                    <span id="dnd-v1-armor-current">None</span>
+                    <button id="dnd-v1-armor-clear" class="dnd-btn-sm" title="Remove armor">✕</button>
+                    <label class="dnd-v1-check">
+                        <input type="checkbox" id="dnd-v1-shield-check" />
+                        Shield
+                    </label>
+                    <span id="dnd-v1-ac-preview" class="dnd-v1-ac-preview"></span>
+                </div>
+                <div class="dnd-setting-row">
+                    <input type="text" id="dnd-v1-armor-search" placeholder="Search armor..." />
+                    <label class="dnd-v1-magic-toggle" title="Include magic armor">
+                        <input type="checkbox" id="dnd-v1-magic-armor-check" />
+                        <i class="fa-solid fa-wand-sparkles"></i>
+                    </label>
+                </div>
+                <div id="dnd-v1-armor-results" class="dnd-v1-dropdown"></div>
+                <div class="dnd-v1-sub-title">Weapons</div>
+                <div id="dnd-v1-weapons-list" class="dnd-v1-equip-items"></div>
+                <div class="dnd-setting-row">
+                    <input type="text" id="dnd-v1-weapon-search" placeholder="Search weapons..." />
+                    <label class="dnd-v1-magic-toggle" title="Include magic weapons">
+                        <input type="checkbox" id="dnd-v1-magic-weapon-check" />
+                        <i class="fa-solid fa-wand-sparkles"></i>
+                    </label>
+                </div>
+                <div id="dnd-v1-weapon-results" class="dnd-v1-dropdown"></div>
+                <div class="dnd-v1-sub-title">Inventory (non-combat items)</div>
+                <div id="dnd-v1-items-list" class="dnd-v1-equip-items"></div>
+                <div class="dnd-setting-row">
+                    <input type="text" id="dnd-v1-item-input" placeholder="Add item..." />
+                    <button id="dnd-v1-item-add" class="dnd-btn-sm">+</button>
+                </div>
+            </div>
+
+            <!-- Step: Spells -->
+            <div class="dnd-v1-step-panel" data-step="spells" style="display:none;">
+                <div class="dnd-v1-section-title">Spells</div>
+                <div id="dnd-v1-no-spells" class="dnd-empty-state">This class/subclass has no spellcasting</div>
+                <div id="dnd-v1-spells-content" style="display:none;">
+                    <div class="dnd-setting-row">
+                        <span id="dnd-v1-cantrip-count">Cantrips (0/0):</span>
+                    </div>
+                    <div id="dnd-v1-cantrip-tags" class="dnd-v1-spell-tags"></div>
+                    <div class="dnd-setting-row">
+                        <input type="text" id="dnd-v1-cantrip-search" placeholder="Search cantrips..." />
+                    </div>
+                    <div id="dnd-v1-cantrip-dropdown" class="dnd-v1-dropdown"></div>
+
+                    <div class="dnd-setting-row" style="margin-top:0.5em;">
+                        <span id="dnd-v1-spell-count">Spells (0/0):</span>
+                    </div>
+                    <div id="dnd-v1-spell-tags" class="dnd-v1-spell-tags"></div>
+                    <div class="dnd-setting-row">
+                        <input type="text" id="dnd-v1-spell-search" placeholder="Search spells..." />
+                    </div>
+                    <div id="dnd-v1-spell-dropdown" class="dnd-v1-dropdown"></div>
+
+                    <div class="dnd-v1-sub-title" style="margin-top:0.5em;">Extra Spells (outside class list)</div>
+                    <div id="dnd-v1-extra-spell-tags" class="dnd-v1-spell-tags"></div>
+                    <div class="dnd-setting-row">
+                        <input type="text" id="dnd-v1-extra-spell-search" placeholder="Search any spell..." />
+                    </div>
+                    <div id="dnd-v1-extra-spell-dropdown" class="dnd-v1-dropdown"></div>
+                    <div id="dnd-v1-feat-spells-display" style="display:none;"></div>
+                </div>
+            </div>
+
+            <div id="dnd-v1-config-error" class="dnd-spellbook-import-error" style="display:none;"></div>
+
+            <!-- Stats preview sidebar -->
+            <div id="dnd-v1-stats-preview" class="dnd-v1-stats-preview">
+                <div class="dnd-v1-preview-title">Stats Preview</div>
+                <div id="dnd-v1-preview-content"></div>
+            </div>
+        </div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-v1-config-prev" class="dnd-btn">← Back</button>
+            <button id="dnd-v1-config-next" class="dnd-btn dnd-btn-primary">Next →</button>
+            <button id="dnd-v1-config-save" class="dnd-btn dnd-btn-primary" style="display:none;">Save</button>
+            <button id="dnd-v1-config-cancel" class="dnd-btn">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- V1 Custom Species Editor Modal -->
+<div id="dnd-v1-species-editor-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-v1-species-editor">
+        <div class="dnd-modal-header">
+            <span id="dnd-v1-species-editor-title">Custom Species</span>
+            <button class="dnd-modal-close" id="dnd-v1-species-editor-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body">
+            <!-- Species list view -->
+            <div id="dnd-v1-species-list-view">
+                <div id="dnd-v1-species-list" class="dnd-v1-species-list"></div>
+                <button id="dnd-v1-species-new" class="dnd-btn dnd-btn-primary dnd-btn-sm"><i class="fa-solid fa-plus"></i> New Species</button>
+            </div>
+            <!-- Species edit form -->
+            <div id="dnd-v1-species-form-view" style="display:none;">
+                <input type="hidden" id="dnd-v1-species-form-id" value="" />
+                <div class="dnd-setting-row">
+                    <span>Name:</span>
+                    <input type="text" id="dnd-v1-cs-name" placeholder="Species name" />
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Size:</span>
+                    <select id="dnd-v1-cs-size">
+                        <option value="Small">Small</option>
+                        <option value="Medium" selected>Medium</option>
+                        <option value="Large">Large</option>
+                    </select>
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Speed (ft):</span>
+                    <input type="number" id="dnd-v1-cs-speed" min="0" value="30" />
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Type:</span>
+                    <select id="dnd-v1-cs-creature-type"></select>
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Darkvision (ft):</span>
+                    <input type="number" id="dnd-v1-cs-darkvision" min="0" value="0" step="30" />
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Resistances:</span>
+                    <input type="text" id="dnd-v1-cs-resistances" placeholder="fire, poison, ..." />
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Languages:</span>
+                    <input type="text" id="dnd-v1-cs-languages" placeholder="Common, Elvish, ..." />
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Extra Language Choices:</span>
+                    <input type="number" id="dnd-v1-cs-lang-choices" min="0" value="0" />
+                </div>
+                <div class="dnd-v1-sub-title">Ability Boosts (optional)</div>
+                <div id="dnd-v1-cs-ability-boosts" class="dnd-v1-ability-grid-sm"></div>
+                <div class="dnd-v1-sub-title">Traits</div>
+                <div id="dnd-v1-cs-traits-list" class="dnd-v1-traits-list"></div>
+                <button id="dnd-v1-cs-add-trait" class="dnd-btn-sm"><i class="fa-solid fa-plus"></i> Add Trait</button>
+            </div>
+        </div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-v1-species-form-save" class="dnd-btn dnd-btn-primary" style="display:none;">Save Species</button>
+            <button id="dnd-v1-species-form-back" class="dnd-btn" style="display:none;">Back to List</button>
+            <button id="dnd-v1-species-editor-done" class="dnd-btn">Done</button>
         </div>
     </div>
 </div>
