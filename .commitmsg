@@ -1,12 +1,14 @@
-Reactive omni widget layout with smart quarter-block packing
+Redesign secondary widgets as 4-column grid with smart span packing
 
-Replace rigid 2-column omni grid with a dense auto-flow layout where
-the currency widget dynamically spans multiple rows in the left column
-while compact omni items (Morning, HP, etc.) stack vertically in the
-right column as quarter-sized blocks.
+Replace the 2-column currency+omni layout with a unified 4-column grid
+system. All items (currency and omni extras) are rendered as uniform
+grid cells with JS-computed column spans based on content weight.
 
-- Currency widget row-spans to match the number of compact omni items
-- Wide omni items (>30 chars) still span the full width below
-- When no omni items exist, currency expands to full width
-- When no currency exists, omni items pair up in the 2-column grid
-- Uses grid-auto-flow: dense for gap-free packing
+- 4-column grid, items pack into rows of 4 columns
+- Each item gets a weight: short text (1), medium (2), long (3),
+  currency (2) — spans are assigned proportionally
+- Remaining columns in a row are distributed to heaviest items
+- Rows overflow naturally when items exceed 4 columns
+- Currency is now a compact inline cell (emoji + coin values)
+- Removed old dnd-currency-widget/dnd-omni-widgets template markup;
+  everything is rendered dynamically by renderSecondaryGrid()

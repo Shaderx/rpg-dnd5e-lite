@@ -343,55 +343,19 @@ export function updateHeaderWidgets() {
         }
     }
 
-    // Currency
-    const $currencyWidget = $('#dnd-currency-widget');
+    // Secondary widgets: 4-column grid with currency + omni items
     const $secondaryRow = $('#dnd-secondary-widgets');
     const c = info.currency;
-    if ($currencyWidget.length) {
-        if (hasCurrency(c)) {
-            $('#dnd-info-currency .dnd-coin-gold .dnd-coin-val').text(c.gold ?? 0);
-            $('#dnd-info-currency .dnd-coin-silver .dnd-coin-val').text(c.silver ?? 0);
-            $('#dnd-info-currency .dnd-coin-copper .dnd-coin-val').text(c.copper ?? 0);
-            $currencyWidget.show();
-        } else {
-            $currencyWidget.hide();
-        }
-    }
-
-    // Omni / extra widgets
-    const $omni = $('#dnd-omni-widgets');
     const hasOmni = info.extras && info.extras.length > 0;
-    if ($omni.length) {
-        if (hasOmni) {
-            const html = info.extras.map(e => {
-                const wide = (e.text?.length || 0) > 30 ? ' dnd-omni-wide' : '';
-                const emojiHtml = e.emoji ? `<span class="dnd-omni-emoji">${escapeAttr(e.emoji)}</span>` : '';
-                return `<div class="dnd-omni-widget${wide}" title="${escapeAttr(e.text || '')}">
-                    ${emojiHtml}
-                    <span class="dnd-omni-text">${escapeAttr(e.text || '')}</span>
-                </div>`;
-            }).join('');
-            $omni.html(html);
-        } else {
-            $omni.empty();
-        }
-    }
-
-    // Reactive layout: currency spans left column to match stacked compact omni items
-    if ($currencyWidget.length) {
-        const currencyVisible = hasCurrency(c);
-        if (currencyVisible && hasOmni) {
-            const compactCount = info.extras.filter(e => (e.text?.length || 0) <= 30).length;
-            $currencyWidget[0].style.gridRow = compactCount > 1 ? `span ${compactCount}` : '';
-        } else {
-            $currencyWidget[0].style.gridRow = '';
-        }
-        // When no omnis, let currency span full width
-        $currencyWidget[0].style.gridColumn = (currencyVisible && !hasOmni) ? 'span 2' : '';
-    }
 
     if ($secondaryRow.length) {
-        $secondaryRow.toggleClass('dnd-secondary-hidden', !hasCurrency(c) && !hasOmni);
+        const showCurrency = hasCurrency(c);
+        if (!showCurrency && !hasOmni) {
+            $secondaryRow.addClass('dnd-secondary-hidden').empty();
+        } else {
+            $secondaryRow.removeClass('dnd-secondary-hidden');
+            renderSecondaryGrid($secondaryRow[0], showCurrency ? c : null, hasOmni ? info.extras : []);
+        }
     }
 
     // Weather/time-of-day background visuals
@@ -400,6 +364,83 @@ export function updateHeaderWidgets() {
 
 function escapeAttr(str) {
     return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ─── Secondary grid (currency + omni) ───────────────────
+
+const GRID_COLS = 4;
+
+function renderSecondaryGrid(container, currency, extras) {
+    const items = [];
+
+    if (currency) {
+        const parts = [];
+        if (currency.gold > 0)   parts.push(`<span class="dnd-coin dnd-coin-gold"><span class="dnd-coin-val">${currency.gold}</span>🟡</span>`);
+        if (currency.silver > 0) parts.push(`<span class="dnd-coin dnd-coin-silver"><span class="dnd-coin-val">${currency.silver}</span>⚪</span>`);
+        if (currency.copper > 0) parts.push(`<span class="dnd-coin dnd-coin-copper"><span class="dnd-coin-val">${currency.copper}</span>🟤</span>`);
+        if (parts.length === 0)  parts.push(`<span class="dnd-coin dnd-coin-gold"><span class="dnd-coin-val">0</span>🟡</span>`);
+        items.push({
+            html: `<span class="dnd-omni-emoji">💰</span><span class="dnd-currency-coins">${parts.join(' ')}</span>`,
+            title: `${currency.gold} gp, ${currency.silver} sp, ${currency.copper} cp`,
+            weight: 2,
+            cls: 'dnd-sec-item dnd-sec-currency',
+        });
+    }
+
+    for (const e of extras) {
+        const len = e.text?.length || 0;
+        const emojiHtml = e.emoji ? `<span class="dnd-omni-emoji">${escapeAttr(e.emoji)}</span>` : '';
+        items.push({
+            html: `${emojiHtml}<span class="dnd-omni-text">${escapeAttr(e.text || '')}</span>`,
+            title: e.text || '',
+            weight: len > 30 ? 3 : len > 12 ? 2 : 1,
+            cls: 'dnd-sec-item',
+        });
+    }
+
+    if (items.length === 0) { container.innerHTML = ''; return; }
+
+    // Pack items into rows of GRID_COLS columns
+    const rows = [];
+    let row = [];
+    let rowCols = 0;
+    for (const item of items) {
+        const span = Math.min(item.weight, GRID_COLS);
+        if (rowCols + span > GRID_COLS) {
+            // Fill remaining space in current row by stretching last item
+            if (row.length > 0) {
+                row[row.length - 1].span += (GRID_COLS - rowCols);
+                rows.push(row);
+            }
+            row = [];
+            rowCols = 0;
+        }
+        row.push({ ...item, span });
+        rowCols += span;
+    }
+    // Fill remaining cols in last row
+    if (row.length > 0) {
+        const remaining = GRID_COLS - rowCols;
+        if (remaining > 0) {
+            // Distribute extra cols to items proportionally by weight (heaviest first)
+            const sorted = [...row].sort((a, b) => b.weight - a.weight);
+            let left = remaining;
+            for (const it of sorted) {
+                if (left <= 0) break;
+                it.span += 1;
+                left--;
+            }
+        }
+        rows.push(row);
+    }
+
+    let html = '';
+    for (const r of rows) {
+        for (const it of r) {
+            html += `<div class="${it.cls}" style="grid-column:span ${it.span}" title="${escapeAttr(it.title)}">${it.html}</div>`;
+        }
+    }
+    container.innerHTML = html;
 }
 
 // ─── Strip widgets ──────────────────────────────────────────

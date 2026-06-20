@@ -1126,58 +1126,20 @@
 .dnd-strip-spell-sorcery .dnd-strip-spell-partial { color: #ffc107; }
 .dnd-strip-spell-sorcery .dnd-strip-spell-depleted { color: rgba(255,193,7,0.2); }
 
-/* Currency + omni: 2-col dense grid — currency spans left column, omni fills right */
+/* Secondary widgets: 4-col single-row grid (currency + omni items) */
 .dnd-secondary-widgets {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-auto-flow: dense;
-    gap: 0.4em;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.35em;
     align-items: stretch;
 }
+.dnd-secondary-widgets:empty,
 .dnd-secondary-widgets.dnd-secondary-hidden {
     display: none;
 }
-/* Omni children participate in the same grid via display:contents */
-.dnd-secondary-widgets .dnd-omni-widgets {
-    display: contents;
-}
-/* Wide omni items span full width */
-.dnd-secondary-widgets .dnd-omni-widget.dnd-omni-wide {
-    grid-column: span 2;
-}
-/* Currency spans left column across N rows (set dynamically via JS) */
-.dnd-secondary-widgets .dnd-widget-currency {
-    grid-column: 1;
-}
 
-/* Currency widget (expanded panel) */
-.dnd-currency-icon {
-    font-size: 1.6em;
-    line-height: 1;
-    flex-shrink: 0;
-    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.3));
-}
-.dnd-currency-coins {
-    display: flex;
-    gap: 0.6em;
-    align-items: center;
-    flex-wrap: wrap;
-}
-.dnd-coin {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.15em;
-    font-size: 0.8em;
-    font-weight: 600;
-}
-.dnd-coin-val { font-variant-numeric: tabular-nums; }
-.dnd-coin-gold .dnd-coin-val { color: #ffd700; }
-.dnd-coin-silver .dnd-coin-val { color: #c0c0c0; }
-.dnd-coin-copper .dnd-coin-val { color: #cd7f32; }
-
-/* Omni / extra widgets (expanded panel; grid via .dnd-secondary-widgets when present) */
-.dnd-omni-widgets:empty { display: none; }
-.dnd-omni-widget {
+/* Each grid item (currency or omni) */
+.dnd-sec-item {
     display: flex;
     align-items: center;
     gap: 0.4em;
@@ -1185,15 +1147,34 @@
     background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 0.4em;
-    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
 }
-.dnd-omni-widget.dnd-omni-wide { grid-column: span 2; }
-/* When no currency visible, compact omnis can pair up in 2-col */
-.dnd-secondary-widgets:not(:has(.dnd-widget-currency:not([style*="display: none"]))) .dnd-omni-widget:not(.dnd-omni-wide) {
-    grid-column: auto;
+
+/* Currency-specific */
+.dnd-sec-currency .dnd-currency-coins {
+    display: flex;
+    gap: 0.5em;
+    align-items: center;
+    flex-wrap: nowrap;
+    min-width: 0;
 }
+.dnd-coin {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1em;
+    font-size: 0.75em;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.dnd-coin-val { font-variant-numeric: tabular-nums; }
+.dnd-coin-gold .dnd-coin-val { color: #ffd700; }
+.dnd-coin-silver .dnd-coin-val { color: #c0c0c0; }
+.dnd-coin-copper .dnd-coin-val { color: #cd7f32; }
+
+/* Omni emoji + text */
 .dnd-omni-emoji {
-    font-size: 1.2em;
+    font-size: 1.1em;
     flex-shrink: 0;
     line-height: 1;
 }
