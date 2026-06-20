@@ -1126,22 +1126,28 @@
 .dnd-strip-spell-sorcery .dnd-strip-spell-partial { color: #ffc107; }
 .dnd-strip-spell-sorcery .dnd-strip-spell-depleted { color: rgba(255,193,7,0.2); }
 
-/* Currency + omni: two columns below spell slots (currency col 1, omni col 2) */
+/* Currency + omni: 2-col dense grid — currency spans left column, omni fills right */
 .dnd-secondary-widgets {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: dense;
     gap: 0.4em;
-    align-items: start;
+    align-items: stretch;
 }
 .dnd-secondary-widgets.dnd-secondary-hidden {
     display: none;
 }
-/* Omni children participate in the same 2-col grid (currency occupies first cell) */
+/* Omni children participate in the same grid via display:contents */
 .dnd-secondary-widgets .dnd-omni-widgets {
     display: contents;
 }
+/* Wide omni items span full width */
 .dnd-secondary-widgets .dnd-omni-widget.dnd-omni-wide {
     grid-column: span 2;
+}
+/* Currency spans left column across N rows (set dynamically via JS) */
+.dnd-secondary-widgets .dnd-widget-currency {
+    grid-column: 1;
 }
 
 /* Currency widget (expanded panel) */
@@ -1179,8 +1185,13 @@
     background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 0.4em;
+    min-height: 0;
 }
 .dnd-omni-widget.dnd-omni-wide { grid-column: span 2; }
+/* When no currency visible, compact omnis can pair up in 2-col */
+.dnd-secondary-widgets:not(:has(.dnd-widget-currency:not([style*="display: none"]))) .dnd-omni-widget:not(.dnd-omni-wide) {
+    grid-column: auto;
+}
 .dnd-omni-emoji {
     font-size: 1.2em;
     flex-shrink: 0;

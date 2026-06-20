@@ -1,0 +1,12 @@
+Reactive omni widget layout with smart quarter-block packing
+
+Replace rigid 2-column omni grid with a dense auto-flow layout where
+the currency widget dynamically spans multiple rows in the left column
+while compact omni items (Morning, HP, etc.) stack vertically in the
+right column as quarter-sized blocks.
+
+- Currency widget row-spans to match the number of compact omni items
+- Wide omni items (>30 chars) still span the full width below
+- When no omni items exist, currency expands to full width
+- When no currency exists, omni items pair up in the 2-column grid
+- Uses grid-auto-flow: dense for gap-free packing

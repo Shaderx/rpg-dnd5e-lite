@@ -377,6 +377,19 @@ export function updateHeaderWidgets() {
         }
     }
 
+    // Reactive layout: currency spans left column to match stacked compact omni items
+    if ($currencyWidget.length) {
+        const currencyVisible = hasCurrency(c);
+        if (currencyVisible && hasOmni) {
+            const compactCount = info.extras.filter(e => (e.text?.length || 0) <= 30).length;
+            $currencyWidget[0].style.gridRow = compactCount > 1 ? `span ${compactCount}` : '';
+        } else {
+            $currencyWidget[0].style.gridRow = '';
+        }
+        // When no omnis, let currency span full width
+        $currencyWidget[0].style.gridColumn = (currencyVisible && !hasOmni) ? 'span 2' : '';
+    }
+
     if ($secondaryRow.length) {
         $secondaryRow.toggleClass('dnd-secondary-hidden', !hasCurrency(c) && !hasOmni);
     }
