@@ -1,14 +1,4 @@
-Redesign secondary widgets as 4-column grid with smart span packing
+Swap sidekick card click/shift+click behavior
 
-Replace the 2-column currency+omni layout with a unified 4-column grid
-system. All items (currency and omni extras) are rendered as uniform
-grid cells with JS-computed column spans based on content weight.
-
-- 4-column grid, items pack into rows of 4 columns
-- Each item gets a weight: short text (1), medium (2), long (3),
-  currency (2) — spans are assigned proportionally
-- Remaining columns in a row are distributed to heaviest items
-- Rows overflow naturally when items exceed 4 columns
-- Currency is now a compact inline cell (emoji + coin values)
-- Removed old dnd-currency-widget/dnd-omni-widgets template markup;
-  everything is rendered dynamically by renderSecondaryGrid()
+Click now opens the detail modal, shift+click toggles enabled/disabled.
+Previously it was the other way around.

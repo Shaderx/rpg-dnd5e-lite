@@ -2410,14 +2410,14 @@ async function initUI() {
         openSidekickConfigModal(null);
     });
 
-    // Sidekick cards — click to toggle, shift+click for detail
+    // Sidekick cards — click to open detail, shift+click to toggle enabled
     $(document).on('click', '.dnd-sidekick-card', function (e) {
         const id = $(this).data('sk-id');
         if (!id) return;
         if (e.shiftKey) {
-            openSidekickDetailModal(id);
-        } else {
             toggleSidekickEnabled(id);
+        } else {
+            openSidekickDetailModal(id);
         }
     });
 

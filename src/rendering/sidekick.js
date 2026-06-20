@@ -77,7 +77,7 @@ export function renderSidekickCards() {
             weaponHtml = `<div class="dnd-sk-card-weapons"><i class="fa-solid fa-crosshairs"></i> ${escHtml(wStr)}</div>`;
         }
 
-        return `<div class="dnd-sidekick-card ${enabledClass}" data-sk-id="${sk.id}" title="Click to toggle injection, Shift+click for details">
+        return `<div class="dnd-sidekick-card ${enabledClass}" data-sk-id="${sk.id}" title="Click for details, Shift+click to toggle injection">
             <div class="dnd-sk-card-top">
                 <div class="dnd-sk-card-identity">
                     <div class="dnd-sk-card-name">${escHtml(sk.name || 'Unnamed')}</div>
