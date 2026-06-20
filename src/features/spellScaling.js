@@ -105,7 +105,56 @@ export function parseUpcastExtra(entries) {
 
 function entryToPlain(entry) {
     if (typeof entry === 'string') return entry;
-    return (entry.entries || []).map(e => typeof e === 'string' ? e : '').join(' ');
+    if (entry?.entries) return entry.entries.map(e => typeof e === 'string' ? e : entryToPlain(e)).join(' ');
+    return '';
+}
+
+/** Flatten spell entries + cantrip upgrade / higher-level text for scaling parsers. */
+export function collectSpellScalingText(spell) {
+    if (!spell) return '';
+    const parts = [];
+    for (const block of [spell.entries, spell.entriesHigherLevel]) {
+        if (!block) continue;
+        for (const entry of block) {
+            const text = entryToPlain(entry);
+            if (text) parts.push(text);
+        }
+    }
+    return parts.join(' ');
+}
+
+/**
+ * Spells where the caster picks damage type (e.g. Sorcerous Burst).
+ * Do not annotate a default element from damageInflict[0].
+ */
+export function isPlayerChosenDamageType(spell, entriesStr) {
+    const types = spell?.damageInflict || [];
+    if (types.length > 1) return true;
+    return /type\s+you\s+choose|damage\s+type\s+of\s+your\s+choice|choose\s+(?:a|one)\s+damage\s+type/i.test(entriesStr || '');
+}
+
+/** One-line combat stats at character level (for tooltips). */
+export function formatAtLevelStats(info) {
+    if (!info) return '';
+    const parts = [];
+    const dice = info.atCastLevel?.dice ?? info.dice;
+    const healDice = info.atCastLevel?.healDice ?? info.healDice;
+
+    if (info.isHealing && healDice) parts.push(`Heal ${healDice}`);
+    else if (dice) parts.push(`Damage: ${dice}${!info.omitDamageType && info.type ? ' ' + info.type : ''}`);
+
+    if (info.savingThrow) parts.push(`${info.savingThrow.substring(0, 3).toUpperCase()} save`);
+    else if (info.spellAttack) parts.push(info.spellAttack === 'R' ? 'ranged atk' : 'melee atk');
+
+    if (info.range && info.baseRange && info.range !== info.baseRange) {
+        parts.push(`Range: ${info.range} (base ${info.baseRange})`);
+    }
+    if (info.beamCount > 1) parts.push(`Beams: ${info.beamCount}`);
+    if (info.upcastInfo && !info.castLevel) {
+        parts.push(`+${info.upcastInfo.dice}/slot above ${ordinal(info.upcastInfo.aboveLevel)}`);
+    }
+
+    return parts.length > 0 ? `At your level: ${parts.join(' | ')}` : '';
 }
 
 function stripTags(str) {
@@ -149,6 +198,13 @@ export function parseCantripRangeScaling(entriesStr, characterLevel, baseRange) 
     if (slash) {
         breakpoints.push({ level: parseInt(slash[3], 10), range: `${slash[1]} feet` });
         breakpoints.push({ level: parseInt(slash[4], 10), range: `${slash[2]} feet` });
+    }
+
+    // "range doubles when you reach levels 5 (30 feet), 11 (60 feet), and 17 (120 feet)"
+    if (/range\s+doubles?/i.test(entriesStr)) {
+        for (const m of entriesStr.matchAll(/(\d+)\s*\((\d+)\s*feet\)/gi)) {
+            breakpoints.push({ level: parseInt(m[1], 10), range: `${m[2]} feet` });
+        }
     }
 
     breakpoints.sort((a, b) => a.level - b.level);

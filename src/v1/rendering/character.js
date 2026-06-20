@@ -7,6 +7,13 @@ import { characterV1 } from '../core/state.js';
 import { computeCharacterStats } from '../features/character.js';
 import { ABILITY_KEYS, ABILITY_LABELS } from '../core/constants.js';
 import { bindTooltipEvents } from '../../rendering/tooltip.js';
+import { formatAtLevelStats } from '../../features/spellScaling.js';
+
+function spellHoverSpan(entry) {
+    const statsLine = formatAtLevelStats(entry.info);
+    const ttAttr = statsLine ? ` data-tt-text="${esc(statsLine)}"` : '';
+    return `<span class="dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(entry.name)}"${ttAttr}>${esc(entry.annotation)}</span>`;
+}
 
 /**
  * Render the V1 character panel content.
@@ -169,10 +176,10 @@ function buildStatCard(stats) {
         </div>`);
 
         if (stats.annotatedCantrips?.length > 0) {
-            lines.push(`<div class="v1-spell-item"><b>Cantrips:</b> ${stats.annotatedCantrips.map(c => `<span class="dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(c.name)}">${esc(c.annotation)}</span>`).join(', ')}</div>`);
+            lines.push(`<div class="v1-spell-item"><b>Cantrips:</b> ${stats.annotatedCantrips.map(spellHoverSpan).join(', ')}</div>`);
         }
         if (stats.annotatedSpells?.length > 0) {
-            lines.push(`<div class="v1-spell-item"><b>${sc.isPrepared ? 'Prepared' : 'Known'}:</b> ${stats.annotatedSpells.map(s => `<span class="dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(s.name)}">${esc(s.annotation)}</span>`).join(', ')}</div>`);
+            lines.push(`<div class="v1-spell-item"><b>${sc.isPrepared ? 'Prepared' : 'Known'}:</b> ${stats.annotatedSpells.map(spellHoverSpan).join(', ')}</div>`);
         }
     }
 
@@ -302,10 +309,10 @@ function buildDetailContent(stats) {
         lines.push(`<p>Slots: ${esc(sc.slotsStr)}</p>`);
 
         if (stats.annotatedCantrips?.length > 0) {
-            lines.push(`<p><b>Cantrips:</b> ${stats.annotatedCantrips.map(c => `<span class="dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(c.name)}">${esc(c.annotation)}</span>`).join(', ')}</p>`);
+            lines.push(`<p><b>Cantrips:</b> ${stats.annotatedCantrips.map(spellHoverSpan).join(', ')}</p>`);
         }
         if (stats.annotatedSpells?.length > 0) {
-            lines.push(`<p><b>${sc.isPrepared ? 'Prepared' : 'Known'} Spells:</b> ${stats.annotatedSpells.map(s => `<span class="dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(s.name)}">${esc(s.annotation)}</span>`).join(', ')}</p>`);
+            lines.push(`<p><b>${sc.isPrepared ? 'Prepared' : 'Known'} Spells:</b> ${stats.annotatedSpells.map(spellHoverSpan).join(', ')}</p>`);
         }
     }
 

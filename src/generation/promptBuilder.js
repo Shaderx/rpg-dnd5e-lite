@@ -367,7 +367,7 @@ function buildSpellComputedStats(spellName, characterLevel, castLevel) {
     if (castLevel != null && info.upcastTable?.[castLevel]) {
         const row = info.upcastTable[castLevel];
         const parts = [];
-        if (row.dice) parts.push(`${row.dice}${info.type ? ' ' + info.type : ''} damage`);
+        if (row.dice) parts.push(`${row.dice}${!info.omitDamageType && info.type ? ' ' + info.type : ''} damage`);
         if (row.healDice) parts.push(`heal ${row.healDice}`);
         if (parts.length > 0) {
             lines.push(`Upcast at ${ordinal(castLevel)} level: ${parts.join(', ')}`);

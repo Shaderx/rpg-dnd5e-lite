@@ -16,6 +16,8 @@ import {
     parseBeamCount,
     getStatsAtCastLevel,
     ordinal as spellOrdinal,
+    collectSpellScalingText,
+    isPlayerChosenDamageType,
 } from './spellScaling.js';
 
 const CDN_DATA = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data';
@@ -1276,7 +1278,8 @@ export function getSpellDamageInfo(spellName, characterLevel, potentMod, empower
     const spellAttack = (spell.spellAttack || [])[0] || null;
     const conditionInflict = spell.conditionInflict || [];
 
-    const entriesStr = (spell.entries || []).map(e => typeof e === 'string' ? e : '').join(' ');
+    const entriesStr = collectSpellScalingText(spell);
+    const omitDamageType = isPlayerChosenDamageType(spell, entriesStr);
 
     let baseDice = null;
     const dmgMatch = entriesStr.match(/{@damage\s+([^}]+)}/);
@@ -1334,7 +1337,8 @@ export function getSpellDamageInfo(spellName, characterLevel, potentMod, empower
 
     return {
         dice,
-        type: dmgType,
+        type: omitDamageType ? '' : dmgType,
+        omitDamageType,
         isCantrip,
         scaling,
         school,
@@ -1369,14 +1373,13 @@ export function buildSpellAnnotation(spellName, info) {
     const healDice = info.atCastLevel?.healDice ?? info.healDice;
 
     if (info.isHealing && healDice) parts.push(`heal ${healDice}+mod`);
-    else if (dice) parts.push(`${dice}${info.type ? ' ' + info.type : ''}`);
+    else if (dice) parts.push(`${dice}${!info.omitDamageType && info.type ? ' ' + info.type : ''}`);
 
     if (info.savingThrow) parts.push(`${info.savingThrow.substring(0, 3).toUpperCase()} save`);
     else if (info.spellAttack) parts.push(info.spellAttack === 'R' ? 'ranged atk' : 'melee atk');
     if (info.conditionInflict?.length > 0) parts.push(info.conditionInflict.join('/'));
 
-    if (info.range && info.range !== info.baseRange) parts.push(`range ${info.range}`);
-    else if (info.range) parts.push(info.range);
+    if (info.range && info.baseRange && info.range !== info.baseRange) parts.push(`range ${info.range}`);
     if (info.beamCount > 1) parts.push(`${info.beamCount} beams`);
     if (info.upcastInfo && !info.castLevel) {
         parts.push(`+${info.upcastInfo.dice}/slot above ${spellOrdinal(info.upcastInfo.aboveLevel)}`);

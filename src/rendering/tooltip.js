@@ -4,6 +4,7 @@
  */
 
 import { lookupCreatureByName, lookupSpellByName, lookupItemByName, lookupFeatByName, parseFeatAbility } from '../features/sidekick.js';
+import { lookupSpellSync } from '../v1/features/spells.js';
 
 let activeTooltip = null;
 let tooltipTimer = null;
@@ -164,6 +165,14 @@ function buildSpellTooltip(spell) {
     const desc = flattenEntries(spell.entries);
     const truncDesc = desc.length > 400 ? desc.slice(0, 397) + '...' : desc;
 
+    let higherLevel = '';
+    if (spell.entriesHigherLevel?.length) {
+        const hl = flattenEntries(spell.entriesHigherLevel);
+        if (hl) {
+            higherLevel = `<div class="dnd-tt-divider"></div><div class="dnd-tt-field"><strong>Cantrip Upgrade / At Higher Levels:</strong></div><div class="dnd-tt-desc">${hl}</div>`;
+        }
+    }
+
     return `<div class="dnd-tt-name">${escHtml(spell.name)}</div>
 <div class="dnd-tt-sub">${escHtml(levelSchool)} &mdash; ${escHtml(spell.source || '')}</div>
 <div class="dnd-tt-divider"></div>
@@ -172,7 +181,7 @@ function buildSpellTooltip(spell) {
 <div class="dnd-tt-field"><strong>Components:</strong> ${escHtml(comp)}</div>
 <div class="dnd-tt-field"><strong>Duration:</strong> ${escHtml(duration)}</div>
 <div class="dnd-tt-divider"></div>
-<div class="dnd-tt-desc">${truncDesc}</div>`;
+<div class="dnd-tt-desc">${truncDesc}</div>${higherLevel}`;
 }
 
 const DMG_TYPES = { B: 'bludgeoning', P: 'piercing', S: 'slashing', N: 'necrotic', R: 'radiant', F: 'fire', C: 'cold', L: 'lightning', T: 'thunder', O: 'force', A: 'acid', Y: 'psychic' };
@@ -290,11 +299,15 @@ export function showCreatureTooltip(anchorEl, creatureName) {
     }, TOOLTIP_DELAY);
 }
 
-export function showSpellTooltip(anchorEl, spellName) {
+export function showSpellTooltip(anchorEl, spellName, extraText = '') {
     clearTimeout(tooltipTimer);
     tooltipTimer = setTimeout(() => {
-        const spell = lookupSpellByName(spellName);
-        showTooltip(anchorEl, buildSpellTooltip(spell));
+        const spell = lookupSpellByName(spellName) || lookupSpellSync(spellName);
+        let html = buildSpellTooltip(spell);
+        if (extraText) {
+            html += `<div class="dnd-tt-divider"></div><div class="dnd-tt-field"><strong>${escHtml(extraText)}</strong></div>`;
+        }
+        showTooltip(anchorEl, html);
     }, TOOLTIP_DELAY);
 }
 
@@ -429,7 +442,7 @@ export function bindTooltipEvents(container) {
         const name = $(this).data('tt-name');
         if (!name) return;
         if (type === 'creature') showCreatureTooltip(this, name);
-        else if (type === 'spell') showSpellTooltip(this, name);
+        else if (type === 'spell') showSpellTooltip(this, name, $(this).data('tt-text') || '');
         else if (type === 'equipment') showEquipmentTooltip(this, name);
         else if (type === 'feature') {
             const text = $(this).data('tt-text') || '';

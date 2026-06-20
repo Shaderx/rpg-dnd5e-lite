@@ -15,6 +15,8 @@ import {
     parseBeamCount,
     getStatsAtCastLevel,
     ordinal,
+    collectSpellScalingText,
+    isPlayerChosenDamageType,
 } from '../../features/spellScaling.js';
 
 const V1_SPELL_SOURCES = ['xphb', 'xge'];
@@ -158,9 +160,8 @@ export function getSpellDamageInfo(spellName, characterLevel, bonuses = {}) {
     const spellAttack = (spell.spellAttack || [])[0] || null;
     const conditionInflict = spell.conditionInflict || [];
 
-    const entriesStr = (spell.entries || [])
-        .map(e => typeof e === 'string' ? e : '')
-        .join(' ');
+    const entriesStr = collectSpellScalingText(spell);
+    const omitDamageType = isPlayerChosenDamageType(spell, entriesStr);
 
     let baseDice = null;
     const dmgMatch = entriesStr.match(/\{@damage\s+([^}]+)\}/);
@@ -240,7 +241,8 @@ export function getSpellDamageInfo(spellName, characterLevel, bonuses = {}) {
 
     return {
         dice,
-        type: dmgType,
+        type: omitDamageType ? '' : dmgType,
+        omitDamageType,
         isCantrip,
         scaling,
         school,
@@ -275,11 +277,11 @@ export function buildSpellAnnotation(spellName, info) {
     const healDice = info.atCastLevel?.healDice ?? info.healDice;
 
     if (info.hasDamageAndHeal && dice) {
-        parts.push(`${dice}${info.type ? ' ' + info.type : ''} + heal`);
+        parts.push(`${dice}${!info.omitDamageType && info.type ? ' ' + info.type : ''} + heal`);
     } else if (info.isHealing && healDice) {
         parts.push(`heal ${healDice}`);
     } else if (dice) {
-        parts.push(`${dice}${info.type ? ' ' + info.type : ''}`);
+        parts.push(`${dice}${!info.omitDamageType && info.type ? ' ' + info.type : ''}`);
     }
 
     if (info.savingThrow) {
@@ -292,10 +294,8 @@ export function buildSpellAnnotation(spellName, info) {
         parts.push(info.conditionInflict.join('/'));
     }
 
-    if (info.range && info.range !== info.baseRange) {
+    if (info.range && info.baseRange && info.range !== info.baseRange) {
         parts.push(`range ${info.range}`);
-    } else if (info.range) {
-        parts.push(info.range);
     }
 
     if (info.beamCount > 1) {
