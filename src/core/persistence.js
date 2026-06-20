@@ -6,6 +6,7 @@
 import { getContext } from '../../../../../extensions.js';
 import { saveSettingsDebounced, chat_metadata, saveChatDebounced } from '../../../../../../script.js';
 import { extensionName, extensionSettings, defaultAttributeSchema, buildDefaultAttributes, setChatAttributes, setChatAttributeSchema, setQuests, setInventory, setSpellLog, setSpellTrackerDisabled, setSendAttributesOnRoll, setSpellInjectEnabled, setAutoLongRestEnabled, setSpellbook, setCharacter, setSidekicks, eventCooldown, lastEventRoll, eventLog, setEventCooldown, setLastEventRoll, setEventLog } from './state.js';
+import { migrateInventoryRarity, INVENTORY_RARITY_VERSION, normalizeRarity } from '../features/inventoryRarity.js';
 
 /**
  * Save extension settings to SillyTavern storage.
@@ -145,9 +146,14 @@ export function saveInventory(itemList) {
 export function loadInventory() {
     const stored = chat_metadata?.dnd5e_inventory;
     if (Array.isArray(stored)) {
+        if ((chat_metadata.dnd5e_inventoryRarityVer || 0) < INVENTORY_RARITY_VERSION) {
+            migrateInventoryRarity(stored);
+            chat_metadata.dnd5e_inventoryRarityVer = INVENTORY_RARITY_VERSION;
+        }
         for (const item of stored) {
             if (item.quantity === undefined) item.quantity = 1;
             if (item.rarity === undefined) item.rarity = 0;
+            item.rarity = normalizeRarity(item.rarity);
             if (!item.location) item.location = 'stored';
         }
         setInventory(stored);

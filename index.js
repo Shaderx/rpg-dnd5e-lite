@@ -2229,7 +2229,7 @@ async function initUI() {
 
     // Collapsible sections — click header to toggle, shift+click for special action
     $('#dnd-panel-content').on('click', '.dnd-collapsible-header', function (e) {
-        if ($(e.target).closest('.dnd-section-action-btn').length) return;
+        if ($(e.target).closest('.dnd-section-action-btn, .dnd-spellbook-level-filters').length) return;
         const section = $(this).data('section');
         if (e.shiftKey) {
             if (section === 'character') { openCharacterConfigModal(); return; }

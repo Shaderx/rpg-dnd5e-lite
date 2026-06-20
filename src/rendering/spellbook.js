@@ -5,8 +5,10 @@
 
 import { spellbook } from '../core/state.js';
 import { getSpellDetail, formatLevel, shortLevel, schoolName, buildTooltipContent, parseSpellHash } from '../features/spellbook.js';
+import { renderSpellbookLevelFilters, matchesSpellbookLevelFilter } from './spellbookLevelFilter.js';
 
 let activeTooltip = null;
+let levelFilter = 'all';
 
 function escapeHtml(str) {
     const div = document.createElement('div');
@@ -27,11 +29,14 @@ function levelBadgeClass(level) {
 export function renderSpellbook() {
     const container = document.getElementById('dnd-spellbook-list');
     const titleEl = document.getElementById('dnd-spellbook-title');
+    const filterBar = document.getElementById('dnd-spellbook-level-filters');
     if (!container) return;
 
     if (!spellbook?.items?.length) {
         container.innerHTML = '<div class="dnd-empty-state">No spellbook loaded</div>';
         if (titleEl) titleEl.textContent = 'Spellbook';
+        if (filterBar) filterBar.style.display = 'none';
+        levelFilter = 'all';
         return;
     }
 
@@ -49,8 +54,27 @@ export function renderSpellbook() {
         return (a.detail.name || '').localeCompare(b.detail.name || '');
     });
 
+    if (filterBar) {
+        filterBar.style.display = '';
+        renderSpellbookLevelFilters(filterBar, levelFilter, (lv) => {
+            levelFilter = lv;
+            renderSpellbook();
+        });
+    }
+
+    const filtered = spells.filter(({ detail }) => {
+        const level = detail.level ?? null;
+        if (level === null) return levelFilter === 'all';
+        return matchesSpellbookLevelFilter(levelFilter, level);
+    });
+
+    if (!filtered.length) {
+        container.innerHTML = '<div class="dnd-empty-state">No spells at this level</div>';
+        return;
+    }
+
     let html = '';
-    for (const { hash, detail } of spells) {
+    for (const { hash, detail } of filtered) {
         const name = detail.name || parseSpellHash(hash).name;
         const level = detail.level ?? null;
         const school = detail.school ? schoolName(detail.school) : '';

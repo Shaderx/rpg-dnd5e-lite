@@ -5,6 +5,7 @@
 
 import { inventory } from '../core/state.js';
 import { saveInventory } from '../core/persistence.js';
+import { RARITY_LABELS, cycleRarity, normalizeRarity } from '../features/inventoryRarity.js';
 
 let dragSrcIdx = null;
 
@@ -12,11 +13,12 @@ function persist() {
     saveInventory(inventory);
 }
 
-const RARITY_LABELS = ['common', 'uncommon', 'rare', 'legendary'];
+const RARITY_COUNT = RARITY_LABELS.length;
 
 function rarityIconHtml(rarity) {
-    const r = Math.max(0, Math.min(3, rarity || 0));
+    const r = normalizeRarity(rarity);
     if (r === 0) return '<i class="fa-regular fa-gem"></i>';
+    if (r === RARITY_COUNT - 1) return '<i class="fa-solid fa-certificate"></i>';
     return '<i class="fa-solid fa-gem"></i>';
 }
 
@@ -72,11 +74,12 @@ export function renderInventory() {
     }
 
     for (const { item, i } of equippedItems) {
-        const rClass = item.rarity >= 1 ? ` dnd-rarity-${item.rarity}` : '';
+        const r = normalizeRarity(item.rarity);
+        const rClass = ` dnd-rarity-${r}`;
         html += `<div class="dnd-inventory-item${rClass}" data-idx="${i}">
             <span class="dnd-inventory-drag-handle" title="Drag to reorder"><i class="fa-solid fa-grip-vertical"></i></span>
-            <button class="dnd-inventory-rarity-btn" data-idx="${i}" title="${RARITY_LABELS[item.rarity || 0]} — click to cycle">
-                ${rarityIconHtml(item.rarity)}
+            <button class="dnd-inventory-rarity-btn" data-idx="${i}" title="${RARITY_LABELS[r]} — click to cycle">
+                ${rarityIconHtml(r)}
             </button>
             <span class="dnd-inventory-text" contenteditable="true" data-idx="${i}">${escapeHtml(item.text)}</span>
             <span class="dnd-inventory-qty" data-idx="${i}" title="Click to edit quantity">x${item.quantity || 1}</span>
@@ -96,11 +99,12 @@ export function renderInventory() {
     }
 
     for (const { item, i } of storedItems) {
-        const rClass = item.rarity >= 1 ? ` dnd-rarity-${item.rarity}` : '';
+        const r = normalizeRarity(item.rarity);
+        const rClass = ` dnd-rarity-${r}`;
         html += `<div class="dnd-inventory-item${rClass}" data-idx="${i}">
             <span class="dnd-inventory-drag-handle" title="Drag to reorder"><i class="fa-solid fa-grip-vertical"></i></span>
-            <button class="dnd-inventory-rarity-btn" data-idx="${i}" title="${RARITY_LABELS[item.rarity || 0]} — click to cycle">
-                ${rarityIconHtml(item.rarity)}
+            <button class="dnd-inventory-rarity-btn" data-idx="${i}" title="${RARITY_LABELS[r]} — click to cycle">
+                ${rarityIconHtml(r)}
             </button>
             <span class="dnd-inventory-text" contenteditable="true" data-idx="${i}">${escapeHtml(item.text)}</span>
             <span class="dnd-inventory-qty" data-idx="${i}" title="Click to edit quantity">x${item.quantity || 1}</span>
@@ -118,12 +122,12 @@ export function renderInventory() {
 }
 
 function bindInventoryEvents(container) {
-    // Rarity cycle: 0(common)→1(uncommon)→2(rare)→3(legendary)→0
+    // Rarity cycle: common → uncommon → rare → very rare → legendary → artifact → common
     container.querySelectorAll('.dnd-inventory-rarity-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const idx = parseInt(btn.dataset.idx);
             if (!inventory[idx]) return;
-            inventory[idx].rarity = ((inventory[idx].rarity || 0) + 1) % 4;
+            inventory[idx].rarity = cycleRarity(inventory[idx].rarity);
             persist();
             renderInventory();
         });

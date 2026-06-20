@@ -7,8 +7,10 @@ import { characterV1 } from '../core/state.js';
 import { lookupSpellSync } from '../features/spells.js';
 import { computeCharacterStats } from '../features/character.js';
 import { SPELL_SCHOOLS } from '../core/constants.js';
+import { renderSpellbookLevelFilters, matchesSpellbookLevelFilter } from '../../rendering/spellbookLevelFilter.js';
 
 let activeTooltip = null;
+let levelFilter = 'all';
 
 const SCHOOL_NAMES = { ...SPELL_SCHOOLS };
 
@@ -205,7 +207,7 @@ function gatherCharacterSpells() {
 export function renderV1Spellbook() {
     const container = document.getElementById('dnd-v1-spellbook-container');
     const list = document.getElementById('dnd-v1-spellbook-list');
-    const filterRow = document.getElementById('dnd-v1-spellbook-filter');
+    const filterBar = document.getElementById('dnd-v1-spellbook-level-filters');
     const titleEl = document.getElementById('dnd-v1-spellbook-title');
     if (!container || !list) return;
 
@@ -219,28 +221,24 @@ export function renderV1Spellbook() {
 
     if (!spells.length) {
         list.innerHTML = '<div class="dnd-empty-state">No spells configured</div>';
-        if (filterRow) filterRow.style.display = 'none';
+        if (filterBar) filterBar.style.display = 'none';
         if (titleEl) titleEl.textContent = 'Spellbook';
         return;
     }
 
-    if (filterRow) filterRow.style.display = '';
+    if (filterBar) {
+        filterBar.style.display = '';
+        renderSpellbookLevelFilters(filterBar, levelFilter, (lv) => {
+            levelFilter = lv;
+            renderV1Spellbook();
+        });
+    }
     if (titleEl) titleEl.textContent = `Spellbook (${spells.length})`;
 
-    // Apply filters
-    const searchInput = document.getElementById('dnd-v1-spellbook-search');
-    const levelFilter = document.getElementById('dnd-v1-spellbook-level-filter');
-    const query = (searchInput?.value || '').toLowerCase().trim();
-    const levelVal = levelFilter?.value || 'all';
-
-    const filtered = spells.filter(s => {
-        if (query && !s.name.toLowerCase().includes(query)) return false;
-        if (levelVal !== 'all' && s.level !== parseInt(levelVal)) return false;
-        return true;
-    });
+    const filtered = spells.filter(s => matchesSpellbookLevelFilter(levelFilter, s.level));
 
     if (!filtered.length) {
-        list.innerHTML = '<div class="dnd-empty-state">No spells match filter</div>';
+        list.innerHTML = '<div class="dnd-empty-state">No spells at this level</div>';
         return;
     }
 
@@ -331,9 +329,5 @@ export function hideSpellTooltip() {
  * Initialize spellbook event bindings.
  */
 export function initV1Spellbook() {
-    const searchInput = document.getElementById('dnd-v1-spellbook-search');
-    const levelFilter = document.getElementById('dnd-v1-spellbook-level-filter');
-
-    if (searchInput) searchInput.oninput = () => renderV1Spellbook();
-    if (levelFilter) levelFilter.onchange = () => renderV1Spellbook();
+    // Level filters are built on each renderV1Spellbook() call.
 }

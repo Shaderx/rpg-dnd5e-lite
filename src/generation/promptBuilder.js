@@ -5,6 +5,7 @@
 
 import { getContext } from '../../../../../extensions.js';
 import { extensionSettings, chatAttributes, chatAttributeSchema, quests, inventory, spellLog, headerInfo, sendAttributesOnRoll, spellInjectEnabled, spellDataCache, sidekicks } from '../core/state.js';
+import { RARITY_LABELS, normalizeRarity } from '../features/inventoryRarity.js';
 import { formatLevel, schoolName } from '../features/spellbook.js';
 import { extractSpellCasts, actionLabels } from '../features/spellTracker.js';
 import { MODIFIER_DEFS } from '../features/modifiers.js';
@@ -75,7 +76,7 @@ export function buildQuestPrompt() {
     return lines.join('\n');
 }
 
-const RARITY_TAGS = ['common', 'uncommon', 'rare', 'legendary'];
+const RARITY_TAGS = RARITY_LABELS;
 
 /**
  * Build the inventory injection prompt (sent every generation at AN depth).
@@ -98,7 +99,7 @@ export function buildInventoryPrompt() {
         lines.push('[Equipped:]');
         for (const item of equipped) {
             const qty = item.quantity > 1 ? ` x${item.quantity}` : '';
-            const rarity = item.rarity >= 1 ? ` (${RARITY_TAGS[item.rarity]})` : '';
+            const rarity = normalizeRarity(item.rarity) >= 1 ? ` (${RARITY_TAGS[normalizeRarity(item.rarity)]})` : '';
             lines.push(`  ⚔ ${item.text}${qty}${rarity}`);
         }
     }
@@ -108,7 +109,7 @@ export function buildInventoryPrompt() {
         lines.push('[Stored:]');
         for (const item of stored) {
             const qty = item.quantity > 1 ? ` x${item.quantity}` : '';
-            const rarity = item.rarity >= 1 ? ` (${RARITY_TAGS[item.rarity]})` : '';
+            const rarity = normalizeRarity(item.rarity) >= 1 ? ` (${RARITY_TAGS[normalizeRarity(item.rarity)]})` : '';
             lines.push(`  📦 ${item.text}${qty}${rarity}`);
         }
     }
