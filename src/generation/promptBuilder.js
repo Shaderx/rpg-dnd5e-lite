@@ -8,7 +8,8 @@ import { extensionSettings, chatAttributes, chatAttributeSchema, quests, invento
 import { formatLevel, schoolName } from '../features/spellbook.js';
 import { extractSpellCasts, actionLabels } from '../features/spellTracker.js';
 import { MODIFIER_DEFS } from '../features/modifiers.js';
-import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, lookupFeatByName, strip5eMarkup } from '../features/sidekick.js';
+import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, lookupFeatByName, strip5eMarkup, lookupSpellByName } from '../features/sidekick.js';
+import { getSpellDamageInfo as getV1SpellDamageInfo, lookupSpellSync, ordinal } from '../v1/features/spells.js';
 
 export function getModifier(score) {
     const mod = Math.floor((score - 10) / 2);
@@ -289,32 +290,48 @@ export function buildSpellInjectPrompt() {
     const casts = extractSpellCasts(lastUserMsg);
     if (casts.length === 0) return '';
 
+    const characterLevel = getSidekickLevel();
     const seen = new Set();
     const matched = [];
-    for (const { spell: name } of casts) {
-        const spell = findSpellInCache(name);
-        if (spell && !spell._fallback && !seen.has(spell.name)) {
-            seen.add(spell.name);
-            matched.push(spell);
-        }
+
+    for (const cast of casts) {
+        const spell = findSpellForInject(cast.spell);
+        if (!spell) continue;
+        const key = `${spell.name.toLowerCase()}|${cast.castLevel ?? 'base'}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        matched.push({ spell, cast });
     }
     if (matched.length === 0) return '';
 
     const userName = getContext().name1 || '{{User}}';
     const lines = [
         `[${userName}'s Spell Details:]`,
-        `[${userName} is casting/referencing the following spell(s). Here are the full spell details for accurate narration:]`,
+        `[${userName} is casting/referencing the following spell(s). Use computed stats for accurate narration:]`,
     ];
 
-    for (const spell of matched) {
+    for (const { spell, cast } of matched) {
         const levelSchool = spell.level === 0
             ? `${schoolName(spell.school)} cantrip`
             : `${formatLevel(spell.level)} ${schoolName(spell.school)}`;
 
         lines.push('');
         lines.push(`**${spell.name}** (${levelSchool})`);
+
+        if (cast.castLevel != null) {
+            lines.push(`Cast at ${ordinal(cast.castLevel)}-level slot${cast.extras ? ` — ${cast.extras}` : ''}`);
+        } else if (cast.extras) {
+            lines.push(`Notes: ${cast.extras}`);
+        }
+
         lines.push(`Casting Time: ${fmtTime(spell.time)} | Range: ${fmtRange(spell.range)} | Duration: ${fmtDuration(spell.duration)}`);
         lines.push(`Components: ${fmtComponents(spell.components)}`);
+
+        const statsLines = buildSpellComputedStats(spell.name, characterLevel, cast.castLevel);
+        if (statsLines.length > 0) {
+            lines.push('Computed Stats:');
+            for (const sl of statsLines) lines.push(`  ${sl}`);
+        }
 
         const desc = plainTextEntries(spell.entries);
         if (desc) lines.push(desc);
@@ -326,6 +343,51 @@ export function buildSpellInjectPrompt() {
     }
 
     return lines.join('\n');
+}
+
+/** Resolve spell from imported spellbook, sidekick CDN cache, or V1 CDN cache. */
+function findSpellForInject(name) {
+    const fromBook = findSpellInCache(name);
+    if (fromBook && !fromBook._fallback) return fromBook;
+    const fromSk = lookupSpellByName(name);
+    if (fromSk) return fromSk;
+    return lookupSpellSync(name);
+}
+
+/** Build computed damage/range/beam lines for inject prompt. */
+function buildSpellComputedStats(spellName, characterLevel, castLevel) {
+    const info = getV1SpellDamageInfo(spellName, characterLevel, { castLevel })
+        || getSpellDamageInfo(spellName, characterLevel, 0, null, 0, castLevel);
+    if (!info) return [];
+
+    const lines = [];
+    const annotation = buildSpellAnnotation(spellName, { ...info, castLevel });
+    if (annotation !== spellName) lines.push(annotation);
+
+    if (castLevel != null && info.upcastTable?.[castLevel]) {
+        const row = info.upcastTable[castLevel];
+        const parts = [];
+        if (row.dice) parts.push(`${row.dice}${info.type ? ' ' + info.type : ''} damage`);
+        if (row.healDice) parts.push(`heal ${row.healDice}`);
+        if (parts.length > 0) {
+            lines.push(`Upcast at ${ordinal(castLevel)} level: ${parts.join(', ')}`);
+        }
+    }
+
+    if (info.upcastExtra) {
+        lines.push(`Upcast effects: ${stripTags(info.upcastExtra)}`);
+    }
+
+    if (info.isCantrip) {
+        if (info.range && info.baseRange && info.range !== info.baseRange) {
+            lines.push(`Scaled range (character Lv ${characterLevel}): ${info.range}`);
+        }
+        if (info.beamCount > 1) {
+            lines.push(`Beams at character Lv ${characterLevel}: ${info.beamCount}`);
+        }
+    }
+
+    return lines;
 }
 
 

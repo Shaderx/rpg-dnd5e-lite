@@ -7,6 +7,16 @@
 import { character, bestiaryCache, equipmentItemCache, setEquipmentItemCache, extensionSettings } from '../core/state.js';
 import { collectFeatEffects } from './featEffects.js';
 import { characterV1 } from '../v1/core/state.js';
+import {
+    buildUpcastTable,
+    parseUpcastInfo,
+    parseUpcastExtra,
+    formatSpellRange,
+    parseCantripRangeScaling,
+    parseBeamCount,
+    getStatsAtCastLevel,
+    ordinal as spellOrdinal,
+} from './spellScaling.js';
 
 const CDN_DATA = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data';
 
@@ -1250,11 +1260,9 @@ const CANTRIP_BREAKPOINTS = [1, 5, 11, 17];
 
 /**
  * Extract spell damage/healing info from a cached spell object.
- * For cantrips, scales damage dice by character level breakpoints.
- * potentMod: ability modifier added to cantrip damage (Potent Cantrips feature).
- * empoweredSchool/empoweredMod: school + modifier for Empowered Spells.
+ * @param {number|null} [castLevel] - Slot level used when casting (for upcast resolution)
  */
-export function getSpellDamageInfo(spellName, characterLevel, potentMod, empoweredSchool, empoweredMod) {
+export function getSpellDamageInfo(spellName, characterLevel, potentMod, empoweredSchool, empoweredMod, castLevel = null) {
     const spell = lookupSpellByName(spellName);
     if (!spell) return null;
 
@@ -1272,33 +1280,80 @@ export function getSpellDamageInfo(spellName, characterLevel, potentMod, empower
 
     let baseDice = null;
     const dmgMatch = entriesStr.match(/{@damage\s+([^}]+)}/);
-    if (dmgMatch) baseDice = dmgMatch[1].trim();
+    if (dmgMatch) baseDice = dmgMatch[1].trim().split('+')[0].trim();
 
     let healDice = null;
     if (isHealing && !baseDice) {
         const healMatch = entriesStr.match(/{@dice\s+([^}]+)}/);
-        if (healMatch) healDice = healMatch[1].trim();
+        if (healMatch) healDice = healMatch[1].trim().split('+')[0].trim();
     }
+    if (isHealing && !healDice && baseDice) healDice = baseDice;
 
     let bonusMod = 0;
     if (isCantrip && potentMod) bonusMod = potentMod;
     else if (!isCantrip && empoweredSchool && school === empoweredSchool && empoweredMod) bonusMod = empoweredMod;
 
+    let dice = baseDice;
+    let scaling = null;
     if (isCantrip && spell.scalingLevelDice?.scaling) {
-        const scaling = spell.scalingLevelDice.scaling;
-        let dice = baseDice || scaling['1'] || null;
+        scaling = spell.scalingLevelDice.scaling;
+        dice = baseDice || scaling['1'] || null;
         for (const bp of CANTRIP_BREAKPOINTS) {
             if (characterLevel >= bp && scaling[String(bp)]) dice = scaling[String(bp)];
         }
-        if (dice && bonusMod) dice = `${dice} + ${bonusMod}`;
-        if (healDice && bonusMod) healDice = `${healDice} + ${bonusMod}`;
-        return { dice, type: dmgType, isCantrip: true, scaling, school, isHealing, healDice, savingThrow, spellAttack, conditionInflict, spellLevel: spell.level };
     }
 
-    let dice = baseDice;
     if (dice && bonusMod) dice = `${dice} + ${bonusMod}`;
     if (healDice && bonusMod) healDice = `${healDice} + ${bonusMod}`;
-    return { dice, type: dmgType, isCantrip: false, scaling: null, school, isHealing, healDice, savingThrow, spellAttack, conditionInflict, spellLevel: spell.level };
+
+    const baseRange = formatSpellRange(spell.range);
+    const range = isCantrip
+        ? parseCantripRangeScaling(entriesStr, characterLevel, baseRange)
+        : baseRange;
+    const beamCount = isCantrip ? parseBeamCount(entriesStr, characterLevel) : 1;
+
+    let upcastInfo = null;
+    let upcastExtra = null;
+    let upcastTable = null;
+    if (!isCantrip && spell.entriesHigherLevel) {
+        upcastInfo = parseUpcastInfo(spell.entriesHigherLevel, spell.level);
+        upcastExtra = parseUpcastExtra(spell.entriesHigherLevel);
+        const rawBase = baseDice || healDice;
+        if (rawBase && upcastInfo) {
+            upcastTable = buildUpcastTable(baseDice, healDice, upcastInfo, spell.level);
+            if (bonusMod) {
+                for (const slot of Object.keys(upcastTable)) {
+                    if (upcastTable[slot].dice) upcastTable[slot].dice = `${upcastTable[slot].dice} + ${bonusMod}`;
+                    if (upcastTable[slot].healDice) upcastTable[slot].healDice = `${upcastTable[slot].healDice} + ${bonusMod}`;
+                }
+            }
+        }
+    }
+
+    const atCast = castLevel != null ? getStatsAtCastLevel({ dice, healDice, upcastTable }, castLevel) : null;
+
+    return {
+        dice,
+        type: dmgType,
+        isCantrip,
+        scaling,
+        school,
+        isHealing,
+        healDice,
+        savingThrow,
+        spellAttack,
+        conditionInflict,
+        spellLevel: spell.level,
+        upcastInfo,
+        upcastExtra,
+        upcastTable,
+        range,
+        baseRange,
+        beamCount,
+        castLevel,
+        atCastLevel: atCast,
+        hasDamageAndHeal: !!(baseDice && isHealing),
+    };
 }
 
 const SCHOOL_NAMES = { A: 'Abjuration', C: 'Conjuration', D: 'Divination', E: 'Enchantment', I: 'Illusion', N: 'Necromancy', T: 'Transmutation', V: 'Evocation' };
@@ -1310,11 +1365,23 @@ const SCHOOL_NAMES = { A: 'Abjuration', C: 'Conjuration', D: 'Divination', E: 'E
 export function buildSpellAnnotation(spellName, info) {
     if (!info) return spellName;
     const parts = [];
-    if (info.isHealing && info.healDice) parts.push(`heal ${info.healDice}+mod`);
-    else if (info.dice) parts.push(`${info.dice}${info.type ? ' ' + info.type : ''}`);
+    const dice = info.atCastLevel?.dice ?? info.dice;
+    const healDice = info.atCastLevel?.healDice ?? info.healDice;
+
+    if (info.isHealing && healDice) parts.push(`heal ${healDice}+mod`);
+    else if (dice) parts.push(`${dice}${info.type ? ' ' + info.type : ''}`);
+
     if (info.savingThrow) parts.push(`${info.savingThrow.substring(0, 3).toUpperCase()} save`);
     else if (info.spellAttack) parts.push(info.spellAttack === 'R' ? 'ranged atk' : 'melee atk');
     if (info.conditionInflict?.length > 0) parts.push(info.conditionInflict.join('/'));
+
+    if (info.range && info.range !== info.baseRange) parts.push(`range ${info.range}`);
+    else if (info.range) parts.push(info.range);
+    if (info.beamCount > 1) parts.push(`${info.beamCount} beams`);
+    if (info.upcastInfo && !info.castLevel) {
+        parts.push(`+${info.upcastInfo.dice}/slot above ${spellOrdinal(info.upcastInfo.aboveLevel)}`);
+    }
+
     if (parts.length === 0) {
         const spell = lookupSpellByName(spellName);
         if (spell) {

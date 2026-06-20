@@ -90,13 +90,74 @@ function dateDayTokens(dateStr) {
     return tokens.sort().join(' ');
 }
 
+const ORDINAL_WORDS = {
+    first: 1, second: 2, third: 3, fourth: 4, fifth: 5,
+    sixth: 6, seventh: 7, eighth: 8, ninth: 9,
+};
+
+/**
+ * Parse a cast level from a bracket detail token.
+ * Handles: "5th level", "level 5", "lv5", "3rd", "at 5th level", "third order", etc.
+ * @returns {number|null} Spell slot level 1-9, or null if not a level token
+ */
+export function parseCastLevel(token) {
+    if (!token || typeof token !== 'string') return null;
+    let t = token.trim().toLowerCase();
+    if (!t) return null;
+
+    // Strip leading "at "
+    t = t.replace(/^at\s+/, '');
+
+    // "level 5", "lvl 5", "lv 5", "lv5"
+    let m = t.match(/^(?:level|lvl|lv)\s*(\d{1,2})$/);
+    if (m) {
+        const n = parseInt(m[1], 10);
+        return n >= 1 && n <= 9 ? n : null;
+    }
+
+    // "5th level", "5th", "3rd", "1st"
+    m = t.match(/^(\d{1,2})(?:st|nd|rd|th)(?:\s+(?:level|order|slot))?$/);
+    if (m) {
+        const n = parseInt(m[1], 10);
+        return n >= 1 && n <= 9 ? n : null;
+    }
+
+    // "fifth level", "third order"
+    m = t.match(/^(\w+)(?:\s+(?:level|order|slot))?$/);
+    if (m && ORDINAL_WORDS[m[1]] != null) {
+        return ORDINAL_WORDS[m[1]];
+    }
+
+    return null;
+}
+
+/**
+ * Scan detail tokens for cast level; return level and remaining extras.
+ * @param {string[]} detailTokens - tokens after spell name
+ * @returns {{ castLevel: number|null, extras: string }}
+ */
+export function parseCastLevelFromTokens(detailTokens) {
+    const extras = [];
+    let castLevel = null;
+    for (const raw of detailTokens) {
+        const token = raw.trim();
+        if (!token) continue;
+        if (castLevel == null) {
+            const lvl = parseCastLevel(token);
+            if (lvl != null) {
+                castLevel = lvl;
+                continue;
+            }
+        }
+        extras.push(token);
+    }
+    return { castLevel, extras: extras.join(', ') };
+}
+
 /**
  * Extract spell casts from a user message.
  * Finds any [...] brackets. Format: [SpellName, Level, ...extras]
- * First token is always the spell name, second is level, rest is additional info
- * (metamagic, target, upcast, etc.)
- * Checks the word before the bracket to determine the action (cast, activate, use, etc.).
- * @returns {{ spell: string, details: string, action: string }[]}
+ * @returns {{ spell: string, details: string, castLevel: number|null, extras: string, action: string }[]}
  */
 export function extractSpellCasts(text) {
     if (!text) return [];
@@ -107,9 +168,11 @@ export function extractSpellCasts(text) {
         const tokens = m[1].split(',').map(t => t.trim()).filter(t => t.length > 0);
         if (tokens.length === 0 || tokens[0].length < 2) continue;
         const spell = tokens[0];
-        const details = tokens.slice(1).join(', ');
+        const detailTokens = tokens.slice(1);
+        const { castLevel, extras } = parseCastLevelFromTokens(detailTokens);
+        const details = detailTokens.join(', ');
         const action = detectActionKeyword(text, m.index);
-        results.push({ spell, details, action });
+        results.push({ spell, details, castLevel, extras, action });
     }
     return results;
 }

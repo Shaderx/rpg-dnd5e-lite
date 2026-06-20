@@ -1,0 +1,208 @@
+/**
+ * Shared spell scaling utilities: dice math, upcast tables, cantrip range/beams.
+ */
+
+export const CANTRIP_BREAKPOINTS = [1, 5, 11, 17];
+
+/**
+ * Parse NdM from a dice string (ignores flat modifiers after dice).
+ * @returns {{ count: number, sides: number }|null}
+ */
+export function parseDiceExpr(diceStr) {
+    if (!diceStr) return null;
+    const m = String(diceStr).trim().match(/(\d+)d(\d+)/i);
+    if (!m) return null;
+    return { count: parseInt(m[1], 10), sides: parseInt(m[2], 10) };
+}
+
+/** Format dice object as NdM */
+export function formatDiceExpr({ count, sides }) {
+    return `${count}d${sides}`;
+}
+
+/** Add increment dice to base (same sides only). */
+export function addDiceToBase(baseDice, incrementDice, levelsAbove) {
+    const base = parseDiceExpr(baseDice);
+    const inc = parseDiceExpr(incrementDice);
+    if (!base || !inc || base.sides !== inc.sides) return baseDice;
+    return formatDiceExpr({ count: base.count + inc.count * levelsAbove, sides: base.sides });
+}
+
+/**
+ * Build precalculated damage/heal per slot level (base .. 9).
+ * @param {string|null} baseDice
+ * @param {string|null} healDice
+ * @param {{ dice: string, aboveLevel: number, perLevel?: number }|null} upcastInfo
+ * @param {number} spellLevel - native spell level
+ * @param {number} [maxSlot=9]
+ */
+export function buildUpcastTable(baseDice, healDice, upcastInfo, spellLevel, maxSlot = 9) {
+    const table = {};
+    const diceKey = baseDice || healDice;
+    if (!diceKey) return table;
+
+    const start = Math.max(1, spellLevel);
+    for (let slot = start; slot <= maxSlot; slot++) {
+        const levelsAbove = Math.max(0, slot - (upcastInfo?.aboveLevel ?? spellLevel));
+        if (levelsAbove === 0 || !upcastInfo?.dice) {
+            if (baseDice) table[slot] = { dice: baseDice, healDice: healDice || null };
+            else if (healDice) table[slot] = { dice: null, healDice };
+        } else {
+            const scaled = addDiceToBase(diceKey, upcastInfo.dice, levelsAbove);
+            if (baseDice && healDice) {
+                table[slot] = { dice: scaled, healDice: scaled };
+            } else if (healDice) {
+                table[slot] = { dice: null, healDice: scaled };
+            } else {
+                table[slot] = { dice: scaled, healDice: null };
+            }
+        }
+    }
+    return table;
+}
+
+/**
+ * Parse upcast dice scaling from entriesHigherLevel.
+ */
+export function parseUpcastInfo(entries, spellLevel = 1) {
+    if (!entries || !Array.isArray(entries)) return null;
+
+    for (const entry of entries) {
+        const text = entryToPlain(entry);
+
+        const diceMatch = text.match(/\{@(?:damage|dice)\s+(\d+d\d+)\}.*?(?:each|every)\s+(?:slot\s+)?level\s+above\s+(\d+)/i);
+        if (diceMatch) {
+            return { dice: diceMatch[1], aboveLevel: parseInt(diceMatch[2], 10) || spellLevel };
+        }
+
+        const incMatch = text.match(/increases?\s+by\s+\{@(?:damage|dice)\s+(\d+d\d+)\}/i);
+        if (incMatch) {
+            return { dice: incMatch[1], aboveLevel: spellLevel };
+        }
+
+        const perLevelMatch = text.match(/(\d+d\d+)\s+(?:damage|hit points).*?(?:per|for)\s+(?:each|every)\s+(?:slot\s+)?level/i);
+        if (perLevelMatch) {
+            return { dice: perLevelMatch[1], aboveLevel: spellLevel };
+        }
+    }
+    return null;
+}
+
+/**
+ * Non-dice upcast effects (extra targets, duration, etc.)
+ */
+export function parseUpcastExtra(entries) {
+    if (!entries || !Array.isArray(entries)) return null;
+    const parts = [];
+    for (const entry of entries) {
+        const text = stripTags(entryToPlain(entry));
+        if (!text) continue;
+        if (/\{@(?:damage|dice)/i.test(text) && /level\s+above/i.test(text)) continue;
+        parts.push(text);
+    }
+    return parts.length > 0 ? parts.join(' ') : null;
+}
+
+function entryToPlain(entry) {
+    if (typeof entry === 'string') return entry;
+    return (entry.entries || []).map(e => typeof e === 'string' ? e : '').join(' ');
+}
+
+function stripTags(str) {
+    if (!str) return '';
+    return str.replace(/\{@\w+ ([^}|]+)(?:\|[^}]*)?\}/g, '$1');
+}
+
+/** Format spell.range from 5etools JSON */
+export function formatSpellRange(range) {
+    if (!range) return null;
+    if (range.type === 'point') {
+        const d = range.distance;
+        if (!d || d.type === 'self') return 'Self';
+        if (d.type === 'touch') return 'Touch';
+        return `${d.amount} ${d.type}`;
+    }
+    if (range.type === 'special') return 'Special';
+    if (range.type === 'radius' || range.type === 'sphere' || range.type === 'cone' || range.type === 'line') {
+        const d = range.distance;
+        if (d?.amount) return `${d.amount} ${d.type} ${range.type}`;
+    }
+    return null;
+}
+
+/**
+ * Cantrip range scaling from entries text (e.g. Spare the Dying).
+ * Patterns: "range increases to 30 feet when you reach 5th level"
+ */
+export function parseCantripRangeScaling(entriesStr, characterLevel, baseRange) {
+    if (!entriesStr) return baseRange;
+
+    const breakpoints = [];
+    const re = /(?:range\s+(?:increases?|becomes?|is)\s+)(\d+)\s*(?:feet|ft)[^.]*?(?:reach|at)\s+(\d+)(?:st|nd|rd|th)?\s+level/gi;
+    let m;
+    while ((m = re.exec(entriesStr)) !== null) {
+        breakpoints.push({ level: parseInt(m[2], 10), range: `${m[1]} feet` });
+    }
+
+    const slashRe = /range\s+(?:increases?|becomes?)\s+to\s+(\d+)\s*\/\s*(\d+)\s*feet\s+when\s+you\s+reach\s+(\d+)(?:st|nd|rd|th)?\s+and\s+(\d+)(?:st|nd|rd|th)?\s+level/i;
+    const slash = entriesStr.match(slashRe);
+    if (slash) {
+        breakpoints.push({ level: parseInt(slash[3], 10), range: `${slash[1]} feet` });
+        breakpoints.push({ level: parseInt(slash[4], 10), range: `${slash[2]} feet` });
+    }
+
+    breakpoints.sort((a, b) => a.level - b.level);
+    let result = baseRange;
+    for (const bp of breakpoints) {
+        if (characterLevel >= bp.level) result = bp.range;
+    }
+    return result;
+}
+
+/**
+ * Multi-beam cantrips (Eldritch Blast): beams at 1/5/11/17.
+ */
+export function parseBeamCount(entriesStr, characterLevel) {
+    if (!entriesStr) return 1;
+    if (!/beam/i.test(entriesStr)) return 1;
+
+    const table = [{ level: 1, beams: 1 }];
+    const re = /(\d+)\s+beams?\s+at\s+(\d+)(?:st|nd|rd|th)?\s+level/gi;
+    let m;
+    while ((m = re.exec(entriesStr)) !== null) {
+        table.push({ level: parseInt(m[2], 10), beams: parseInt(m[1], 10) });
+    }
+
+    const createsRe = /creates?\s+(\d+)\s+beams?.*?(\d+)(?:st|nd|rd|th)?\s+level.*?(\d+)\s+beams?.*?(\d+)(?:st|nd|rd|th)?\s+level.*?(\d+)\s+beams?.*?(\d+)(?:st|nd|rd|th)?/i;
+    const creates = entriesStr.match(createsRe);
+    if (creates) {
+        table.push({ level: parseInt(creates[2], 10), beams: parseInt(creates[1], 10) });
+        table.push({ level: parseInt(creates[4], 10), beams: parseInt(creates[3], 10) });
+        table.push({ level: parseInt(creates[6], 10), beams: parseInt(creates[5], 10) });
+    }
+
+    table.sort((a, b) => a.level - b.level);
+    let beams = 1;
+    for (const row of table) {
+        if (characterLevel >= row.level) beams = row.beams;
+    }
+    return beams;
+}
+
+/**
+ * Resolve damage/heal at a specific cast level from upcast table.
+ */
+export function getStatsAtCastLevel(info, castLevel) {
+    if (!info?.upcastTable || castLevel == null) {
+        return { dice: info?.dice, healDice: info?.healDice };
+    }
+    const row = info.upcastTable[castLevel];
+    if (!row) return { dice: info.dice, healDice: info.healDice };
+    return { dice: row.dice || info.dice, healDice: row.healDice || info.healDice };
+}
+
+export function ordinal(n) {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}

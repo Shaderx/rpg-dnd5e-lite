@@ -6,6 +6,16 @@
 
 import { fetchSpellSource, fetchSpellClassLookup } from '../data/sources.js';
 import { CANTRIP_BREAKPOINTS, SPELL_SCHOOLS, getModifier } from '../core/constants.js';
+import {
+    buildUpcastTable,
+    parseUpcastInfo,
+    parseUpcastExtra,
+    formatSpellRange,
+    parseCantripRangeScaling,
+    parseBeamCount,
+    getStatsAtCastLevel,
+    ordinal,
+} from '../../features/spellScaling.js';
 
 const V1_SPELL_SOURCES = ['xphb', 'xge'];
 
@@ -136,7 +146,7 @@ export function getSpellDamageInfo(spellName, characterLevel, bonuses = {}) {
     const spell = lookupSpellSync(spellName);
     if (!spell) return null;
 
-    const { potentMod = 0, empoweredSchool, empoweredMod = 0, healingBonusFn } = bonuses;
+    const { potentMod = 0, empoweredSchool, empoweredMod = 0, healingBonusFn, castLevel = null } = bonuses;
 
     const dmgTypes = spell.damageInflict || [];
     const dmgType = dmgTypes[0] || '';
@@ -152,20 +162,17 @@ export function getSpellDamageInfo(spellName, characterLevel, bonuses = {}) {
         .map(e => typeof e === 'string' ? e : '')
         .join(' ');
 
-    // Extract base damage dice
     let baseDice = null;
     const dmgMatch = entriesStr.match(/\{@damage\s+([^}]+)\}/);
-    if (dmgMatch) baseDice = dmgMatch[1].trim();
+    if (dmgMatch) baseDice = dmgMatch[1].trim().split('+')[0].trim();
 
-    // Extract healing dice
     let healDice = null;
     if (isHealing) {
         const healMatch = entriesStr.match(/\{@dice\s+([^}]+)\}/);
-        if (healMatch) healDice = healMatch[1].trim();
+        if (healMatch) healDice = healMatch[1].trim().split('+')[0].trim();
         if (!healDice && baseDice) healDice = baseDice;
     }
 
-    // Compute bonus modifier from class features
     let bonusMod = 0;
     if (isCantrip && potentMod) {
         bonusMod = potentMod;
@@ -173,7 +180,6 @@ export function getSpellDamageInfo(spellName, characterLevel, bonuses = {}) {
         bonusMod = empoweredMod;
     }
 
-    // Cantrip scaling
     let dice = baseDice;
     let scaling = false;
     if (isCantrip && spell.scalingLevelDice?.scaling) {
@@ -187,15 +193,9 @@ export function getSpellDamageInfo(spellName, characterLevel, bonuses = {}) {
         }
     }
 
-    // Apply bonus mod to dice string
-    if (dice && bonusMod > 0) {
-        dice = `${dice} + ${bonusMod}`;
-    }
-    if (healDice && bonusMod > 0) {
-        healDice = `${healDice} + ${bonusMod}`;
-    }
+    if (dice && bonusMod > 0) dice = `${dice} + ${bonusMod}`;
+    if (healDice && bonusMod > 0) healDice = `${healDice} + ${bonusMod}`;
 
-    // Healing class bonus (e.g. Life Domain: +2+spell level)
     let healingClassBonus = null;
     if (isHealing && healingBonusFn) {
         healingClassBonus = healingBonusFn(spell.level);
@@ -204,11 +204,39 @@ export function getSpellDamageInfo(spellName, characterLevel, bonuses = {}) {
         healDice = `${healDice} + ${healingClassBonus}`;
     }
 
-    // Upcasting info
+    const baseRange = formatSpellRange(spell.range);
+    const range = isCantrip
+        ? parseCantripRangeScaling(entriesStr, characterLevel, baseRange)
+        : baseRange;
+    const beamCount = isCantrip ? parseBeamCount(entriesStr, characterLevel) : 1;
+
     let upcastInfo = null;
+    let upcastExtra = null;
+    let upcastTable = null;
     if (!isCantrip && spell.entriesHigherLevel) {
-        upcastInfo = parseUpcastInfo(spell.entriesHigherLevel);
+        upcastInfo = parseUpcastInfo(spell.entriesHigherLevel, spell.level);
+        upcastExtra = parseUpcastExtra(spell.entriesHigherLevel);
+        const rawBaseDice = baseDice || healDice;
+        if (rawBaseDice && upcastInfo) {
+            upcastTable = buildUpcastTable(baseDice, healDice, upcastInfo, spell.level);
+            if (bonusMod > 0) {
+                for (const slot of Object.keys(upcastTable)) {
+                    const row = upcastTable[slot];
+                    if (row.dice) row.dice = `${row.dice} + ${bonusMod}`;
+                    if (row.healDice) row.healDice = `${row.healDice} + ${bonusMod}`;
+                }
+            }
+            if (healingClassBonus) {
+                for (const slot of Object.keys(upcastTable)) {
+                    if (upcastTable[slot].healDice) {
+                        upcastTable[slot].healDice = `${upcastTable[slot].healDice} + ${healingClassBonus}`;
+                    }
+                }
+            }
+        }
     }
+
+    const atCast = castLevel != null ? getStatsAtCastLevel({ dice, healDice, upcastTable }, castLevel) : null;
 
     return {
         dice,
@@ -225,52 +253,33 @@ export function getSpellDamageInfo(spellName, characterLevel, bonuses = {}) {
         conditionInflict,
         spellLevel: spell.level,
         upcastInfo,
+        upcastExtra,
+        upcastTable,
         hasDamageAndHeal: !!(baseDice && isHealing),
+        range,
+        baseRange,
+        beamCount,
+        castLevel,
+        atCastLevel: atCast,
     };
 }
 
 /**
- * Parse upcasting information from entriesHigherLevel.
- * Extracts the dice scaling pattern for annotations.
- */
-function parseUpcastInfo(entries) {
-    if (!entries || !Array.isArray(entries)) return null;
-
-    for (const entry of entries) {
-        const text = typeof entry === 'string'
-            ? entry
-            : (entry.entries || []).map(e => typeof e === 'string' ? e : '').join(' ');
-
-        // Match patterns like "1d8 for each slot level above 1st"
-        const diceMatch = text.match(/\{@(?:damage|dice)\s+(\d+d\d+)\}.*?(?:each|every)\s+(?:slot\s+)?level\s+above\s+(\d+)/i);
-        if (diceMatch) {
-            return { dice: diceMatch[1], aboveLevel: parseInt(diceMatch[2]) || 1 };
-        }
-
-        // Match patterns like "increases by 1d6"
-        const incMatch = text.match(/increases?\s+by\s+\{@(?:damage|dice)\s+(\d+d\d+)\}/i);
-        if (incMatch) {
-            return { dice: incMatch[1], aboveLevel: entries[0]?.level || 1 };
-        }
-    }
-    return null;
-}
-
-/**
  * Build a spell annotation string for prompt injection.
- * Enhanced version with upcasting info and dual damage/heal support.
  */
 export function buildSpellAnnotation(spellName, info) {
     if (!info) return spellName;
 
     const parts = [];
+    const dice = info.atCastLevel?.dice ?? info.dice;
+    const healDice = info.atCastLevel?.healDice ?? info.healDice;
 
-    if (info.hasDamageAndHeal && info.dice) {
-        parts.push(`${info.dice}${info.type ? ' ' + info.type : ''} + heal`);
-    } else if (info.isHealing && info.healDice) {
-        parts.push(`heal ${info.healDice}`);
-    } else if (info.dice) {
-        parts.push(`${info.dice}${info.type ? ' ' + info.type : ''}`);
+    if (info.hasDamageAndHeal && dice) {
+        parts.push(`${dice}${info.type ? ' ' + info.type : ''} + heal`);
+    } else if (info.isHealing && healDice) {
+        parts.push(`heal ${healDice}`);
+    } else if (dice) {
+        parts.push(`${dice}${info.type ? ' ' + info.type : ''}`);
     }
 
     if (info.savingThrow) {
@@ -283,18 +292,29 @@ export function buildSpellAnnotation(spellName, info) {
         parts.push(info.conditionInflict.join('/'));
     }
 
-    if (info.upcastInfo) {
+    if (info.range && info.range !== info.baseRange) {
+        parts.push(`range ${info.range}`);
+    } else if (info.range) {
+        parts.push(info.range);
+    }
+
+    if (info.beamCount > 1) {
+        parts.push(`${info.beamCount} beams`);
+    }
+
+    if (info.castLevel != null && info.upcastInfo && !info.atCastLevel) {
+        parts.push(`cast at ${ordinal(info.castLevel)}`);
+    }
+
+    if (info.upcastInfo && !info.castLevel) {
         parts.push(`+${info.upcastInfo.dice}/slot above ${ordinal(info.upcastInfo.aboveLevel)}`);
     }
 
     return parts.length > 0 ? `${spellName} (${parts.join(', ')})` : spellName;
 }
 
-function ordinal(n) {
-    const s = ['th', 'st', 'nd', 'rd'];
-    const v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
+// Re-export for inject prompt formatting
+export { formatSpellRange, getStatsAtCastLevel, ordinal } from '../../features/spellScaling.js';
 
 /**
  * Get the maximum spell level available from a slot array.
