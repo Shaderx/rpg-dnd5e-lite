@@ -478,8 +478,7 @@ function renderStripDice($container) {
     const $r1 = $widget.find('.dnd-strip-dice-r1');
     const $r2 = $widget.find('.dnd-strip-dice-r2');
     const $allyRows = $widget.find('#dnd-strip-ally-rows');
-    const $npc1 = $widget.find('.dnd-strip-dice-npc1');
-    const $npc2 = $widget.find('.dnd-strip-dice-npc2');
+    const $enemyRows = $widget.find('#dnd-strip-enemy-rows');
     const $clearBtn = $widget.find('.dnd-strip-dice-clear');
     const $rollBtn = $widget.find('.dnd-strip-dice-roll');
 
@@ -503,8 +502,21 @@ function renderStripDice($container) {
         }
         $allyRows.html(allyHtml);
 
-        $npc1.text(roll.npcRoll1 ?? '--').attr('title', `Enemy 1st: ${roll.npcRoll1 ?? '--'}`);
-        $npc2.text(roll.npcRoll2 ?? '--').attr('title', `Enemy 2nd: ${roll.npcRoll2 ?? '--'}`);
+        const enemies = roll.enemyRolls ?? (roll.npcRoll1 != null
+            ? [{ roll1: roll.npcRoll1, roll2: roll.npcRoll2 }] : []);
+        let enemyHtml = '';
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            const label = enemies.length === 1 ? 'Foe' : `F${i + 1}`;
+            enemyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-enemy">`
+                + `<span class="dnd-strip-dice-row-label">${label}</span>`
+                + `<span class="dnd-strip-dice-result dnd-strip-dice-npc" title="${label} 1st: ${e.roll1}">${e.roll1}</span>`
+                + `<span class="dnd-strip-dice-sep">/</span>`
+                + `<span class="dnd-strip-dice-result dnd-strip-dice-npc" title="${label} 2nd: ${e.roll2}">${e.roll2}</span>`
+                + `</div>`;
+        }
+        $enemyRows.html(enemyHtml);
+
         $clearBtn.show();
     } else {
         $r1.text('--').attr('title', '');
@@ -515,8 +527,12 @@ function renderStripDice($container) {
             + `<span class="dnd-strip-dice-sep">/</span>`
             + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">--</span>`
             + `</div>`);
-        $npc1.text('--').attr('title', '');
-        $npc2.text('--').attr('title', '');
+        $enemyRows.html(`<div class="dnd-strip-dice-row dnd-strip-dice-row-enemy">`
+            + `<span class="dnd-strip-dice-row-label">Foe</span>`
+            + `<span class="dnd-strip-dice-result dnd-strip-dice-npc">--</span>`
+            + `<span class="dnd-strip-dice-sep">/</span>`
+            + `<span class="dnd-strip-dice-result dnd-strip-dice-npc">--</span>`
+            + `</div>`);
         $clearBtn.hide();
     }
 

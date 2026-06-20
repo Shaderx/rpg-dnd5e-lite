@@ -77,6 +77,7 @@
 /* ─── Power off ──────────────────────────────────────── */
 
 .dnd-panel.dnd-powered-off:not(.dnd-collapsed) .dnd-game-container { opacity: 0.25; pointer-events: none; }
+.dnd-panel.dnd-powered-off:not(.dnd-collapsed) .dnd-panel-header { pointer-events: auto; opacity: 1; }
 
 /* ─── Collapse toggle ────────────────────────────────── */
 
@@ -1251,21 +1252,39 @@
 /* ─── Dice roller (expanded panel) ───────────────────── */
 
 .dnd-dice-section {
+    --dice-h: 3.6em;
     display: flex;
-    align-items: center;
-    gap: 0.35em;
+    align-items: stretch;
+    gap: 0.3em;
     flex-shrink: 0;
     margin-bottom: 0.15em;
+    height: var(--dice-h);
 }
+
+/* Left side: Roll button + stacked counters */
+.dnd-dice-controls {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0.2em;
+    flex-shrink: 0;
+}
+.dnd-count-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1em;
+    justify-content: center;
+}
+
 .dnd-roll-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.3em;
-    padding: 0.3em 0.65em;
+    width: var(--dice-h);
+    min-width: var(--dice-h);
     background: linear-gradient(135deg, rgba(255,215,0,0.12) 0%, rgba(255,215,0,0.04) 100%);
     border: 2px solid rgba(255,215,0,0.2);
-    border-radius: 0.4em;
+    border-radius: 0.35em;
     color: var(--dnd-gold);
     font-size: 0.85em;
     font-weight: 700;
@@ -1275,70 +1294,84 @@
 }
 .dnd-roll-btn:hover { background: rgba(255,215,0,0.18); }
 .dnd-roll-btn:active { transform: scale(0.95); }
-.dnd-roll-btn i { font-size: 1.1em; }
+.dnd-roll-btn i { font-size: 1.05em; }
 .dnd-roll-btn.dnd-roll-locked {
     opacity: 0.4;
     cursor: not-allowed;
     pointer-events: none;
 }
 
-/* Ally count selector — matches Roll button height */
-.dnd-ally-count-control {
-    display: flex;
-    align-items: center;
-    gap: 0.2em;
-    flex-shrink: 0;
-    padding: 0.3em 0.4em;
-    background: rgba(158,212,255,0.04);
-    border: 2px solid rgba(158,212,255,0.15);
-    border-radius: 0.4em;
-}
-.dnd-ally-count-btn {
+/* Shared count control (ally / enemy) */
+.dnd-count-control {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.4em;
-    height: 1.4em;
+    gap: 0.15em;
+    flex: 1;
+    padding: 0.1em 0.25em;
+    border-radius: 0.3em;
+}
+.dnd-count-control-ally {
+    background: rgba(129,199,132,0.04);
+    border: 1px solid rgba(129,199,132,0.15);
+}
+.dnd-count-control-enemy {
+    background: rgba(229,115,115,0.04);
+    border: 1px solid rgba(229,115,115,0.15);
+}
+.dnd-count-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1em;
+    height: 1.1em;
     padding: 0;
-    background: rgba(158,212,255,0.08);
-    border: 1px solid rgba(158,212,255,0.2);
-    border-radius: 0.25em;
-    color: rgba(158,212,255,0.6);
-    font-size: 0.75em;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 0.2em;
+    color: rgba(255,255,255,0.45);
+    font-size: 0.65em;
     font-weight: 700;
     cursor: pointer;
     line-height: 1;
     transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.dnd-ally-count-btn:hover {
-    color: rgba(158,212,255,0.9);
-    border-color: rgba(158,212,255,0.4);
-    background: rgba(158,212,255,0.14);
+.dnd-count-control-ally .dnd-count-btn:hover {
+    color: #81c784;
+    border-color: rgba(129,199,132,0.4);
+    background: rgba(129,199,132,0.12);
 }
-.dnd-ally-count-label {
-    font-size: 0.7em;
+.dnd-count-control-enemy .dnd-count-btn:hover {
+    color: #e57373;
+    border-color: rgba(229,115,115,0.4);
+    background: rgba(229,115,115,0.12);
+}
+.dnd-count-label {
+    font-size: 0.6em;
     font-weight: 600;
-    color: rgba(158,212,255,0.5);
+    color: rgba(255,255,255,0.4);
     white-space: nowrap;
-    min-width: 2.5em;
+    min-width: 2.2em;
     text-align: center;
 }
 
+/* Roll results */
 .dnd-roll-result {
     display: flex;
-    align-items: center;
-    gap: 0.25em;
+    align-items: stretch;
+    gap: 0.2em;
     flex: 1;
     min-width: 0;
-    flex-wrap: wrap;
 }
 .dnd-roll-groups {
     display: flex;
-    align-items: center;
-    gap: 0.25em;
-    flex: 0 1 auto;
+    align-items: stretch;
+    gap: 0.15em;
+    flex: 1;
     min-width: 0;
 }
+
+/* Player group — vertical layout filling full height */
 .dnd-roll-group {
     display: flex;
     align-items: center;
@@ -1346,9 +1379,24 @@
     padding: 0 0.25em;
     border-right: 1px solid rgba(255,255,255,0.08);
 }
-.dnd-roll-group:last-child {
-    border-right: none;
+.dnd-roll-group:last-child { border-right: none; }
+
+.dnd-roll-group-player {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.1em;
+    padding: 0.15em 0.4em;
+    flex-shrink: 0;
 }
+.dnd-roll-group-player .dnd-roll-group-label {
+    writing-mode: horizontal-tb;
+    text-orientation: initial;
+}
+.dnd-roll-group-player .dnd-roll-pair {
+    flex-direction: row;
+    gap: 0.2em;
+}
+
 .dnd-roll-group-label {
     font-size: 0.5em;
     text-transform: uppercase;
@@ -1364,7 +1412,7 @@
     flex-direction: column;
     align-items: center;
     gap: 0;
-    min-width: 1.6em;
+    min-width: 1.4em;
 }
 .dnd-roll-label {
     font-size: 0.5em;
@@ -1378,16 +1426,86 @@
     font-weight: 700;
     color: var(--dnd-gold);
     line-height: 1.1;
-    min-width: 1.6em;
+    min-width: 1.4em;
     text-align: center;
     display: inline-block;
 }
-.dnd-roll-ally {
+
+/* Multi-group containers (ally / enemy chip grids) */
+.dnd-roll-multi-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1em;
+    padding: 0 0.2em;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    justify-content: center;
+    align-self: stretch;
+}
+.dnd-roll-multi-groups:empty { display: none; }
+.dnd-roll-multi-groups:last-child { border-right: none; }
+
+/* Ally chips grow to fill available height */
+.dnd-roll-multi-groups .dnd-roll-chip {
+    flex: 1;
+}
+
+/* Enemy container: 3-column grid stretching to fill height */
+#dnd-roll-enemy-groups {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    grid-auto-rows: 1fr;
+    align-items: stretch;
+    justify-items: stretch;
+}
+#dnd-roll-enemy-groups .dnd-roll-chip {
+    flex: unset;
+}
+
+/* Compact roll chip (ally / enemy) */
+.dnd-roll-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15em;
+    padding: 0.1em 0.25em;
+    border-radius: 0.2em;
+    font-size: 0.8em;
+    line-height: 1.2;
+    min-height: 0;
+    overflow: hidden;
+}
+.dnd-roll-chip-label {
+    font-size: 0.65em;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 0.03em;
+}
+.dnd-roll-chip-val {
+    font-weight: 700;
+    min-width: 1em;
+    text-align: center;
+}
+.dnd-roll-chip-sep {
+    font-size: 0.6em;
+    color: rgba(255,255,255,0.2);
+}
+.dnd-roll-chip-ally {
+    background: rgba(129,199,132,0.06);
+}
+.dnd-roll-chip-ally .dnd-roll-chip-val {
     color: #81c784;
 }
-.dnd-roll-npc {
+.dnd-roll-chip-enemy {
+    background: rgba(229,115,115,0.06);
+}
+.dnd-roll-chip-enemy .dnd-roll-chip-val {
     color: #e57373;
 }
+
 .dnd-clear-roll-btn {
     background: none;
     border: none;
@@ -1396,6 +1514,7 @@
     font-size: 0.7em;
     padding: 2px;
     flex-shrink: 0;
+    align-self: center;
 }
 .dnd-clear-roll-btn:hover { color: #f44336; }
 
@@ -1942,7 +2061,7 @@
     border: 1px solid var(--dnd-border);
     border-radius: 0.25em;
     color: var(--dnd-text);
-    font-size: 0.75em;
+    font-size: 0.6em;
 }
 .dnd-add-quest-input::placeholder { opacity: 0.35; }
 
@@ -2114,7 +2233,7 @@
     border: 1px solid var(--dnd-border);
     border-radius: 0.25em;
     color: var(--dnd-text);
-    font-size: 0.75em;
+    font-size: 0.6em;
 }
 .dnd-add-inventory-input::placeholder { opacity: 0.35; }
 
@@ -2520,7 +2639,7 @@
     border-radius: 0.3em;
     padding: 0.2em 0.5em;
     cursor: pointer;
-    font-size: 0.8em;
+    font-size: 0.6em;
 }
 .dnd-btn-small:hover { background: rgba(255,255,255,0.12); }
 
@@ -4308,6 +4427,10 @@
     color: #ffd700;
     border-bottom-color: rgba(255, 215, 0, 0.6);
 }
+.dropdown-item.dnd-tt-hover {
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    cursor: pointer;
+}
 
 .dnd-sk-asi-row {
     display: flex;
@@ -4684,6 +4807,54 @@
     font-size: 0.85em;
 }
 .dnd-v1-spell-tag .tag-remove:hover { opacity: 1; }
+
+/* Extra spell rich rows */
+.dnd-v1-extra-spell-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.25em 0.35em;
+    margin-bottom: 0.2em;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.08));
+    border-radius: 4px;
+    font-size: 0.82em;
+}
+.dnd-v1-extra-spell-name {
+    font-weight: 600;
+    white-space: nowrap;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 0 0 auto;
+    max-width: 35%;
+}
+.dnd-v1-extra-spell-source {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.9em;
+    padding: 0.15em 0.3em;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.1));
+    border-radius: 3px;
+    color: inherit;
+}
+.dnd-v1-extra-spell-freecast {
+    flex: 0 0 auto;
+    font-size: 0.9em;
+    padding: 0.15em 0.2em;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.1));
+    border-radius: 3px;
+    color: inherit;
+}
+.dnd-v1-extra-spell-row .tag-remove {
+    cursor: pointer;
+    opacity: 0.5;
+    font-size: 0.95em;
+    flex: 0 0 auto;
+}
+.dnd-v1-extra-spell-row .tag-remove:hover { opacity: 1; color: #e44; }
 
 /* Dropdown for search results */
 .dnd-v1-dropdown {
@@ -5197,7 +5368,7 @@
     padding: 0 0.2em;
 }
 
-/* Reusable panel input/select classes matching legacy quest/inventory style */
+/* Reusable panel input/select classes — sized to match quest/inventory inputs */
 .dnd-panel-input {
     flex: 1;
     padding: 0.2em 0.35em;
@@ -5205,7 +5376,7 @@
     border: 1px solid var(--dnd-border);
     border-radius: 0.25em;
     color: var(--dnd-text);
-    font-size: 0.75em;
+    font-size: 0.6em;
 }
 .dnd-panel-input::placeholder { opacity: 0.35; }
 .dnd-panel-input:focus {
@@ -5219,8 +5390,12 @@
     border: 1px solid var(--dnd-border);
     border-radius: 0.25em;
     color: var(--dnd-text);
-    font-size: 0.75em;
+    font-size: 0.6em;
     min-width: 6em;
+}
+.dnd-panel-select:focus {
+    outline: 1px solid var(--dnd-highlight);
+    background: rgba(255,255,255,0.06);
 }
 .dnd-panel-select option {
     background: #1a1a2e;
@@ -5233,6 +5408,14 @@
     border-radius: 3px;
     background: rgba(147, 112, 219, 0.25);
     color: #c5a4ff;
+    margin-left: auto;
+}
+.dnd-v1-spell-freecast-tag {
+    font-size: 0.65em;
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    background: rgba(76, 175, 80, 0.25);
+    color: #81c784;
     margin-left: auto;
 }
 
@@ -5555,4 +5738,151 @@
 
 .v1-companion-line b {
     opacity: 0.8;
+}
+
+/* ============================================================
+   V1 CLASS RESOURCES
+   ============================================================ */
+
+.dnd-v1-stat-card .v1-resources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3em 0.8em;
+}
+
+.v1-resource-item {
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+
+.v1-resource-recharge {
+    opacity: 0.5;
+    font-size: 0.9em;
+}
+
+/* ============================================================
+   V1 COMPANION PANEL (reactive tab)
+   ============================================================ */
+
+.dnd-v1-companion-content {
+    padding: 0.3em 0;
+}
+
+.dnd-v1-companion-controls .dnd-setting-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin-bottom: 0.4em;
+    font-size: 0.85em;
+}
+
+.dnd-v1-companion-controls .dnd-setting-row > span:first-child {
+    min-width: 3em;
+    opacity: 0.7;
+}
+
+#dnd-v1-companion-name {
+    flex: 1;
+    min-width: 0;
+}
+
+#dnd-v1-companion-form {
+    flex: 1;
+    min-width: 0;
+}
+
+.dnd-v1-radio {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2em;
+    font-size: 0.85em;
+    cursor: pointer;
+}
+
+.dnd-v1-radio input[type="radio"] {
+    margin: 0;
+}
+
+.v1-companion-stat-block {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.1));
+    border-radius: 6px;
+    padding: 0.6em;
+    margin-top: 0.5em;
+}
+
+.v1-companion-stat-block .v1-companion-header {
+    font-size: 0.95em;
+    color: var(--SmartThemeQuoteColor, #5ba0d0);
+}
+
+.v1-companion-stat-block .v1-companion-subheader {
+    font-size: 0.8em;
+    opacity: 0.6;
+    font-style: italic;
+    margin-bottom: 0.3em;
+}
+
+.v1-companion-stat-block .v1-abilities {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    text-align: center;
+    gap: 0.2em;
+    margin: 0.3em 0;
+}
+
+.v1-companion-stat-block .v1-ability {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 0.8em;
+}
+
+.v1-companion-stat-block .v1-ability-label { font-weight: 600; font-size: 0.85em; opacity: 0.7; }
+.v1-companion-stat-block .v1-ability-score { font-weight: 700; }
+.v1-companion-stat-block .v1-ability-mod { opacity: 0.55; font-size: 0.85em; }
+
+.v1-companion-stat-block .v1-row {
+    display: flex;
+    gap: 0.6em;
+    font-size: 0.82em;
+    margin-bottom: 0.2em;
+    flex-wrap: wrap;
+}
+
+.v1-companion-stat-block .v1-label {
+    font-weight: 600;
+    opacity: 0.7;
+    min-width: 3.5em;
+}
+
+.v1-companion-stat-block .v1-divider {
+    border: none;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.08));
+    margin: 0.4em 0;
+}
+
+.v1-companion-section-header {
+    font-size: 0.78em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.6;
+    margin-bottom: 0.2em;
+}
+
+.v1-companion-trait {
+    font-size: 0.78em;
+    margin-bottom: 0.3em;
+    line-height: 1.35;
+}
+
+.v1-companion-trait-desc {
+    opacity: 0.75;
+}
+
+.v1-companion-action {
+    font-size: 0.78em;
+    margin-bottom: 0.3em;
+    line-height: 1.35;
 }

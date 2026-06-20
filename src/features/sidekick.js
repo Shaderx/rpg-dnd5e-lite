@@ -826,7 +826,7 @@ export function computeSidekickStats(sidekick, level) {
     const skills = {};
     const profSkills = sidekick.skillProficiencies || [];
     const creatureProf = sidekick.creatureSkillProficiencies || [];
-    const expertise = sidekick.skillExpertise || [];
+    const expertise = (sidekick.type === 'expert' && level >= 3) ? (sidekick.skillExpertise || []) : [];
     const expertise15 = (sidekick.type === 'expert' && level >= 15) ? (sidekick.expertise15 || []) : [];
     const featSkills = featEffects.extraSkills || [];
     const featExpertise = featEffects.extraExpertise || [];
@@ -837,7 +837,7 @@ export function computeSidekickStats(sidekick, level) {
         let bonus = mods[ab] || 0;
         if (isExpert) bonus += proficiency * 2;
         else if (isProf) bonus += proficiency;
-        skills[sk] = { mod: bonus, proficient: isProf, expertise: isExpert };
+        skills[sk] = { mod: bonus, proficient: isProf || isExpert, expertise: isExpert };
     }
 
     let spellcasting = null;
@@ -1012,7 +1012,10 @@ function buildFeatureSummary(sidekick, level, ctx) {
         const sub = sidekick.subtype;
         if (sub === 'attacker') feats.push({ name: 'Martial Role (Attacker)', text: '1st-level Warrior feature. The sidekick gains a +2 bonus to its attack rolls.' });
         else if (sub === 'defender') feats.push({ name: 'Martial Role (Defender)', text: '1st-level Warrior feature. The sidekick can use its reaction to impose disadvantage on the attack roll of a creature within 5 feet of it whose target isn\'t the sidekick, provided the sidekick can see the attacker.' });
-        if (level >= 2) feats.push({ name: `Second Wind (1d10+${level})`, text: `2nd-level Warrior feature. The sidekick can use a bonus action to regain 1d10 + ${level} hit points. Once it uses this feature, it must finish a short or long rest before it can use it again.` });
+        if (level >= 2) {
+            const swUses = level >= 20 ? 2 : 1;
+            feats.push({ name: `Second Wind (1d10+${level}, ${swUses}/SR)`, text: `2nd-level Warrior feature. The sidekick can use a bonus action to regain 1d10 + ${level} hit points. It can use this feature ${swUses === 2 ? 'twice' : 'once'} per short or long rest.` });
+        }
         if (level >= 3) feats.push({ name: 'Improved Critical (19-20)', text: '3rd-level Warrior feature. The sidekick\'s weapon attacks score a critical hit on a roll of 19 or 20 on the d20.' });
         if (ctx.extraAttack >= 2) feats.push({ name: `Extra Attack (${ctx.extraAttack})`, text: `6th-level Warrior feature. The sidekick can attack ${ctx.extraAttack} times whenever it takes the Attack action on its turn.` });
         if (level >= 7) feats.push({ name: 'Battle Readiness', text: '7th-level Warrior feature. The sidekick has advantage on initiative rolls.' });
@@ -1021,7 +1024,10 @@ function buildFeatureSummary(sidekick, level, ctx) {
         if (level >= 18) feats.push({ name: 'Indomitable (2/LR)', text: '18th-level Warrior feature. The sidekick can reroll a saving throw that it fails, but it must use the new roll. It can use this feature twice per long rest.' });
     } else if (type === 'expert') {
         feats.push({ name: 'Helpful', text: '1st-level Expert feature. The sidekick can take the Help action as a bonus action.' });
-        if (level >= 3) feats.push({ name: 'Expertise (2 skills)', text: '3rd-level Expert feature. Choose two of the sidekick\'s skill proficiencies. The sidekick\'s proficiency bonus is doubled for any ability check it makes that uses either of the chosen proficiencies.' });
+        if (level >= 3) {
+            const exp3 = (sidekick.skillExpertise || []).map(s => SKILL_LABELS[s] || s).join(', ');
+            feats.push({ name: 'Expertise (2 skills)', text: `3rd-level Expert feature. Choose two of the sidekick's skill proficiencies. The sidekick's proficiency bonus is doubled for any ability check it makes that uses either of the chosen proficiencies.${exp3 ? ' Chosen: ' + exp3 : ' (not yet selected)'}`, needsChoice: !exp3 });
+        }
         if (level >= 6) feats.push({ name: 'Coordinated Strike', text: '6th-level Expert feature. When the sidekick uses its Helpful feature, the creature who receives the help also gains a 2d6 bonus to the damage roll of its next successful attack before the start of the sidekick\'s next turn.' });
         if (level >= 7) feats.push({ name: 'Evasion', text: '7th-level Expert feature. When the sidekick is subjected to an effect that allows it to make a Dexterity saving throw to take only half damage, it instead takes no damage on a success, and half damage on a failure.' });
         if (level >= 9) feats.push({ name: 'Inspiring Help', text: '9th-level Expert feature. When the sidekick takes the Help action, the creature who receives the help gains 1d6 temporary hit points.' });

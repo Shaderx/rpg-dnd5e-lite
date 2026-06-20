@@ -31,7 +31,7 @@ export const SUBCLASS_SPELL_LISTS = {
     // ----------------------------------------------------------
 
     'cleric|Life Domain': [
-        { minLevel: 1, spells: ['Bless', 'Cure Wounds'] },
+        { minLevel: 3, spells: ['Bless', 'Cure Wounds'] },
         { minLevel: 3, spells: ['Aid', 'Lesser Restoration'] },
         { minLevel: 5, spells: ['Mass Healing Word', 'Revivify'] },
         { minLevel: 7, spells: ['Aura of Life', 'Death Ward'] },
@@ -39,7 +39,7 @@ export const SUBCLASS_SPELL_LISTS = {
     ],
 
     'cleric|Light Domain': [
-        { minLevel: 1, spells: ['Burning Hands', 'Faerie Fire'] },
+        { minLevel: 3, spells: ['Burning Hands', 'Faerie Fire'] },
         { minLevel: 3, spells: ['Flaming Sphere', 'Scorching Ray'] },
         { minLevel: 5, spells: ['Daylight', 'Fireball'] },
         { minLevel: 7, spells: ['Guardian of Faith', 'Wall of Fire'] },
@@ -47,7 +47,7 @@ export const SUBCLASS_SPELL_LISTS = {
     ],
 
     'cleric|Trickery Domain': [
-        { minLevel: 1, spells: ['Charm Person', 'Disguise Self'] },
+        { minLevel: 3, spells: ['Charm Person', 'Disguise Self'] },
         { minLevel: 3, spells: ['Mirror Image', 'Pass without Trace'] },
         { minLevel: 5, spells: ['Hypnotic Pattern', 'Nondetection'] },
         { minLevel: 7, spells: ['Dimension Door', 'Polymorph'] },
@@ -55,7 +55,7 @@ export const SUBCLASS_SPELL_LISTS = {
     ],
 
     'cleric|War Domain': [
-        { minLevel: 1, spells: ['Divine Favor', 'Shield of Faith'] },
+        { minLevel: 3, spells: ['Divine Favor', 'Shield of Faith'] },
         { minLevel: 3, spells: ['Magic Weapon', 'Spiritual Weapon'] },
         { minLevel: 5, spells: ['Crusader\'s Mantle', 'Spirit Guardians'] },
         { minLevel: 7, spells: ['Freedom of Movement', 'Stoneskin'] },
@@ -65,7 +65,7 @@ export const SUBCLASS_SPELL_LISTS = {
     // CLERIC (XGE)
 
     'cleric|Forge Domain': [
-        { minLevel: 1, spells: ['Identify', 'Searing Smite'] },
+        { minLevel: 3, spells: ['Identify', 'Searing Smite'] },
         { minLevel: 3, spells: ['Heat Metal', 'Magic Weapon'] },
         { minLevel: 5, spells: ['Elemental Weapon', 'Protection from Energy'] },
         { minLevel: 7, spells: ['Fabricate', 'Wall of Fire'] },
@@ -73,7 +73,7 @@ export const SUBCLASS_SPELL_LISTS = {
     ],
 
     'cleric|Grave Domain': [
-        { minLevel: 1, spells: ['Bane', 'False Life'] },
+        { minLevel: 3, spells: ['Bane', 'False Life'] },
         { minLevel: 3, spells: ['Gentle Repose', 'Ray of Enfeeblement'] },
         { minLevel: 5, spells: ['Revivify', 'Vampiric Touch'] },
         { minLevel: 7, spells: ['Blight', 'Death Ward'] },
@@ -136,11 +136,11 @@ export const SUBCLASS_SPELL_LISTS = {
     // DRUID (XGE)
 
     'druid|Circle of Dreams': [
-        { minLevel: 2, spells: ['Healing Word'] },
+        { minLevel: 3, spells: ['Healing Word'] },
     ],
 
     'druid|Circle of the Shepherd': [
-        { minLevel: 2, spells: ['Animal Friendship', 'Speak with Animals'] },
+        { minLevel: 3, spells: ['Animal Friendship', 'Speak with Animals'] },
     ],
 
     // ----------------------------------------------------------
@@ -252,19 +252,19 @@ export const SUBCLASS_SPELL_LISTS = {
     // ----------------------------------------------------------
 
     'sorcerer|Aberrant Sorcery': [
-        { minLevel: 1, spells: ['Arms of Hadar', 'Calm Emotions', 'Detect Thoughts', 'Dissonant Whispers', 'Hunger of Hadar', 'Mind Sliver'] },
+        { minLevel: 3, spells: ['Arms of Hadar', 'Calm Emotions', 'Detect Thoughts', 'Dissonant Whispers', 'Hunger of Hadar', 'Mind Sliver'] },
         { minLevel: 3, spells: ['Sending', 'Evard\'s Black Tentacles'] },
         { minLevel: 5, spells: ['Rary\'s Telepathic Bond', 'Telekinesis'] },
     ],
 
     'sorcerer|Clockwork Soul': [
-        { minLevel: 1, spells: ['Aid', 'Alarm', 'Lesser Restoration', 'Protection from Evil and Good'] },
+        { minLevel: 3, spells: ['Aid', 'Alarm', 'Lesser Restoration', 'Protection from Evil and Good'] },
         { minLevel: 3, spells: ['Dispel Magic', 'Freedom of Movement'] },
         { minLevel: 5, spells: ['Greater Restoration', 'Summon Construct', 'Wall of Force'] },
     ],
 
     'sorcerer|Draconic Bloodline': [
-        { minLevel: 1, spells: ['Alter Self', 'Chromatic Orb', 'Command'] },
+        { minLevel: 3, spells: ['Alter Self', 'Chromatic Orb', 'Command'] },
         { minLevel: 3, spells: ['Fear', 'Fly'] },
         { minLevel: 5, spells: ['Arcane Eye', 'Legend Lore'] },
     ],
@@ -274,7 +274,7 @@ export const SUBCLASS_SPELL_LISTS = {
     // SORCERER (XGE)
 
     'sorcerer|Divine Soul': [
-        { minLevel: 1, spells: [] },
+        { minLevel: 3, spells: [] },
     ],
 
     'sorcerer|Shadow Magic': [
@@ -288,28 +288,28 @@ export const SUBCLASS_SPELL_LISTS = {
     // ----------------------------------------------------------
 
     'warlock|Archfey Patron': [
-        { minLevel: 1, spells: ['Calm Emotions', 'Faerie Fire', 'Misty Step', 'Phantasmal Force', 'Sleep'] },
+        { minLevel: 3, spells: ['Calm Emotions', 'Faerie Fire', 'Misty Step', 'Phantasmal Force', 'Sleep'] },
         { minLevel: 3, spells: ['Blink', 'Plant Growth'] },
         { minLevel: 5, spells: ['Dominate Beast', 'Greater Invisibility'] },
         { minLevel: 7, spells: ['Dominate Person', 'Seeming'] },
     ],
 
     'warlock|Celestial Patron': [
-        { minLevel: 1, spells: ['Aid', 'Cure Wounds', 'Guiding Bolt', 'Lesser Restoration', 'Light', 'Sacred Flame'] },
+        { minLevel: 3, spells: ['Aid', 'Cure Wounds', 'Guiding Bolt', 'Lesser Restoration', 'Light', 'Sacred Flame'] },
         { minLevel: 3, spells: ['Daylight', 'Revivify'] },
         { minLevel: 5, spells: ['Guardian of Faith', 'Wall of Fire'] },
         { minLevel: 7, spells: ['Greater Restoration', 'Summon Celestial'] },
     ],
 
     'warlock|Fiend Patron': [
-        { minLevel: 1, spells: ['Burning Hands', 'Command', 'Scorching Ray', 'Suggestion'] },
+        { minLevel: 3, spells: ['Burning Hands', 'Command', 'Scorching Ray', 'Suggestion'] },
         { minLevel: 3, spells: ['Fireball', 'Stinking Cloud'] },
         { minLevel: 5, spells: ['Fire Shield', 'Wall of Fire'] },
         { minLevel: 7, spells: ['Geas', 'Insect Plague'] },
     ],
 
     'warlock|Great Old One Patron': [
-        { minLevel: 1, spells: ['Detect Thoughts', 'Dissonant Whispers', 'Phantasmal Force', 'Tasha\'s Hideous Laughter'] },
+        { minLevel: 3, spells: ['Detect Thoughts', 'Dissonant Whispers', 'Phantasmal Force', 'Tasha\'s Hideous Laughter'] },
         { minLevel: 3, spells: ['Clairvoyance', 'Hunger of Hadar'] },
         { minLevel: 5, spells: ['Evard\'s Black Tentacles', 'Phantasmal Killer'] },
         { minLevel: 7, spells: ['Modify Memory', 'Telekinesis'] },
@@ -318,7 +318,7 @@ export const SUBCLASS_SPELL_LISTS = {
     // WARLOCK (XGE)
 
     'warlock|The Celestial': [
-        { minLevel: 1, spells: ['Cure Wounds', 'Guiding Bolt', 'Light', 'Sacred Flame'] },
+        { minLevel: 3, spells: ['Cure Wounds', 'Guiding Bolt', 'Light', 'Sacred Flame'] },
         { minLevel: 3, spells: ['Flaming Sphere', 'Lesser Restoration'] },
         { minLevel: 5, spells: ['Daylight', 'Revivify'] },
         { minLevel: 7, spells: ['Guardian of Faith', 'Wall of Fire'] },
@@ -326,7 +326,7 @@ export const SUBCLASS_SPELL_LISTS = {
     ],
 
     'warlock|The Hexblade': [
-        { minLevel: 1, spells: ['Shield', 'Wrathful Smite'] },
+        { minLevel: 3, spells: ['Shield', 'Wrathful Smite'] },
         { minLevel: 3, spells: ['Blur', 'Branding Smite'] },
         { minLevel: 5, spells: ['Blink', 'Elemental Weapon'] },
         { minLevel: 7, spells: ['Phantasmal Killer', 'Staggering Smite'] },

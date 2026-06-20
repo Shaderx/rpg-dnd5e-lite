@@ -18,6 +18,7 @@
  */
 
 import { MARTIAL_ARTS_DIE, RAGE_DAMAGE, getSneakAttackDice, getExtraAttacks } from '../core/constants.js';
+import { METAMAGIC_OPTIONS } from './levelFeatures.js';
 
 const CLASS_EFFECTS = {};
 
@@ -113,7 +114,7 @@ register('cleric', 'Divine Intervention', 10, {
 });
 
 // Subclass: Life Domain
-register('cleric', 'Disciple of Life', 1, {
+register('cleric', 'Disciple of Life', 3, {
     healingBonus: (spellLevel) => 2 + spellLevel,
     promptNote: () => 'Disciple of Life: Healing spells restore extra 2 + spell level HP',
 }, { subclass: 'Life' });
@@ -357,8 +358,15 @@ register('rogue', 'Reliable Talent', 11, {
 
 // --- Sorcerer ---
 
-register('sorcerer', 'Metamagic', 3, {
-    promptNote: () => 'Metamagic: Modify spells using sorcery points (chosen options apply)',
+register('sorcerer', 'Metamagic', 2, {
+    promptNote: (stats) => {
+        const ids = stats.levelChoiceEffects?.metamagic || [];
+        if (ids.length > 0) {
+            const labels = ids.map(id => METAMAGIC_OPTIONS.find(o => o.id === id)?.label || id);
+            return `Metamagic: ${labels.join(', ')}`;
+        }
+        return 'Metamagic: Modify spells using sorcery points (chosen options apply)';
+    },
 });
 
 register('sorcerer', 'Font of Magic', 2, {
@@ -367,7 +375,7 @@ register('sorcerer', 'Font of Magic', 2, {
 });
 
 // Subclass: Draconic Bloodline
-register('sorcerer', 'Draconic Resilience', 1, {
+register('sorcerer', 'Draconic Resilience', 3, {
     acOverride: (stats) => ({
         formula: 13 + (stats.mods.dex || 0),
         requiresNoArmor: true,
@@ -377,7 +385,7 @@ register('sorcerer', 'Draconic Resilience', 1, {
 }, { subclass: 'Draconic' });
 
 // Subclass: Divine Soul
-register('sorcerer', 'Favored by the Gods', 1, {
+register('sorcerer', 'Favored by the Gods', 3, {
     promptNote: () => 'Favored by the Gods: When failing a save or missing an attack, add 2d4 to the roll (1/SR)',
 }, { subclass: 'Divine Soul' });
 
@@ -411,7 +419,7 @@ register('warlock', 'Pact Boon', 3, {
 });
 
 // Subclass: Hexblade
-register('warlock', 'Hex Warrior', 1, {
+register('warlock', 'Hex Warrior', 3, {
     overrideWeaponAbility: () => 'cha',
     promptNote: () => 'Hex Warrior: Use CHA for weapon attack/damage rolls',
 }, { subclass: 'Hexblade' });
@@ -434,7 +442,7 @@ register('wizard', 'Empowered Evocation', 10, {
     }),
 }, { subclass: 'Evocation' });
 
-register('wizard', 'Sculpt Spells', 2, {
+register('wizard', 'Sculpt Spells', 3, {
     promptNote: () => 'Sculpt Spells: Choose creatures in evocation area spell to automatically save and take no damage',
 }, { subclass: 'Evocation' });
 

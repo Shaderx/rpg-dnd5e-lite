@@ -44,18 +44,21 @@ export function executeRoll(count, sides) {
 export function rollD20() {
     if (extensionSettings.lastDiceRoll) return null;
 
-    const count = Math.max(0, extensionSettings.allyCount ?? 1);
+    const allyCount = Math.max(0, extensionSettings.allyCount ?? 1);
+    const enemyCount = Math.max(0, extensionSettings.enemyCount ?? 1);
     const r1 = secureRoll(20);
     const r2 = secureRoll(20);
     const allyRolls = [];
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < allyCount; i++) {
         allyRolls.push({ roll1: secureRoll(20), roll2: secureRoll(20) });
     }
-    const npc1 = secureRoll(20);
-    const npc2 = secureRoll(20);
+    const enemyRolls = [];
+    for (let i = 0; i < enemyCount; i++) {
+        enemyRolls.push({ roll1: secureRoll(20), roll2: secureRoll(20) });
+    }
 
-    const totalDice = 2 + count * 2 + 2;
-    const allRolls = [r1, r2, ...allyRolls.flatMap(a => [a.roll1, a.roll2]), npc1, npc2];
+    const totalDice = 2 + allyCount * 2 + enemyCount * 2;
+    const allRolls = [r1, r2, ...allyRolls.flatMap(a => [a.roll1, a.roll2]), ...enemyRolls.flatMap(e => [e.roll1, e.roll2])];
     const rollData = {
         formula: `${totalDice}d20`,
         roll1: r1,
@@ -63,8 +66,9 @@ export function rollD20() {
         allyRolls,
         allyRoll1: allyRolls[0]?.roll1 ?? null,
         allyRoll2: allyRolls[0]?.roll2 ?? null,
-        npcRoll1: npc1,
-        npcRoll2: npc2,
+        enemyRolls,
+        npcRoll1: enemyRolls[0]?.roll1 ?? null,
+        npcRoll2: enemyRolls[0]?.roll2 ?? null,
         rolls: allRolls,
         timestamp: Date.now()
     };
@@ -97,9 +101,8 @@ export function updateDiceDisplay() {
     const $result = $('#dnd-roll-result');
     const $val1 = $('#dnd-roll-value-1');
     const $val2 = $('#dnd-roll-value-2');
-    const $npc1 = $('#dnd-roll-npc-1');
-    const $npc2 = $('#dnd-roll-npc-2');
     const $allyContainer = $('#dnd-roll-ally-groups');
+    const $enemyContainer = $('#dnd-roll-enemy-groups');
     const $rollBtn = $('#dnd-roll-btn');
 
     if (roll) {
@@ -112,18 +115,30 @@ export function updateDiceDisplay() {
         for (let i = 0; i < allies.length; i++) {
             const a = allies[i];
             const label = allies.length === 1 ? 'Ally' : `A${i + 1}`;
-            allyHtml += `<div class="dnd-roll-group dnd-roll-group-ally">`
-                + `<span class="dnd-roll-group-label">${label}</span>`
-                + `<div class="dnd-roll-pair"><span class="dnd-roll-label">1</span>`
-                + `<span class="dnd-roll-value dnd-roll-ally" title="${label} 1st: ${a.roll1}">${a.roll1}</span></div>`
-                + `<div class="dnd-roll-pair"><span class="dnd-roll-label">2</span>`
-                + `<span class="dnd-roll-value dnd-roll-ally" title="${label} 2nd: ${a.roll2}">${a.roll2}</span></div>`
+            allyHtml += `<div class="dnd-roll-chip dnd-roll-chip-ally" title="${label}: ${a.roll1} / ${a.roll2}">`
+                + `<span class="dnd-roll-chip-label">${label}</span>`
+                + `<span class="dnd-roll-chip-val">${a.roll1}</span>`
+                + `<span class="dnd-roll-chip-sep">/</span>`
+                + `<span class="dnd-roll-chip-val">${a.roll2}</span>`
                 + `</div>`;
         }
         $allyContainer.html(allyHtml);
 
-        $npc1.text(`${roll.npcRoll1 ?? '--'}`).attr('title', `Enemy 1st: ${roll.npcRoll1 ?? '--'}`);
-        $npc2.text(`${roll.npcRoll2 ?? '--'}`).attr('title', `Enemy 2nd: ${roll.npcRoll2 ?? '--'}`);
+        const enemies = roll.enemyRolls ?? (roll.npcRoll1 != null
+            ? [{ roll1: roll.npcRoll1, roll2: roll.npcRoll2 }] : []);
+        let enemyHtml = '';
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            const label = enemies.length === 1 ? 'Foe' : `F${i + 1}`;
+            enemyHtml += `<div class="dnd-roll-chip dnd-roll-chip-enemy" title="${label}: ${e.roll1} / ${e.roll2}">`
+                + `<span class="dnd-roll-chip-label">${label}</span>`
+                + `<span class="dnd-roll-chip-val">${e.roll1}</span>`
+                + `<span class="dnd-roll-chip-sep">/</span>`
+                + `<span class="dnd-roll-chip-val">${e.roll2}</span>`
+                + `</div>`;
+        }
+        $enemyContainer.html(enemyHtml);
+
         $result.show();
         $rollBtn.prop('disabled', true).addClass('dnd-roll-locked');
     } else {
@@ -131,12 +146,12 @@ export function updateDiceDisplay() {
         $val1.text('');
         $val2.text('');
         $allyContainer.empty();
-        $npc1.text('');
-        $npc2.text('');
+        $enemyContainer.empty();
         $rollBtn.prop('disabled', false).removeClass('dnd-roll-locked');
     }
 
     updateAllyCountLabel();
+    updateEnemyCountLabel();
     updateModifierDisplay();
 }
 
@@ -146,6 +161,11 @@ export function updateDiceDisplay() {
 export function updateAllyCountLabel() {
     const count = extensionSettings.allyCount ?? 1;
     $('#dnd-ally-count-val').text(count);
+}
+
+export function updateEnemyCountLabel() {
+    const count = extensionSettings.enemyCount ?? 1;
+    $('#dnd-enemy-count-val').text(count);
 }
 
 /**

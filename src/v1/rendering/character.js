@@ -6,6 +6,7 @@
 import { characterV1 } from '../core/state.js';
 import { computeCharacterStats } from '../features/character.js';
 import { ABILITY_KEYS, ABILITY_LABELS } from '../core/constants.js';
+import { bindTooltipEvents } from '../../rendering/tooltip.js';
 
 /**
  * Render the V1 character panel content.
@@ -15,28 +16,34 @@ export function renderV1CharacterPanel() {
     const container = document.getElementById('dnd-v1-character-content');
     if (!container) return;
 
+    const levelUpBtn = document.getElementById('dnd-v1-character-levelup');
+
     if (!characterV1) {
         container.innerHTML = `
             <div class="dnd-empty-state">
                 <span>No character configured</span>
                 <button id="dnd-v1-character-create" class="dnd-btn dnd-btn-primary dnd-btn-sm">Create Character</button>
             </div>`;
+        if (levelUpBtn) levelUpBtn.style.display = 'none';
         return;
     }
 
     const stats = computeCharacterStats(characterV1);
     if (!stats) {
         container.innerHTML = '<div class="dnd-empty-state">Error computing stats</div>';
+        if (levelUpBtn) levelUpBtn.style.display = 'none';
         return;
     }
 
     container.innerHTML = buildStatCard(stats);
+    bindTooltipEvents(container);
 
-    // Update title
+    if (levelUpBtn) levelUpBtn.style.display = stats.level < 20 ? '' : 'none';
+
     const titleEl = document.getElementById('dnd-v1-character-title');
     if (titleEl) {
         const sub = stats.subclassName ? ` (${stats.subclassName})` : '';
-        titleEl.textContent = `${stats.name || 'Character'} — ${stats.className}${sub} Lv ${stats.level}`;
+        titleEl.textContent = `${stats.name || 'Character'} \u2014 ${stats.className}${sub} Lv ${stats.level}`;
     }
 }
 
@@ -105,13 +112,48 @@ function buildStatCard(stats) {
         lines.push(`<div class="v1-row"><span class="v1-label">Languages:</span><span>${esc(stats.languages.join(', '))}</span></div>`);
     }
 
+    // Class Resources
+    if (stats.classResources?.length > 0) {
+        lines.push('<hr class="v1-divider" />');
+        lines.push('<div class="v1-section-title">Resources</div>');
+        lines.push('<div class="v1-row v1-resources">');
+        for (const r of stats.classResources) {
+            lines.push(`<span class="v1-resource-item"><b>${esc(String(r.value))}</b> ${esc(r.label)} <span class="v1-resource-recharge">/${r.recharge}</span></span>`);
+        }
+        lines.push('</div>');
+    }
+
+    // Level Choice Details (Metamagic, Invocations, etc.)
+    if (stats.levelChoiceDetails) {
+        const lcd = stats.levelChoiceDetails;
+        const sections = [];
+        if (lcd.pactBoon) sections.push({ title: 'Pact Boon', items: [lcd.pactBoon] });
+        if (lcd.metamagic?.length > 0) sections.push({ title: 'Metamagic', items: lcd.metamagic });
+        if (lcd.invocations?.length > 0) sections.push({ title: 'Invocations', items: lcd.invocations });
+        if (lcd.maneuvers?.length > 0) sections.push({ title: 'Maneuvers', items: lcd.maneuvers });
+        if (lcd.arcaneShots?.length > 0) sections.push({ title: 'Arcane Shots', items: lcd.arcaneShots });
+        if (lcd.kenseiWeapons?.length > 0) sections.push({ title: 'Kensei Weapons', items: lcd.kenseiWeapons.map(id => ({ label: id, desc: '' })) });
+
+        if (sections.length > 0) {
+            lines.push('<hr class="v1-divider" />');
+            for (const sec of sections) {
+                lines.push(`<div class="v1-row"><span class="v1-label">${esc(sec.title)}:</span><span>${
+                    sec.items.map(o => o.desc
+                        ? `<span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(o.label)}" data-tt-text="${esc(o.desc)}">${esc(o.label)}</span>`
+                        : esc(o.label)
+                    ).join(', ')
+                }</span></div>`);
+            }
+        }
+    }
+
     // Weapons
     if (stats.computedWeapons?.length > 0) {
         lines.push('<hr class="v1-divider" />');
         lines.push('<div class="v1-section-title">Weapons</div>');
         for (const w of stats.computedWeapons) {
             const hit = w.computedHit >= 0 ? `+${w.computedHit}` : `${w.computedHit}`;
-            lines.push(`<div class="v1-feature-item">${esc(w.name)}: ${hit} to hit, ${esc(w.computedDamage)} ${esc(w.damageType || '')}</div>`);
+            lines.push(`<div class="v1-feature-item"><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(w.name)}">${esc(w.name)}</span>: ${hit} to hit, ${esc(w.computedDamage)} ${esc(w.damageType || '')}</div>`);
         }
     }
 
@@ -127,10 +169,10 @@ function buildStatCard(stats) {
         </div>`);
 
         if (stats.annotatedCantrips?.length > 0) {
-            lines.push(`<div class="v1-spell-item"><b>Cantrips:</b> ${stats.annotatedCantrips.map(c => esc(c.annotation)).join(', ')}</div>`);
+            lines.push(`<div class="v1-spell-item"><b>Cantrips:</b> ${stats.annotatedCantrips.map(c => `<span class="dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(c.name)}">${esc(c.annotation)}</span>`).join(', ')}</div>`);
         }
         if (stats.annotatedSpells?.length > 0) {
-            lines.push(`<div class="v1-spell-item"><b>${sc.isPrepared ? 'Prepared' : 'Known'}:</b> ${stats.annotatedSpells.map(s => esc(s.annotation)).join(', ')}</div>`);
+            lines.push(`<div class="v1-spell-item"><b>${sc.isPrepared ? 'Prepared' : 'Known'}:</b> ${stats.annotatedSpells.map(s => `<span class="dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(s.name)}">${esc(s.annotation)}</span>`).join(', ')}</div>`);
         }
     }
 
@@ -145,7 +187,7 @@ function buildStatCard(stats) {
 
     // Feats
     if (stats.chosenFeats?.length > 0) {
-        lines.push(`<div class="v1-row"><span class="v1-label">Feats:</span><span>${stats.chosenFeats.map(esc).join(', ')}</span></div>`);
+        lines.push(`<div class="v1-row"><span class="v1-label">Feats:</span><span>${stats.chosenFeats.map(f => `<span class="dnd-tt-hover" data-tt-type="feat" data-tt-name="${esc(f)}">${esc(f)}</span>`).join(', ')}</span></div>`);
     }
 
     lines.push('</div>');
@@ -170,6 +212,7 @@ export function renderV1DetailModal() {
     if (!body) return;
 
     body.innerHTML = buildDetailContent(stats);
+    bindTooltipEvents(body);
 }
 
 function buildDetailContent(stats) {
@@ -206,14 +249,48 @@ function buildDetailContent(stats) {
     }
     lines.push('</ul>');
 
+    // Class Resources
+    if (stats.classResources?.length > 0) {
+        const resParts = stats.classResources.map(r => `<b>${esc(String(r.value))}</b> ${esc(r.label)} /${r.recharge}`);
+        lines.push(`<p><b>Resources:</b> ${resParts.join(' &middot; ')}</p>`);
+    }
+
+    // Level Choice Details (Metamagic, Invocations, etc.)
+    if (stats.levelChoiceDetails) {
+        const lcd = stats.levelChoiceDetails;
+        if (lcd.pactBoon) {
+            const pb = lcd.pactBoon;
+            lines.push(`<p><b>Pact Boon:</b> <span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(pb.label)}" data-tt-text="${esc(pb.desc)}">${esc(pb.label)}</span></p>`);
+        }
+        const detailSections = [
+            { title: 'Metamagic', items: lcd.metamagic },
+            { title: 'Eldritch Invocations', items: lcd.invocations },
+            { title: 'Battle Master Maneuvers', items: lcd.maneuvers },
+            { title: 'Arcane Shot Options', items: lcd.arcaneShots },
+            { title: 'Kensei Weapons', items: lcd.kenseiWeapons?.map(id => ({ label: id, desc: '' })) },
+        ];
+        for (const sec of detailSections) {
+            if (sec.items?.length > 0) {
+                lines.push(`<p><b>${esc(sec.title)}:</b></p><ul>`);
+                for (const o of sec.items) {
+                    const tip = o.desc
+                        ? ` class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(o.label)}" data-tt-text="${esc(o.desc)}"`
+                        : '';
+                    lines.push(`<li><span${tip}>${esc(o.label)}</span>${o.desc ? `: ${esc(o.desc)}` : ''}</li>`);
+                }
+                lines.push('</ul>');
+            }
+        }
+    }
+
     // Equipment
     if (stats.equippedArmor || stats.hasShield || stats.computedWeapons?.length > 0) {
         lines.push('<p><b>Equipment:</b></p><ul>');
-        if (stats.equippedArmor) lines.push(`<li>Armor: ${esc(stats.equippedArmor.name)}</li>`);
+        if (stats.equippedArmor) lines.push(`<li>Armor: <span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(stats.equippedArmor.name)}">${esc(stats.equippedArmor.name)}</span></li>`);
         if (stats.hasShield) lines.push('<li>Shield</li>');
         for (const w of (stats.computedWeapons || [])) {
             const hit = w.computedHit >= 0 ? `+${w.computedHit}` : `${w.computedHit}`;
-            lines.push(`<li>${esc(w.name)}: ${hit} to hit, ${esc(w.computedDamage)} ${esc(w.damageType || '')}</li>`);
+            lines.push(`<li><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(w.name)}">${esc(w.name)}</span>: ${hit} to hit, ${esc(w.computedDamage)} ${esc(w.damageType || '')}</li>`);
         }
         lines.push('</ul>');
     }
@@ -225,10 +302,10 @@ function buildDetailContent(stats) {
         lines.push(`<p>Slots: ${esc(sc.slotsStr)}</p>`);
 
         if (stats.annotatedCantrips?.length > 0) {
-            lines.push(`<p><b>Cantrips:</b> ${stats.annotatedCantrips.map(c => esc(c.annotation)).join(', ')}</p>`);
+            lines.push(`<p><b>Cantrips:</b> ${stats.annotatedCantrips.map(c => `<span class="dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(c.name)}">${esc(c.annotation)}</span>`).join(', ')}</p>`);
         }
         if (stats.annotatedSpells?.length > 0) {
-            lines.push(`<p><b>${sc.isPrepared ? 'Prepared' : 'Known'} Spells:</b> ${stats.annotatedSpells.map(s => esc(s.annotation)).join(', ')}</p>`);
+            lines.push(`<p><b>${sc.isPrepared ? 'Prepared' : 'Known'} Spells:</b> ${stats.annotatedSpells.map(s => `<span class="dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(s.name)}">${esc(s.annotation)}</span>`).join(', ')}</p>`);
         }
     }
 
@@ -236,7 +313,7 @@ function buildDetailContent(stats) {
     if (stats.speciesTraits?.length > 0) {
         lines.push('<p><b>Species Traits:</b></p><ul>');
         for (const t of stats.speciesTraits) {
-            lines.push(`<li><b>${esc(t.name)}:</b> ${esc(t.description)}</li>`);
+            lines.push(`<li><span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(t.name)}" data-tt-text="${esc(t.description)}"><b>${esc(t.name)}</b></span>: ${esc(t.description)}</li>`);
         }
         lines.push('</ul>');
     }
@@ -252,7 +329,7 @@ function buildDetailContent(stats) {
 
     // Feats
     if (stats.chosenFeats?.length > 0) {
-        lines.push(`<p><b>Feats:</b> ${stats.chosenFeats.map(esc).join(', ')}</p>`);
+        lines.push(`<p><b>Feats:</b> ${stats.chosenFeats.map(f => `<span class="dnd-tt-hover" data-tt-type="feat" data-tt-name="${esc(f)}">${esc(f)}</span>`).join(', ')}</p>`);
     }
 
     return lines.join('\n');

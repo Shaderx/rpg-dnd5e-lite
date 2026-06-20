@@ -214,6 +214,10 @@ export const PRIMAL_COMPANIONS = {
         str: 14, dex: 14, con: 15, int: 8, wis: 14, cha: 11,
         attack: { name: 'Maul', reach: '5 ft', damageDice: '1d8', damageType: 'slashing', useStat: 'str' },
         special: 'Charge: If moves 20+ ft straight toward target, DC 8+PB+STR or prone',
+        traits: [
+            { name: 'Charge', desc: 'If the beast moves at least 20 feet straight toward a target and then hits it with a maul attack on the same turn, the target must succeed on a STR saving throw (DC = 8 + PB + beast\'s STR mod) or be knocked prone.' },
+            { name: 'Primal Bond', desc: 'You can add your proficiency bonus to any ability check or saving throw the beast makes.' },
+        ],
     },
     sea: {
         id: 'sea', label: 'Beast of the Sea',
@@ -224,6 +228,11 @@ export const PRIMAL_COMPANIONS = {
         str: 14, dex: 14, con: 15, int: 8, wis: 14, cha: 11,
         attack: { name: 'Binding Strike', reach: '5 ft', damageDice: '1d6', damageType: 'bludgeoning', useStat: 'str' },
         special: 'Binding Strike: Target grappled (escape DC 8+PB+STR)',
+        traits: [
+            { name: 'Amphibious', desc: 'The beast can breathe both air and water.' },
+            { name: 'Binding Strike', desc: 'When the beast hits with its binding strike, the target is grappled (escape DC = 8 + PB + beast\'s STR mod). Until this grapple ends, the beast can\'t use its binding strike on another target.' },
+            { name: 'Primal Bond', desc: 'You can add your proficiency bonus to any ability check or saving throw the beast makes.' },
+        ],
     },
     sky: {
         id: 'sky', label: 'Beast of the Sky',
@@ -234,6 +243,145 @@ export const PRIMAL_COMPANIONS = {
         str: 6, dex: 16, con: 13, int: 8, wis: 14, cha: 11,
         attack: { name: 'Shred', reach: '5 ft', damageDice: '1d4', damageType: 'slashing', useStat: 'dex' },
         special: 'Flyby: No opportunity attacks when flying out of reach',
+        traits: [
+            { name: 'Flyby', desc: 'The beast doesn\'t provoke opportunity attacks when it flies out of an enemy\'s reach.' },
+            { name: 'Primal Bond', desc: 'You can add your proficiency bonus to any ability check or saving throw the beast makes.' },
+        ],
+    },
+};
+
+// ============================================================
+// FAMILIAR CREATURES (Find Familiar + Pact of the Chain)
+// ============================================================
+
+export const FAMILIAR_CREATURES = {
+    // Standard Find Familiar options (PHB'24)
+    bat: { id: 'bat', label: 'Bat', size: 'Tiny', type: 'Beast', speed: '5 ft, fly 30 ft', hp: 1, ac: 12, str: 2, dex: 15, con: 8, int: 2, wis: 12, cha: 4, senses: 'Blindsight 60 ft', skills: '',
+        traits: [
+            { name: 'Echolocation', desc: 'The bat can\'t use its blindsight while deafened.' },
+            { name: 'Keen Hearing', desc: 'The bat has advantage on Wisdom (Perception) checks that rely on hearing.' },
+        ],
+        actions: [{ name: 'Bite', desc: 'Melee Weapon Attack: +4 to hit, reach 5 ft, one creature. Hit: 1 piercing damage.' }],
+    },
+    cat: { id: 'cat', label: 'Cat', size: 'Tiny', type: 'Beast', speed: '40 ft, climb 30 ft', hp: 2, ac: 12, str: 3, dex: 15, con: 10, int: 3, wis: 12, cha: 7, senses: 'Darkvision 30 ft', skills: 'Perception +3, Stealth +4',
+        traits: [{ name: 'Keen Smell', desc: 'The cat has advantage on Wisdom (Perception) checks that rely on smell.' }],
+        actions: [{ name: 'Claws', desc: 'Melee Weapon Attack: +0 to hit, reach 5 ft, one target. Hit: 1 slashing damage.' }],
+    },
+    crab: { id: 'crab', label: 'Crab', size: 'Tiny', type: 'Beast', speed: '20 ft, swim 20 ft', hp: 2, ac: 11, str: 2, dex: 11, con: 10, int: 1, wis: 8, cha: 2, senses: 'Blindsight 30 ft', skills: 'Stealth +2',
+        traits: [{ name: 'Amphibious', desc: 'The crab can breathe air and water.' }],
+        actions: [{ name: 'Claw', desc: 'Melee Weapon Attack: +0 to hit, reach 5 ft, one target. Hit: 1 bludgeoning damage.' }],
+    },
+    frog: { id: 'frog', label: 'Frog', size: 'Tiny', type: 'Beast', speed: '20 ft, swim 20 ft', hp: 1, ac: 11, str: 1, dex: 13, con: 8, int: 1, wis: 8, cha: 3, senses: 'Darkvision 30 ft', skills: '',
+        traits: [
+            { name: 'Amphibious', desc: 'The frog can breathe air and water.' },
+            { name: 'Standing Leap', desc: 'The frog\'s long jump is up to 10 feet and its high jump is up to 5 feet, with or without a running start.' },
+        ],
+        actions: [],
+    },
+    hawk: { id: 'hawk', label: 'Hawk', size: 'Tiny', type: 'Beast', speed: '10 ft, fly 60 ft', hp: 1, ac: 13, str: 5, dex: 16, con: 8, int: 2, wis: 14, cha: 6, senses: '', skills: 'Perception +4',
+        traits: [{ name: 'Keen Sight', desc: 'The hawk has advantage on Wisdom (Perception) checks that rely on sight.' }],
+        actions: [{ name: 'Talons', desc: 'Melee Weapon Attack: +5 to hit, reach 5 ft, one target. Hit: 1 slashing damage.' }],
+    },
+    lizard: { id: 'lizard', label: 'Lizard', size: 'Tiny', type: 'Beast', speed: '20 ft, climb 20 ft', hp: 2, ac: 10, str: 2, dex: 11, con: 10, int: 1, wis: 8, cha: 3, senses: 'Darkvision 30 ft', skills: '',
+        traits: [],
+        actions: [{ name: 'Bite', desc: 'Melee Weapon Attack: +0 to hit, reach 5 ft, one target. Hit: 1 piercing damage.' }],
+    },
+    octopus: { id: 'octopus', label: 'Octopus', size: 'Small', type: 'Beast', speed: '5 ft, swim 30 ft', hp: 3, ac: 12, str: 4, dex: 15, con: 11, int: 3, wis: 10, cha: 4, senses: 'Darkvision 30 ft', skills: 'Perception +2, Stealth +4',
+        traits: [
+            { name: 'Hold Breath', desc: 'While out of water, the octopus can hold its breath for 30 minutes.' },
+            { name: 'Underwater Camouflage', desc: 'The octopus has advantage on Dexterity (Stealth) checks made while underwater.' },
+            { name: 'Water Breathing', desc: 'The octopus can breathe only underwater.' },
+        ],
+        actions: [
+            { name: 'Tentacles', desc: 'Melee Weapon Attack: +4 to hit, reach 5 ft, one target. Hit: 1 bludgeoning damage, and the target is grappled (escape DC 10). Until this grapple ends, the octopus can\'t use its tentacles on another target.' },
+            { name: 'Ink Cloud (Recharges after a Short or Long Rest)', desc: 'A 5-foot-radius cloud of ink extends all around the octopus if it is underwater. The area is heavily obscured for 1 minute, although a significant current can disperse the ink. After releasing the ink, the octopus can use the Dash action as a bonus action.' },
+        ],
+    },
+    owl: { id: 'owl', label: 'Owl', size: 'Tiny', type: 'Beast', speed: '5 ft, fly 60 ft', hp: 1, ac: 11, str: 3, dex: 13, con: 8, int: 2, wis: 12, cha: 7, senses: 'Darkvision 120 ft', skills: 'Perception +3, Stealth +3',
+        traits: [
+            { name: 'Flyby', desc: 'The owl doesn\'t provoke opportunity attacks when it flies out of an enemy\'s reach.' },
+            { name: 'Keen Hearing and Sight', desc: 'The owl has advantage on Wisdom (Perception) checks that rely on hearing or sight.' },
+        ],
+        actions: [{ name: 'Talons', desc: 'Melee Weapon Attack: +3 to hit, reach 5 ft, one target. Hit: 1 slashing damage.' }],
+    },
+    poisonous_snake: { id: 'poisonous_snake', label: 'Poisonous Snake', size: 'Tiny', type: 'Beast', speed: '30 ft, swim 30 ft', hp: 2, ac: 13, str: 2, dex: 16, con: 11, int: 1, wis: 10, cha: 3, senses: 'Blindsight 10 ft', skills: '',
+        traits: [],
+        actions: [{ name: 'Bite', desc: 'Melee Weapon Attack: +5 to hit, reach 5 ft, one target. Hit: 1 piercing damage, and the target must make a DC 10 Constitution saving throw, taking 2d4 poison damage on a failed save, or half as much damage on a successful one.' }],
+    },
+    quipper: { id: 'quipper', label: 'Quipper', size: 'Tiny', type: 'Beast', speed: '0 ft, swim 40 ft', hp: 1, ac: 13, str: 2, dex: 16, con: 9, int: 1, wis: 7, cha: 2, senses: 'Darkvision 60 ft', skills: '',
+        traits: [
+            { name: 'Blood Frenzy', desc: 'The quipper has advantage on melee attack rolls against any creature that doesn\'t have all its hit points.' },
+            { name: 'Water Breathing', desc: 'The quipper can breathe only underwater.' },
+        ],
+        actions: [{ name: 'Bite', desc: 'Melee Weapon Attack: +5 to hit, reach 5 ft, one target. Hit: 1 piercing damage.' }],
+    },
+    rat: { id: 'rat', label: 'Rat', size: 'Tiny', type: 'Beast', speed: '20 ft', hp: 1, ac: 10, str: 2, dex: 11, con: 9, int: 2, wis: 10, cha: 4, senses: 'Darkvision 30 ft', skills: '',
+        traits: [{ name: 'Keen Smell', desc: 'The rat has advantage on Wisdom (Perception) checks that rely on smell.' }],
+        actions: [{ name: 'Bite', desc: 'Melee Weapon Attack: +0 to hit, reach 5 ft, one target. Hit: 1 piercing damage.' }],
+    },
+    raven: { id: 'raven', label: 'Raven', size: 'Tiny', type: 'Beast', speed: '10 ft, fly 50 ft', hp: 1, ac: 12, str: 2, dex: 14, con: 8, int: 2, wis: 12, cha: 6, senses: '', skills: 'Perception +3',
+        traits: [{ name: 'Mimicry', desc: 'The raven can mimic simple sounds it has heard, such as a whisper or chitter. A creature that hears the sounds can tell they are imitations with a successful DC 10 Wisdom (Insight) check.' }],
+        actions: [{ name: 'Beak', desc: 'Melee Weapon Attack: +4 to hit, reach 5 ft, one target. Hit: 1 piercing damage.' }],
+    },
+    seahorse: { id: 'seahorse', label: 'Seahorse', size: 'Tiny', type: 'Beast', speed: '0 ft, swim 20 ft', hp: 1, ac: 11, str: 1, dex: 12, con: 8, int: 1, wis: 10, cha: 2, senses: '', skills: '',
+        traits: [{ name: 'Water Breathing', desc: 'The seahorse can breathe only underwater.' }],
+        actions: [],
+    },
+    spider: { id: 'spider', label: 'Spider', size: 'Tiny', type: 'Beast', speed: '20 ft, climb 20 ft', hp: 1, ac: 12, str: 2, dex: 14, con: 8, int: 1, wis: 10, cha: 2, senses: 'Darkvision 30 ft', skills: 'Stealth +4',
+        traits: [
+            { name: 'Spider Climb', desc: 'The spider can climb difficult surfaces, including upside down on ceilings, without needing to make an ability check.' },
+            { name: 'Web Sense', desc: 'While in contact with a web, the spider knows the exact location of any other creature in contact with the same web.' },
+            { name: 'Web Walker', desc: 'The spider ignores movement restrictions caused by webbing.' },
+        ],
+        actions: [{ name: 'Bite', desc: 'Melee Weapon Attack: +4 to hit, reach 5 ft, one creature. Hit: 1 piercing damage, and the target must succeed on a DC 9 Constitution saving throw or take 1d4 poison damage.' }],
+    },
+    weasel: { id: 'weasel', label: 'Weasel', size: 'Tiny', type: 'Beast', speed: '30 ft', hp: 1, ac: 13, str: 3, dex: 16, con: 8, int: 2, wis: 12, cha: 3, senses: '', skills: 'Perception +3, Stealth +5',
+        traits: [{ name: 'Keen Hearing and Smell', desc: 'The weasel has advantage on Wisdom (Perception) checks that rely on hearing or smell.' }],
+        actions: [{ name: 'Bite', desc: 'Melee Weapon Attack: +5 to hit, reach 5 ft, one target. Hit: 1 piercing damage.' }],
+    },
+
+    // Pact of the Chain enhanced familiars
+    imp: { id: 'imp', label: 'Imp', size: 'Tiny', type: 'Fiend', speed: '20 ft, fly 40 ft', hp: 10, ac: 13, str: 6, dex: 17, con: 13, int: 11, wis: 12, cha: 14, senses: 'Darkvision 120 ft', skills: 'Deception +4, Insight +3, Persuasion +4, Stealth +5', chainOnly: true,
+        traits: [
+            { name: 'Shapechanger', desc: 'The imp can use its action to polymorph into a beast form that resembles a rat (speed 20 ft), a raven (20 ft, fly 60 ft), or a spider (20 ft, climb 20 ft), or back into its true form. Its statistics are the same in each form, except for the speed changes noted. Any equipment it is wearing or carrying isn\'t transformed. It reverts to its true form if it dies.' },
+            { name: 'Devil\'s Sight', desc: 'Magical darkness doesn\'t impede the imp\'s darkvision.' },
+            { name: 'Magic Resistance', desc: 'The imp has advantage on saving throws against spells and other magical effects.' },
+        ],
+        actions: [
+            { name: 'Sting (Bite in Beast Form)', desc: 'Melee Weapon Attack: +5 to hit, reach 5 ft, one target. Hit: 1d4 + 3 piercing damage, and the target must make a DC 11 Constitution saving throw, taking 3d6 poison damage on a failed save, or half as much damage on a successful one.' },
+            { name: 'Invisibility', desc: 'The imp magically turns invisible until it attacks or until its concentration ends (as if concentrating on a spell). Any equipment the imp wears or carries is invisible with it.' },
+        ],
+    },
+    pseudodragon: { id: 'pseudodragon', label: 'Pseudodragon', size: 'Tiny', type: 'Dragon', speed: '15 ft, fly 60 ft', hp: 7, ac: 13, str: 6, dex: 15, con: 13, int: 10, wis: 12, cha: 10, senses: 'Blindsight 10 ft, Darkvision 60 ft', skills: 'Perception +3, Stealth +4', chainOnly: true,
+        traits: [
+            { name: 'Keen Senses', desc: 'The pseudodragon has advantage on Wisdom (Perception) checks that rely on sight, hearing, or smell.' },
+            { name: 'Magic Resistance', desc: 'The pseudodragon has advantage on saving throws against spells and other magical effects.' },
+            { name: 'Limited Telepathy', desc: 'The pseudodragon can magically communicate simple ideas, emotions, and images telepathically with any creature within 100 feet of it that can understand a language.' },
+        ],
+        actions: [
+            { name: 'Bite', desc: 'Melee Weapon Attack: +4 to hit, reach 5 ft, one target. Hit: 1d4 + 2 piercing damage.' },
+            { name: 'Sting', desc: 'Melee Weapon Attack: +4 to hit, reach 5 ft, one creature. Hit: 1d4 + 2 piercing damage, and the target must succeed on a DC 11 Constitution saving throw or become poisoned for 1 hour. If the saving throw fails by 5 or more, the target falls unconscious for the same duration, or until it takes damage or another creature uses an action to shake it awake.' },
+        ],
+    },
+    quasit: { id: 'quasit', label: 'Quasit', size: 'Tiny', type: 'Fiend', speed: '40 ft', hp: 7, ac: 13, str: 5, dex: 17, con: 10, int: 7, wis: 10, cha: 10, senses: 'Darkvision 120 ft', skills: 'Stealth +5', chainOnly: true,
+        traits: [
+            { name: 'Shapechanger', desc: 'The quasit can use its action to polymorph into a beast form that resembles a bat (speed 10 ft, fly 40 ft), a centipede (40 ft, climb 40 ft), or a toad (40 ft, swim 40 ft), or back into its true form. Its statistics are the same in each form, except for the speed changes noted. Any equipment it is wearing or carrying isn\'t transformed. It reverts to its true form if it dies.' },
+            { name: 'Magic Resistance', desc: 'The quasit has advantage on saving throws against spells and other magical effects.' },
+        ],
+        actions: [
+            { name: 'Claws (Bite in Beast Form)', desc: 'Melee Weapon Attack: +4 to hit, reach 5 ft, one target. Hit: 1d4 + 3 slashing damage, and the target must succeed on a DC 10 Constitution saving throw or take 2d4 poison damage and become poisoned for 1 minute. The target can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success.' },
+            { name: 'Scare (1/Day)', desc: 'One creature of the quasit\'s choice within 20 feet of it must succeed on a DC 10 Wisdom saving throw or be frightened for 1 minute. The target can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success.' },
+            { name: 'Invisibility', desc: 'The quasit magically turns invisible until it attacks or uses Scare, or until its concentration ends (as if concentrating on a spell). Any equipment the quasit wears or carries is invisible with it.' },
+        ],
+    },
+    sprite: { id: 'sprite', label: 'Sprite', size: 'Tiny', type: 'Fey', speed: '10 ft, fly 40 ft', hp: 2, ac: 15, str: 3, dex: 18, con: 10, int: 14, wis: 13, cha: 11, senses: '', skills: 'Perception +3, Stealth +8', chainOnly: true,
+        traits: [],
+        actions: [
+            { name: 'Longsword', desc: 'Melee Weapon Attack: +2 to hit, reach 5 ft, one target. Hit: 1 slashing damage.' },
+            { name: 'Shortbow', desc: 'Ranged Weapon Attack: +6 to hit, range 40/160 ft, one target. Hit: 1 piercing damage, and the target must succeed on a DC 10 Constitution saving throw or become poisoned for 1 minute. If its saving throw result is 5 or lower, the poisoned target falls unconscious for the same duration, or until it takes damage or another creature takes an action to shake it awake.' },
+            { name: 'Heart Sight', desc: 'The sprite touches a creature and magically knows the creature\'s current emotional state. If the target fails a DC 10 Charisma saving throw, the sprite also knows the creature\'s alignment. Celestials, fiends, and undead automatically fail the saving throw.' },
+            { name: 'Invisibility', desc: 'The sprite magically turns invisible until it attacks or casts a spell, or until its concentration ends (as if concentrating on a spell). Any equipment the sprite wears or carries is invisible with it.' },
+        ],
     },
 };
 
@@ -275,7 +423,7 @@ export const CLASS_LEVEL_FEATURES = {
     ],
     sorcerer: [
         {
-            level: 3, id: 'metamagic', type: 'multi-select',
+            level: 2, id: 'metamagic', type: 'multi-select',
             label: 'Metamagic Options',
             description: 'Choose Metamagic options to modify your spells using sorcery points.',
             count: 2,
@@ -384,7 +532,7 @@ export const SUBCLASS_LEVEL_FEATURES = {
     ],
 
     'druid|Circle of the Stars': [
-        { level: 2, id: 'starry-form', type: 'single-select', label: 'Default Starry Form',
+        { level: 3, id: 'starry-form', type: 'single-select', label: 'Default Starry Form',
           description: 'Choose your default constellation form (you can change each use, but this is recorded as preferred).',
           options: [
               { id: 'archer', label: 'Archer', desc: 'Bonus action ranged attack: 1d8+WIS radiant (60ft)' },
@@ -522,13 +670,13 @@ export const SUBCLASS_LEVEL_FEATURES = {
     // ----------------------------------------------------------
 
     'sorcerer|Divine Soul': [
-        { level: 1, id: 'divine-affinity', type: 'single-select', label: 'Divine Magic Affinity',
+        { level: 3, id: 'divine-affinity', type: 'single-select', label: 'Divine Magic Affinity',
           description: 'Choose an affinity for the source of your divine power. This grants an additional spell always prepared.',
           options: DIVINE_AFFINITIES },
     ],
 
     'sorcerer|Draconic Bloodline': [
-        { level: 1, id: 'draconic-element', type: 'single-select', label: 'Draconic Ancestry Element',
+        { level: 3, id: 'draconic-element', type: 'single-select', label: 'Draconic Ancestry Element',
           description: 'Choose the damage type associated with your draconic ancestry.',
           options: DRACONIC_ELEMENTS },
     ],
@@ -685,6 +833,9 @@ export function computeCompanionStats(companionType, rangerLevel, profBonus, wis
     const dexMod = Math.floor((base.dex - 10) / 2);
     const attackMod = base.attack.useStat === 'dex' ? dexMod : strMod;
 
+    const hitStr = attackMod + profBonus >= 0 ? `+${attackMod + profBonus}` : `${attackMod + profBonus}`;
+    const actionDesc = `Melee Weapon Attack: ${hitStr} to hit, reach ${base.attack.reach}, one target. Hit: ${base.attack.damageDice} + ${profBonus} ${base.attack.damageType} damage.`;
+
     return {
         name: base.label,
         size: base.size,
@@ -700,6 +851,8 @@ export function computeCompanionStats(companionType, rangerLevel, profBonus, wis
         damage: `${base.attack.damageDice} + ${profBonus}`,
         damageType: base.attack.damageType,
         special: base.special,
+        traits: base.traits || [],
+        actions: [{ name: base.attack.name, desc: actionDesc }],
         saveDC: 8 + profBonus + strMod,
         profBonus,
     };

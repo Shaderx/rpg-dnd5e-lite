@@ -50,21 +50,21 @@ export function buildQuestPrompt() {
     const userName = getContext().name1 || '{{User}}';
     const lines = [`[${userName}'s Quest Log:]`];
 
-    lines.push('[Quests are categorized by type:');
+    lines.push('[Quests are categorized by type:]');
     lines.push('  👑 Main Quest — central storyline objectives driving the narrative');
     lines.push('  🛡️ Side Errand — optional tasks, favors, or diversions');
     lines.push('  📌 Reminder — notes, things to remember, not necessarily a quest');
     lines.push('');
 
     if (active.length > 0) {
-        lines.push('Active Quests:');
+        lines.push('[Active Quests:]');
         for (const q of main)      lines.push(`  👑 ${q.text}`);
         for (const q of side)      lines.push(`  🛡️ ${q.text}`);
         for (const q of reminders)  lines.push(`  📌 ${q.text}`);
     }
 
     if (done.length > 0) {
-        lines.push('Completed:');
+        lines.push('[Completed:]');
         for (const q of done) {
             const emoji = questTypeEmoji(q.priority);
             lines.push(`  ✓ ${emoji} ${q.text}`);
@@ -94,7 +94,7 @@ export function buildInventoryPrompt() {
 
     if (equipped.length > 0) {
         lines.push('');
-        lines.push('Equipped:');
+        lines.push('[Equipped:]');
         for (const item of equipped) {
             const qty = item.quantity > 1 ? ` x${item.quantity}` : '';
             const rarity = item.rarity >= 1 ? ` (${RARITY_TAGS[item.rarity]})` : '';
@@ -104,7 +104,7 @@ export function buildInventoryPrompt() {
 
     if (stored.length > 0) {
         lines.push('');
-        lines.push('Stored:');
+        lines.push('[Stored:]');
         for (const item of stored) {
             const qty = item.quantity > 1 ? ` x${item.quantity}` : '';
             const rarity = item.rarity >= 1 ? ` (${RARITY_TAGS[item.rarity]})` : '';
@@ -211,7 +211,7 @@ export function buildRollPrompt() {
         if (includeAttrs) {
             prompt += `${userName}'s attributes: ${buildAttributesString()}\n`;
         }
-        prompt += `${userName} rolled two d20 dice — 1st roll: ${roll.roll1}, 2nd roll: ${roll.roll2}.\n`;
+        prompt += `${userName} rolled two combat d20 dice — combat_user_d20_1 = ${roll.roll1}, combat_user_d20_2 = ${roll.roll2}.\n`;
         prompt += `Disregard any rolls if not needed. If the situation grants advantage, use the higher roll. If it imposes disadvantage, use the lower roll. Otherwise use the 1st roll.\n`;
         if (includeAttrs) {
             prompt += `The relevant ability modifier is calculated from their attributes above. Add the appropriate modifier to the chosen roll and compare against the DC to determine success or failure. Attack rolls are d20 + Modifier + Proficiency Bonus.\n`;
@@ -224,15 +224,23 @@ export function buildRollPrompt() {
         if (allies.length > 0) {
             for (let i = 0; i < allies.length; i++) {
                 const a = allies[i];
-                const tag = allies.length === 1 ? 'Ally' : `Ally ${i + 1}`;
-                prompt += `${tag} rolls (use only when this ally needs to roll this turn; otherwise ignore) — 1st roll: ${a.roll1}, 2nd roll: ${a.roll2}.\n`;
+                const n = i + 1;
+                const tag = allies.length === 1 ? 'Ally' : `Ally ${n}`;
+                prompt += `${tag} combat rolls (use only when this ally needs to roll this turn; otherwise ignore) — ally${n}_combat_d20_1 = ${a.roll1}, ally${n}_combat_d20_2 = ${a.roll2}.\n`;
             }
             prompt += `Apply the same advantage/disadvantage logic for each ally: use the higher if advantage, the lower if disadvantage, otherwise the 1st roll.\n`;
             prompt += `Use these ally rolls for any checks, saves, attacks, or contested rolls a friendly NPC or companion must make this turn.\n\n`;
         }
-        if (roll.npcRoll1 != null && roll.npcRoll2 != null) {
-            prompt += `Enemy rolls (use only when an enemy needs to roll this turn; otherwise ignore) — 1st roll: ${roll.npcRoll1}, 2nd roll: ${roll.npcRoll2}.\n`;
-            prompt += `Apply the same advantage/disadvantage logic for the enemy: use the higher if advantage, the lower if disadvantage, otherwise the 1st roll.\n`;
+        const enemies = roll.enemyRolls ?? (roll.npcRoll1 != null
+            ? [{ roll1: roll.npcRoll1, roll2: roll.npcRoll2 }] : []);
+        if (enemies.length > 0) {
+            for (let i = 0; i < enemies.length; i++) {
+                const e = enemies[i];
+                const n = i + 1;
+                const tag = enemies.length === 1 ? 'Enemy' : `Enemy ${n}`;
+                prompt += `${tag} combat rolls (use only when an enemy needs to roll this turn; otherwise ignore) — enemy${n}_combat_d20_1 = ${e.roll1}, enemy${n}_combat_d20_2 = ${e.roll2}.\n`;
+            }
+            prompt += `Apply the same advantage/disadvantage logic for each enemy: use the higher if advantage, the lower if disadvantage, otherwise the 1st roll.\n`;
             prompt += `Use these enemy rolls for any opposing checks, saves, attacks, or contested rolls a hostile NPC must make this turn.\n`;
         }
     }
@@ -337,59 +345,78 @@ export function buildSidekickPrompt() {
         const typeInfo = SIDEKICK_TYPES[sk.type];
         const subInfo = typeInfo?.subtypes?.find(s => s.key === sk.subtype);
         const typeLabel = typeInfo?.label || sk.type;
-        const subLabel = subInfo ? `/${subInfo.label}` : '';
+        const subLabel = subInfo ? ` (${subInfo.label})` : '';
         const raceStr = sk.race ? `${sk.race} ` : '';
         const creatureStr = sk.creatureName || '';
         const armorNote = sk.equippedArmor ? ` (${sk.equippedArmor.name}${sk.hasShield ? '+Shield' : ''})` : (sk.hasShield ? ' (Shield)' : '');
 
-        lines.push(`\nHireling — ${sk.name} (${raceStr}${creatureStr}, ${typeLabel}${subLabel}) Lv ${level}: HP ${stats.hp} | AC ${stats.ac}${armorNote} | SPD ${sk.speedFull || sk.baseSpeed + 'ft'} | Prof +${stats.proficiency}`);
+        lines.push(`\n[Hireling — ${sk.name} (${raceStr}${creatureStr}, ${typeLabel}${subLabel}) Lv ${level}:]`);
+        lines.push(`HP ${stats.hp} | AC ${stats.ac}${armorNote} | SPD ${sk.speedFull || sk.baseSpeed + 'ft'} | Prof +${stats.proficiency}`);
 
+        // Ability scores
         const abilLine = ['str','dex','con','int','wis','cha']
             .map(a => `${a.toUpperCase()} ${stats.scores[a]}(${getModStr(stats.scores[a])})`)
             .join(' ');
-        lines.push(`  ${abilLine}`);
+        lines.push(abilLine);
 
-        const profSaves = ['str','dex','con','int','wis','cha']
-            .filter(a => stats.saves[a].proficient)
-            .map(a => {
-                const s = stats.saves[a];
-                return `${a.toUpperCase()} ${s.mod >= 0 ? '+' : ''}${s.mod}*`;
-            });
-        const profSkills = ALL_SKILLS
+        // Saves — show all, mark proficient with *
+        const saveParts = ['str','dex','con','int','wis','cha'].map(a => {
+            const s = stats.saves[a];
+            const mark = s.proficient ? '*' : '';
+            return `${a.toUpperCase()} ${s.mod >= 0 ? '+' : ''}${s.mod}${mark}`;
+        });
+        lines.push(`Saves: ${saveParts.join(', ')}  (* = proficient)`);
+
+        // Skills — only proficient/expert, mark * / **
+        const skillParts = ALL_SKILLS
             .filter(sk2 => stats.skills[sk2].proficient || stats.skills[sk2].expertise)
             .map(sk2 => {
                 const s = stats.skills[sk2];
-                const mark = s.expertise ? '**' : '';
+                const mark = s.expertise ? '**' : '*';
                 return `${SKILL_LABELS[sk2]} ${s.mod >= 0 ? '+' : ''}${s.mod}${mark}`;
             });
-        const saveSkillParts = [];
-        if (profSaves.length > 0) saveSkillParts.push(`Saves: ${profSaves.join(', ')}`);
-        if (profSkills.length > 0) saveSkillParts.push(`Skills: ${profSkills.join(', ')}`);
-        if (saveSkillParts.length > 0) lines.push(`  ${saveSkillParts.join(' | ')}`);
-
-        const miscParts = [];
-        if (sk.senses) miscParts.push(`Senses: ${sk.senses}`);
-        const allLangs = [...(sk.languagesFixed || []), ...(sk.chosenLanguages || [])];
-        const langDisplay = allLangs.length > 0 ? allLangs.join(', ') : sk.languages;
-        if (langDisplay) miscParts.push(`Languages: ${langDisplay}`);
-        if (miscParts.length > 0) lines.push(`  ${miscParts.join(' | ')}`);
-
-        const enabledTraits = (sk.creatureTraits || []).filter(t => t.enabled);
-        if (enabledTraits.length > 0) {
-            lines.push('  Traits:');
-            for (const t of enabledTraits) lines.push(`    ${t.name}: ${t.text}`);
+        if (skillParts.length > 0) {
+            lines.push(`Skills: ${skillParts.join(', ')}  (* = proficient, ** = expertise)`);
         }
 
+        // Senses / Languages
+        if (sk.senses) lines.push(`Senses: ${sk.senses}`);
+        const allLangs = [...(sk.languagesFixed || []), ...(sk.chosenLanguages || [])];
+        const langDisplay = allLangs.length > 0 ? allLangs.join(', ') : sk.languages;
+        if (langDisplay) lines.push(`Languages: ${langDisplay}`);
+
+        // Creature Traits
+        const enabledTraits = (sk.creatureTraits || []).filter(t => t.enabled);
+        if (enabledTraits.length > 0) {
+            lines.push('Traits:');
+            for (const t of enabledTraits) lines.push(`  ${t.name}: ${t.text}`);
+        }
+
+        // Armor
         const equipParts = [];
         if (sk.equippedArmor) equipParts.push(sk.equippedArmor.name);
         if (sk.hasShield) equipParts.push('Shield');
-        if (equipParts.length > 0) lines.push(`  Armor: ${equipParts.join(', ')}`);
+        if (equipParts.length > 0) lines.push(`Armor: ${equipParts.join(', ')}`);
 
+        // Weapons (player-assigned)
+        const cWeapons = stats.computedWeapons || [];
+        if (cWeapons.length > 0) {
+            const wpnParts = cWeapons.map(w => {
+                const hit = w.computedHit >= 0 ? `+${w.computedHit}` : `${w.computedHit}`;
+                let desc = `${hit} to hit, ${w.computedDamage} ${w.damageType}`;
+                if (w.computedVersatile) desc += ` (versatile: ${w.computedVersatile})`;
+                if (w.range) desc += `, ${w.attackType?.includes('mw') ? 'thrown' : 'range'} ${w.range}`;
+                return `${w.name} (${desc})`;
+            });
+            lines.push(`Weapons: ${wpnParts.join('; ')}`);
+        }
+
+        // Creature Actions (stat-block attacks / abilities)
         const cActions = (stats.computedActions || []).filter(a => a.enabled);
         if (cActions.length > 0) {
-            lines.push('  Actions:');
+            lines.push('Creature Actions:');
             for (const a of cActions) {
-                let line = `    ${a.name}:`;
+                let line = `  ${a.name}:`;
                 if (a.computedHit != null) line += ` ${a.computedHit >= 0 ? '+' : ''}${a.computedHit} to hit,`;
                 if (a.computedDamage) line += ` ${a.computedDamage} dmg`;
                 if (a.computedDc != null) line += ` DC ${a.computedDc}`;
@@ -398,24 +425,15 @@ export function buildSidekickPrompt() {
             }
         }
 
-        const cWeapons = stats.computedWeapons || [];
-        if (cWeapons.length > 0) {
-            lines.push('  Weapons:');
-            for (const w of cWeapons) {
-                let desc = `+${w.computedHit} to hit, ${w.computedDamage} ${w.damageType}`;
-                if (w.computedVersatile) desc += `, versatile ${w.computedVersatile}`;
-                if (w.range) desc += `, ${w.attackType?.includes('mw') ? 'thrown' : 'range'} ${w.range}`;
-                lines.push(`    ${w.name}: ${desc}`);
-            }
-        }
-
         if (sk.items?.length > 0) {
-            lines.push(`  Items: ${sk.items.map(it => it.name).join(', ')}`);
+            lines.push(`Items: ${sk.items.map(it => it.name).join(', ')}`);
         }
 
+        // Spellcasting
         if (stats.spellcasting) {
             const sc = stats.spellcasting;
-            lines.push(`  Spellcasting (${sc.abilityLabel}): Spell Attack +${sc.attackMod} | Spell Save DC ${sc.saveDC} | Slots ${sc.slotsStr || 'none'}`);
+            lines.push(`Spellcasting (${sc.abilityLabel}): Attack +${sc.attackMod}, Save DC ${sc.saveDC}`);
+            lines.push(`  Slots: ${sc.slotsStr || 'none'}`);
 
             const allKnown = [
                 ...(sk.knownCantrips || []).map(n => ({ name: n, lvl: 0 })),
@@ -442,16 +460,18 @@ export function buildSidekickPrompt() {
             }
         }
 
+        // Class Features (level-derived)
         if (stats.features?.length > 0) {
-            lines.push('  Features:');
-            for (const f of stats.features) lines.push(`    ${f.name}: ${f.text}`);
+            lines.push('Class Features:');
+            for (const f of stats.features) lines.push(`  ${f.name}: ${f.text}`);
         }
 
+        // Feats (ASI-chosen)
         if (stats.chosenFeats?.length > 0) {
-            lines.push('  Feats:');
+            lines.push(`Feats: ${stats.chosenFeats.join(', ')}`);
             for (const name of stats.chosenFeats) {
                 const feat = lookupFeatByName(name);
-                if (!feat) { lines.push(`    ${name}`); continue; }
+                if (!feat) continue;
                 const entries = (feat.entries || []).map(e => {
                     if (typeof e === 'string') return strip5eMarkup(e);
                     if (e.type === 'list' && e.items) {
@@ -463,14 +483,14 @@ export function buildSidekickPrompt() {
                     }
                     return '';
                 }).filter(Boolean).join(' ');
-                lines.push(`    ${name}: ${entries}`);
+                if (entries) lines.push(`  ${name}: ${entries}`);
             }
         }
 
         const fe = stats.featEffects;
         if (fe) {
             if (fe.toolProficiencies?.length > 0) {
-                lines.push(`  Tool Proficiencies: ${fe.toolProficiencies.join(', ')}`);
+                lines.push(`Feat Tools: ${fe.toolProficiencies.join(', ')}`);
             }
             if (fe.bonusCantrips?.length > 0 || fe.bonusSpells?.length > 0) {
                 const bCantrips = (fe.bonusCantrips || []).map(s => {
@@ -486,14 +506,15 @@ export function buildSidekickPrompt() {
                     return `${ann}${free} (${s.source})`;
                 });
                 const all = [...bCantrips, ...bSpells];
-                if (all.length > 0) lines.push(`  Feat Spells: ${all.join(', ')}`);
+                if (all.length > 0) lines.push(`Bonus Spells: ${all.join(', ')}`);
             }
             if (fe.promptNotes?.length > 0) {
-                lines.push('  Feat Notes:');
-                for (const note of fe.promptNotes) lines.push(`    ${note}`);
+                lines.push('Feat Notes:');
+                for (const note of fe.promptNotes) lines.push(`  - ${note}`);
             }
         }
 
+        // Hire cost
         if (sk.hireGoldPerDay > 0 || sk.hireDate || sk.hirePayMode === 'free') {
             const parts = [];
             if (sk.hirePayMode === 'free') {
@@ -516,7 +537,7 @@ export function buildSidekickPrompt() {
                 }
             }
             if (sk.hireDate) parts.push(`since ${sk.hireDate}`);
-            lines.push(`  Hire: ${parts.join(' ')}`);
+            lines.push(`Hire: ${parts.join(' ')}`);
         }
     }
 

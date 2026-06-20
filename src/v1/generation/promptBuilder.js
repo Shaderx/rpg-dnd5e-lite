@@ -87,12 +87,6 @@ export function buildCharacterPrompt() {
         lines.push(`Weapons: ${wpnParts.join('; ')}`);
     }
 
-    // Inventory
-    if (stats.items?.length > 0) {
-        const itemStr = stats.items.map(i => typeof i === 'string' ? i : i.text || '').filter(Boolean).join(', ');
-        if (itemStr) lines.push(`Inventory: ${itemStr}`);
-    }
-
     // Combat Notes
     if (stats.combatNotes?.length > 0) {
         lines.push('Combat Notes:');
@@ -160,7 +154,10 @@ export function buildCharacterPrompt() {
             for (const sp of stats.annotatedSpells) {
                 const lv = sp.info?.spellLevel ?? 1;
                 if (!byLevel[lv]) byLevel[lv] = [];
-                byLevel[lv].push(sp.annotation);
+                let entry = sp.annotation;
+                if (sp.extraFreeCast) entry += ` [${sp.extraFreeCast} free]`;
+                if (sp.extraSource) entry += ` (${sp.extraSource})`;
+                byLevel[lv].push(entry);
             }
 
             const label = sc.isPrepared ? 'Prepared' : 'Known';
@@ -170,36 +167,81 @@ export function buildCharacterPrompt() {
         }
     }
 
+    // Class Resources
+    if (stats.classResources?.length > 0) {
+        const resParts = stats.classResources.map(r => `${r.label} ${r.value}/${r.recharge}`);
+        lines.push(`Resources: ${resParts.join(', ')}`);
+    }
+
     // Level Choice Details (Metamagic, Invocations, Maneuvers, etc.)
     if (stats.levelChoiceDetails) {
         const lcd = stats.levelChoiceDetails;
+        if (lcd.pactBoon) {
+            lines.push(`Pact Boon: ${lcd.pactBoon.label} — ${lcd.pactBoon.desc}`);
+        }
         if (lcd.metamagic?.length > 0) {
-            lines.push(`Metamagic: ${lcd.metamagic.join(', ')}`);
+            lines.push(`Metamagic: ${lcd.metamagic.map(o => `${o.label} (${o.desc})`).join('; ')}`);
         }
         if (lcd.invocations?.length > 0) {
-            lines.push(`Eldritch Invocations: ${lcd.invocations.join(', ')}`);
-        }
-        if (lcd.pactBoon) {
-            lines.push(`Pact Boon: ${lcd.pactBoon}`);
+            lines.push(`Eldritch Invocations: ${lcd.invocations.map(o => `${o.label} (${o.desc})`).join('; ')}`);
         }
         if (lcd.maneuvers?.length > 0) {
-            lines.push(`Battle Master Maneuvers: ${lcd.maneuvers.join(', ')}`);
+            lines.push(`Battle Master Maneuvers: ${lcd.maneuvers.map(o => `${o.label} (${o.desc})`).join('; ')}`);
         }
         if (lcd.arcaneShots?.length > 0) {
-            lines.push(`Arcane Shot Options: ${lcd.arcaneShots.join(', ')}`);
+            lines.push(`Arcane Shot Options: ${lcd.arcaneShots.map(o => `${o.label} (${o.desc})`).join('; ')}`);
         }
         if (lcd.kenseiWeapons?.length > 0) {
             lines.push(`Kensei Weapons: ${lcd.kenseiWeapons.join(', ')}`);
         }
     }
 
-    // Companion (Beast Master)
+    // Companion (Primal Companion / Familiar)
     if (stats.companion) {
         const c = stats.companion;
-        lines.push(`Companion — ${c.name}:`);
-        lines.push(`  HP: ${c.hp} | AC: ${c.ac} | Speed: ${c.speed}`);
-        lines.push(`  Attack: ${c.attackName} (+${c.attackBonus}, ${c.damage} ${c.damageType})`);
-        if (c.special) lines.push(`  Special: ${c.special}`);
+        const displayName = c.customName || c.name;
+        lines.push(`[Companion — ${displayName} (${c.size} ${c.type}):]`);
+        lines.push(`HP: ${c.hp} | AC: ${c.ac} | Speed: ${c.speed}`);
+        const cAbil = ABILITY_KEYS.map(a => {
+            const score = c[a];
+            if (score == null) return null;
+            const mod = Math.floor((score - 10) / 2);
+            return `${a.toUpperCase()} ${score}(${mod >= 0 ? '+' : ''}${mod})`;
+        }).filter(Boolean).join(' ');
+        if (cAbil) lines.push(cAbil);
+        if (c.traits?.length > 0) {
+            lines.push('Traits:');
+            for (const t of c.traits) lines.push(`  ${t.name}: ${t.desc}`);
+        }
+        if (c.actions?.length > 0) {
+            lines.push('Actions:');
+            for (const a of c.actions) lines.push(`  ${a.name}: ${a.desc}`);
+        }
+    } else if (stats.familiarStats) {
+        const f = stats.familiarStats;
+        const displayName = f.customName || f.label;
+        const typeLabel = f.creatureType
+            ? f.creatureType.charAt(0).toUpperCase() + f.creatureType.slice(1)
+            : f.type;
+        lines.push(`[Familiar — ${displayName} (${f.size} ${typeLabel}):]`);
+        lines.push(`HP: ${f.hp} | AC: ${f.ac} | Speed: ${f.speed}`);
+        const fAbil = ABILITY_KEYS.map(a => {
+            const score = f[a];
+            if (score == null) return null;
+            const mod = Math.floor((score - 10) / 2);
+            return `${a.toUpperCase()} ${score}(${mod >= 0 ? '+' : ''}${mod})`;
+        }).filter(Boolean).join(' ');
+        if (fAbil) lines.push(fAbil);
+        if (f.senses) lines.push(`Senses: ${f.senses}`);
+        if (f.skills) lines.push(`Skills: ${f.skills}`);
+        if (f.traits?.length > 0) {
+            lines.push('Traits:');
+            for (const t of f.traits) lines.push(`  ${t.name}: ${t.desc}`);
+        }
+        if (f.actions?.length > 0) {
+            lines.push('Actions:');
+            for (const a of f.actions) lines.push(`  ${a.name}: ${a.desc}`);
+        }
     }
 
     return lines.join('\n');

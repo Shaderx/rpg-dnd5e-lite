@@ -32,6 +32,7 @@ export const extensionSettings = {
     lastDamageRoll: null,
     lastModifierRolls: {},
     allyCount: 1,
+    enemyCount: 1,
 
     // Random events
     randomEventsEnabled: false,

@@ -21,7 +21,7 @@ import { renderQuests, addQuestFromInput } from './src/rendering/quests.js';
 import { renderInventory, addInventoryItemFromInput } from './src/rendering/inventory.js';
 import { renderSpellLog, addSpellFromInput, addRestFromButton, addShortRestFromButton, addDispelFromButton, hardRefreshSpellLogFromButton } from './src/rendering/spellLog.js';
 import { refreshSpellLog, hardRefreshSpellLog } from './src/features/spellTracker.js';
-import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, updateDamageDisplay, clearDamageRoll, toggleModifier, updateModifierDisplay, clearModifiers, updateAllyCountLabel, renderModifierButtons } from './src/features/dice.js';
+import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, updateDamageDisplay, clearDamageRoll, toggleModifier, updateModifierDisplay, clearModifiers, updateAllyCountLabel, updateEnemyCountLabel, renderModifierButtons } from './src/features/dice.js';
 import { refreshHeaderFromChat, updateHeaderFromMessage } from './src/features/headerParser.js';
 import { updateStripWidgets, updateHeaderWidgets } from './src/ui/desktop.js';
 import { setupMobileFab } from './src/ui/mobile.js';
@@ -33,6 +33,8 @@ import { renderV1CharacterPanel } from './src/v1/rendering/character.js';
 import { renderV1DetailModal } from './src/v1/rendering/detail.js';
 import { openV1ConfigModal } from './src/v1/rendering/configModal.js';
 import { renderV1Spellbook, initV1Spellbook } from './src/v1/rendering/spellbook.js';
+import { preloadSpellData as preloadV1SpellData } from './src/v1/features/spells.js';
+import { renderV1CompanionPanel, initCompanionPanel } from './src/v1/rendering/companion.js';
 import { listCustomSpecies, createCustomSpecies, updateCustomSpecies, deleteCustomSpecies, blankCustomSpecies } from './src/v1/features/customSpecies.js';
 import { CREATURE_TYPES as V1_CREATURE_TYPES, DAMAGE_TYPES, ABILITY_KEYS as V1_ABILITY_KEYS, ABILITY_LABELS as V1_ABILITY_LABELS } from './src/v1/core/constants.js';
 
@@ -923,6 +925,7 @@ function populateProfSection(type, savedSave, savedSkills, savedExpertise) {
     $checks.html(html);
 
     const level = getSidekickLevel();
+    const maxExpertise = 2;
     if (type === 'expert' && level >= 3) {
         const $expChecks = $('#dnd-sk-expertise-checks');
         let expHtml = '';
@@ -932,6 +935,9 @@ function populateProfSection(type, savedSave, savedSkills, savedExpertise) {
             expHtml += `<label class="dnd-sk-check"><input type="checkbox" data-expertise="${sk}"${checked} /> ${SKILL_LABELS[sk] || sk}</label>`;
         }
         $expChecks.html(expHtml).show();
+        $expChecks.off('change').on('change', 'input', function () {
+            if ($expChecks.find('input:checked').length > maxExpertise) $(this).prop('checked', false);
+        });
         $('#dnd-sk-expertise-row').show();
     } else {
         $('#dnd-sk-expertise-row').hide();
@@ -958,6 +964,9 @@ function populateProfSection(type, savedSave, savedSkills, savedExpertise) {
                 expHtml += `<label class="dnd-sk-check"><input type="checkbox" data-expertise="${sk}"${checked2} /> ${SKILL_LABELS[sk] || sk}</label>`;
             }
             $expChecks.html(expHtml).show();
+            $expChecks.off('change').on('change', 'input', function () {
+                if ($expChecks.find('input:checked').length > maxExpertise) $(this).prop('checked', false);
+            });
             $('#dnd-sk-expertise-row').show();
         }
     });
@@ -1735,6 +1744,7 @@ function onChatChanged() {
 
     loadSidekicks();
     renderSidekickCards();
+    fetchEquipmentItems().then(() => fetchMagicItems());
 
     loadRandomEventState();
     updateRandomEventDisplay();
@@ -1744,6 +1754,8 @@ function onChatChanged() {
         loadCharacterV1();
         renderV1CharacterPanel();
         renderV1Spellbook();
+        renderV1CompanionPanel();
+        Promise.all([preloadV1SpellData(), preloadSpellData(), fetchFeats(), fetchEquipmentItems().then(() => fetchMagicItems())]).then(() => renderV1Spellbook());
     }
 }
 
@@ -2076,6 +2088,15 @@ function applyV1PanelVisibility() {
 
     const legacySpellbook = document.getElementById('dnd-spellbook-container');
     if (legacySpellbook) legacySpellbook.style.display = v1 ? 'none' : '';
+
+    // V1 has attributes on the char sheet — hide attr editor button and force-disable attr injection
+    const attrBtn = document.getElementById('dnd-open-attr-editor');
+    if (attrBtn) attrBtn.style.display = v1 ? 'none' : '';
+
+    if (v1) {
+        setSendAttributesOnRoll(false);
+        saveSendAttributesOnRoll(false);
+    }
 }
 
 // ─── UI init / teardown ─────────────────────────────────────
@@ -2139,6 +2160,9 @@ async function initUI() {
         renderV1CharacterPanel();
         initV1Spellbook();
         renderV1Spellbook();
+        initCompanionPanel();
+        renderV1CompanionPanel();
+        Promise.all([preloadV1SpellData(), preloadSpellData(), fetchFeats(), fetchEquipmentItems().then(() => fetchMagicItems())]).then(() => renderV1Spellbook());
     }
 
     // ─── Event bindings ─────────────────────────────────
@@ -2159,18 +2183,31 @@ async function initUI() {
         updateStripWidgets();
     });
 
-    // Ally count +/- controls (clamped 0–5)
+    // Ally count +/- controls (clamped 0–3)
     $('#dnd-ally-minus').on('click', () => {
         extensionSettings.allyCount = Math.max(0, (extensionSettings.allyCount ?? 1) - 1);
         saveSettings();
         updateAllyCountLabel();
     });
     $('#dnd-ally-plus').on('click', () => {
-        extensionSettings.allyCount = Math.min(5, (extensionSettings.allyCount ?? 1) + 1);
+        extensionSettings.allyCount = Math.min(3, (extensionSettings.allyCount ?? 1) + 1);
         saveSettings();
         updateAllyCountLabel();
     });
     updateAllyCountLabel();
+
+    // Enemy count +/- controls (clamped 0–9)
+    $('#dnd-enemy-minus').on('click', () => {
+        extensionSettings.enemyCount = Math.max(0, (extensionSettings.enemyCount ?? 1) - 1);
+        saveSettings();
+        updateEnemyCountLabel();
+    });
+    $('#dnd-enemy-plus').on('click', () => {
+        extensionSettings.enemyCount = Math.min(9, (extensionSettings.enemyCount ?? 1) + 1);
+        saveSettings();
+        updateEnemyCountLabel();
+    });
+    updateEnemyCountLabel();
 
     // Damage dice — each click adds one die to the pool
     $('.dnd-damage-die-btn').on('click', function () {
@@ -2321,12 +2358,19 @@ async function initUI() {
         if (characterV1) openV1ConfigModal(characterV1.id);
         else openV1ConfigModal(null);
     });
+    $('#dnd-v1-character-levelup').on('click', (e) => {
+        e.stopPropagation();
+        if (characterV1 && (characterV1.level || 1) < 20) {
+            openV1ConfigModal(characterV1.id, true);
+        }
+    });
     $('#dnd-v1-character-clear').on('click', (e) => {
         e.stopPropagation();
         setCharacterV1(null);
         saveCharacterV1(null);
         renderV1CharacterPanel();
         renderV1Spellbook();
+        renderV1CompanionPanel();
         toastr.info('V1 Character removed');
     });
     // V1 Detail modal
@@ -2560,7 +2604,14 @@ async function initUI() {
         $('#dnd-setting-strip-widgets').prop('checked', extensionSettings.stripWidgetsEnabled);
         $('#dnd-setting-position').val(extensionSettings.panelPosition || 'right');
         $('#dnd-setting-injection-depth').val(extensionSettings.injectionDepth ?? 0);
-        $('#dnd-setting-send-attributes').prop('checked', sendAttributesOnRoll);
+        const v1Active = extensionSettings.v1Enabled;
+        const $sendAttrLabel = $('#dnd-setting-send-attributes').closest('.dnd-toggle-label');
+        if (v1Active) {
+            $sendAttrLabel.hide();
+        } else {
+            $sendAttrLabel.show();
+            $('#dnd-setting-send-attributes').prop('checked', sendAttributesOnRoll);
+        }
         $('#dnd-setting-spell-inject').prop('checked', spellInjectEnabled);
         $('#dnd-setting-auto-long-rest').prop('checked', autoLongRestEnabled);
         $('#dnd-setting-random-events').prop('checked', extensionSettings.randomEventsEnabled ?? false);
@@ -2722,6 +2773,9 @@ jQuery(async () => {
             renderV1CharacterPanel();
             initV1Spellbook();
             renderV1Spellbook();
+            initCompanionPanel();
+            renderV1CompanionPanel();
+            Promise.all([preloadV1SpellData(), preloadSpellData(), fetchFeats(), fetchEquipmentItems().then(() => fetchMagicItems())]).then(() => renderV1Spellbook());
         }
     });
 

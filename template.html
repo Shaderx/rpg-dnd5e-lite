@@ -65,12 +65,7 @@
                     <span class="dnd-strip-dice-result dnd-strip-dice-r2">--</span>
                 </div>
                 <div id="dnd-strip-ally-rows" class="dnd-strip-ally-rows"></div>
-                <div class="dnd-strip-dice-row dnd-strip-dice-row-enemy">
-                    <span class="dnd-strip-dice-row-label">Foe</span>
-                    <span class="dnd-strip-dice-result dnd-strip-dice-npc dnd-strip-dice-npc1">--</span>
-                    <span class="dnd-strip-dice-sep">/</span>
-                    <span class="dnd-strip-dice-result dnd-strip-dice-npc dnd-strip-dice-npc2">--</span>
-                </div>
+                <div id="dnd-strip-enemy-rows" class="dnd-strip-enemy-rows"></div>
             </div>
             <button class="dnd-strip-dice-clear" title="Clear roll" style="display:none;">
                 <i class="fa-solid fa-xmark"></i>
@@ -101,6 +96,12 @@
                 <span id="dnd-panel-event-tag" class="dnd-panel-event-tag" style="display:none;" title="Random Event">--</span>
                 <button id="dnd-refresh-btn" class="dnd-header-btn" title="Refresh from chat">
                     <i class="fa-solid fa-rotate"></i>
+                </button>
+                <button id="dnd-open-attr-editor" class="dnd-header-btn" title="Attributes">
+                    <i class="fa-solid fa-sliders"></i>
+                </button>
+                <button id="dnd-open-settings" class="dnd-header-btn" title="Settings">
+                    <i class="fa-solid fa-gear"></i>
                 </button>
                 <button id="dnd-panel-power" class="dnd-panel-power-btn dnd-power-on" title="Toggle Extension">
                     <i class="fa-solid fa-power-off"></i>
@@ -176,16 +177,24 @@
                 <div class="dnd-omni-widgets" id="dnd-omni-widgets"></div>
             </div>
 
-            <!-- Dice roller (d20 sets: player + N allies + enemy for advantage/disadvantage) -->
+            <!-- Dice roller (d20 sets: player + N allies + N enemies for advantage/disadvantage) -->
             <div class="dnd-dice-section">
-                <button id="dnd-roll-btn" class="dnd-roll-btn" title="Roll d20 sets (Player + Allies + Enemy)">
-                    <i class="fa-solid fa-dice-d20"></i>
-                    <span>Roll</span>
-                </button>
-                <div class="dnd-ally-count-control" title="Number of ally d20 sets to roll">
-                    <button id="dnd-ally-minus" class="dnd-ally-count-btn">−</button>
-                    <span class="dnd-ally-count-label"><span id="dnd-ally-count-val">1</span> Ally</span>
-                    <button id="dnd-ally-plus" class="dnd-ally-count-btn">+</button>
+                <div class="dnd-dice-controls">
+                    <button id="dnd-roll-btn" class="dnd-roll-btn" title="Roll d20 sets (Player + Allies + Enemies)">
+                        <i class="fa-solid fa-dice-d20"></i>
+                    </button>
+                    <div class="dnd-count-stack">
+                        <div class="dnd-count-control dnd-count-control-ally" title="Number of ally d20 sets to roll">
+                            <button id="dnd-ally-minus" class="dnd-count-btn">−</button>
+                            <span class="dnd-count-label"><span id="dnd-ally-count-val">1</span> Ally</span>
+                            <button id="dnd-ally-plus" class="dnd-count-btn">+</button>
+                        </div>
+                        <div class="dnd-count-control dnd-count-control-enemy" title="Number of enemy d20 sets to roll">
+                            <button id="dnd-enemy-minus" class="dnd-count-btn">−</button>
+                            <span class="dnd-count-label"><span id="dnd-enemy-count-val">1</span> Foe</span>
+                            <button id="dnd-enemy-plus" class="dnd-count-btn">+</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="dnd-roll-result" id="dnd-roll-result" style="display:none;">
                     <div class="dnd-roll-groups">
@@ -200,18 +209,8 @@
                                 <span class="dnd-roll-value" id="dnd-roll-value-2"></span>
                             </div>
                         </div>
-                        <div id="dnd-roll-ally-groups"></div>
-                        <div class="dnd-roll-group dnd-roll-group-enemy">
-                            <span class="dnd-roll-group-label">Foe</span>
-                            <div class="dnd-roll-pair">
-                                <span class="dnd-roll-label">1</span>
-                                <span class="dnd-roll-value dnd-roll-npc" id="dnd-roll-npc-1"></span>
-                            </div>
-                            <div class="dnd-roll-pair">
-                                <span class="dnd-roll-label">2</span>
-                                <span class="dnd-roll-value dnd-roll-npc" id="dnd-roll-npc-2"></span>
-                            </div>
-                        </div>
+                        <div id="dnd-roll-ally-groups" class="dnd-roll-multi-groups"></div>
+                        <div id="dnd-roll-enemy-groups" class="dnd-roll-multi-groups"></div>
                     </div>
                     <button id="dnd-clear-roll" class="dnd-clear-roll-btn" title="Clear all rolls">
                         <i class="fa-solid fa-xmark"></i>
@@ -263,6 +262,9 @@
                     <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
                     <i class="fa-solid fa-id-card"></i>
                     <span id="dnd-v1-character-title">Character (V1)</span>
+                    <button id="dnd-v1-character-levelup" class="dnd-section-action-btn" title="Level up" style="display:none;">
+                        <i class="fa-solid fa-arrow-up"></i>
+                    </button>
                     <button id="dnd-v1-character-edit" class="dnd-section-action-btn" title="Edit character">
                         <i class="fa-solid fa-pen"></i>
                     </button>
@@ -286,9 +288,6 @@
                     <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
                     <i class="fa-solid fa-book-open"></i>
                     <span id="dnd-v1-spellbook-title">Spellbook</span>
-                    <button id="dnd-v1-spellbook-add" class="dnd-section-action-btn" title="Add spells">
-                        <i class="fa-solid fa-plus"></i>
-                    </button>
                 </div>
                 <div class="dnd-collapsible-body">
                     <div id="dnd-v1-spellbook-filter" class="dnd-v1-spellbook-filter" style="display:none;">
@@ -313,46 +312,32 @@
                 </div>
             </div>
 
-            <!-- V1 Add Spell Modal -->
-            <div id="dnd-v1-add-spell-modal" class="dnd-modal-overlay" style="display:none;">
-                <div class="dnd-modal dnd-modal-spellbook-import">
-                    <div class="dnd-modal-header">
-                        <span>Add Spells</span>
-                        <button class="dnd-modal-close" id="dnd-v1-add-spell-close"><i class="fa-solid fa-xmark"></i></button>
-                    </div>
-                    <div class="dnd-modal-body">
-                        <div class="dnd-setting-row">
-                            <label>Class:</label>
-                            <select id="dnd-v1-add-spell-class">
-                                <option value="">All Classes</option>
-                                <option value="bard">Bard</option>
-                                <option value="cleric">Cleric</option>
-                                <option value="druid">Druid</option>
-                                <option value="paladin">Paladin</option>
-                                <option value="ranger">Ranger</option>
-                                <option value="sorcerer">Sorcerer</option>
-                                <option value="warlock">Warlock</option>
-                                <option value="wizard">Wizard</option>
-                            </select>
+            <!-- V1 Companion (reactive, shown when character has Find Familiar / Beast Master / Pact of the Chain) -->
+            <div id="dnd-v1-companion-container" class="dnd-collapsible dnd-collapsed" style="display:none;">
+                <div class="dnd-collapsible-header" data-section="v1-companion" title="Click to toggle">
+                    <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
+                    <i class="fa-solid fa-paw"></i>
+                    <span id="dnd-v1-companion-title">Companion</span>
+                </div>
+                <div class="dnd-collapsible-body">
+                    <div id="dnd-v1-companion-content" class="dnd-v1-companion-content">
+                        <div class="dnd-v1-companion-controls">
+                            <div class="dnd-setting-row">
+                                <span>Name:</span>
+                                <input type="text" id="dnd-v1-companion-name" class="dnd-panel-input" placeholder="Companion name..." autocomplete="off" />
+                            </div>
+                            <div class="dnd-setting-row">
+                                <span>Form:</span>
+                                <select id="dnd-v1-companion-form" class="dnd-panel-select"></select>
+                            </div>
+                            <div class="dnd-setting-row" id="dnd-v1-companion-creature-type-row" style="display:none;">
+                                <span>Type:</span>
+                                <label class="dnd-v1-radio"><input type="radio" name="dnd-v1-companion-ctype" value="fey" checked /> Fey</label>
+                                <label class="dnd-v1-radio"><input type="radio" name="dnd-v1-companion-ctype" value="fiend" /> Fiend</label>
+                                <label class="dnd-v1-radio"><input type="radio" name="dnd-v1-companion-ctype" value="celestial" /> Celestial</label>
+                            </div>
                         </div>
-                        <div class="dnd-setting-row">
-                            <label>Level:</label>
-                            <select id="dnd-v1-add-spell-level">
-                                <option value="all">All Levels</option>
-                                <option value="0">Cantrips</option>
-                                <option value="1">1st Level</option>
-                                <option value="2">2nd Level</option>
-                                <option value="3">3rd Level</option>
-                                <option value="4">4th Level</option>
-                                <option value="5">5th Level</option>
-                                <option value="6">6th Level</option>
-                                <option value="7">7th Level</option>
-                                <option value="8">8th Level</option>
-                                <option value="9">9th Level</option>
-                            </select>
-                        </div>
-                        <input type="text" id="dnd-v1-add-spell-search" placeholder="Search spells by name..." autocomplete="off" />
-                        <div id="dnd-v1-add-spell-results" class="dnd-v1-add-spell-results"></div>
+                        <div id="dnd-v1-companion-stats" class="dnd-v1-companion-stats"></div>
                     </div>
                 </div>
             </div>
@@ -464,16 +449,6 @@
                         <div class="dnd-spell-log-empty">No spells tracked</div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Action buttons -->
-            <div class="dnd-settings-buttons-row">
-                <button id="dnd-open-attr-editor" class="dnd-btn dnd-btn-third">
-                    <i class="fa-solid fa-sliders"></i> Attributes
-                </button>
-                <button id="dnd-open-settings" class="dnd-btn dnd-btn-third">
-                    <i class="fa-solid fa-gear"></i> Settings
-                </button>
             </div>
         </div>
     </div>
@@ -1104,12 +1079,6 @@
                     </label>
                 </div>
                 <div id="dnd-v1-weapon-results" class="dnd-v1-dropdown"></div>
-                <div class="dnd-v1-sub-title">Inventory (non-combat items)</div>
-                <div id="dnd-v1-items-list" class="dnd-v1-equip-items"></div>
-                <div class="dnd-setting-row">
-                    <input type="text" id="dnd-v1-item-input" placeholder="Add item..." />
-                    <button id="dnd-v1-item-add" class="dnd-btn-sm">+</button>
-                </div>
             </div>
 
             <!-- Step: Spells -->

@@ -37,6 +37,10 @@ function migrateCharacterV1(char) {
     if (!char.enabledFeatures) char.enabledFeatures = {};
     if (char.enabled === undefined) char.enabled = true;
     if (!Array.isArray(char.extraSpells)) char.extraSpells = [];
+    if (char.extraSpells.length && typeof char.extraSpells[0] === 'string') {
+        char.extraSpells = char.extraSpells.map(name => ({ name, source: '', freeCast: '' }));
+    }
+    if (!Array.isArray(char.customSpells)) char.customSpells = [];
     if (!Array.isArray(char.items)) char.items = [];
     if (!Array.isArray(char.weapons)) char.weapons = [];
     if (!Array.isArray(char.knownCantrips)) char.knownCantrips = [];

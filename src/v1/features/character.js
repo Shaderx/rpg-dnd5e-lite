@@ -9,11 +9,11 @@ import {
     getProficiencyBonus, getModifier, getSpellSlots, CANTRIPS_KNOWN,
     SPELLS_KNOWN, PREPARED_CASTERS, getPreparedCount, SKILLS, SKILL_LABELS,
     HIT_DICE, SPELLCASTING_ABILITY, CASTER_TYPE, SPELLCASTING_SUBCLASSES,
-    MARTIAL_ARTS_DIE,
+    MARTIAL_ARTS_DIE, getClassResources,
 } from '../core/constants.js';
 import { collectFeatEffects, parseFeatAbilityBonus } from './featEffects.js';
 import { collectClassEffects } from './classEffects.js';
-import { collectLevelChoiceEffects, computeCompanionStats } from './levelFeatures.js';
+import { collectLevelChoiceEffects, computeCompanionStats, FAMILIAR_CREATURES, METAMAGIC_OPTIONS, ELDRITCH_INVOCATIONS, PACT_BOON_OPTIONS, BATTLE_MASTER_MANEUVERS, ARCANE_SHOT_OPTIONS, SUBCLASS_LEVEL_FEATURES } from './levelFeatures.js';
 import { getSubclassSpells } from './subclassSpells.js';
 import { computeAC, computeWeaponStats } from './equipment.js';
 import { getSpellDamageInfo, buildSpellAnnotation, getMaxSpellLevel, formatSlots } from './spells.js';
@@ -85,12 +85,15 @@ export function createCharacter(config) {
         equippedArmor: config.equippedArmor || null,
         hasShield: config.hasShield || false,
         weapons: config.weapons || [],
-        items: config.items || [],
 
         // Spells
         knownCantrips: config.knownCantrips || [],
         knownSpells: config.knownSpells || [],
         extraSpells: config.extraSpells || [],
+        customSpells: config.customSpells || [],
+
+        // Companion (familiar / primal)
+        companionData: config.companionData || { type: null, form: null, name: '', creatureType: null },
 
         // Display/injection controls
         enabledFeatures: config.enabledFeatures || {},
@@ -164,7 +167,7 @@ export function computeCharacterStats(char) {
         ? getSubclassSpells(classKey, char.subclassName, level)
         : { spells: [], isKnown: false, bonusCantrips: [] };
 
-    // Companion (Beast Master)
+    // Companion (Beast Master primal + Find Familiar + Pact of the Chain)
     let companion = null;
     if (levelChoiceEffects.companion && classKey === 'ranger') {
         companion = computeCompanionStats(
@@ -173,6 +176,30 @@ export function computeCharacterStats(char) {
             proficiency,
             mods.wis || 0
         );
+    }
+
+    const extraSpellNames = (char.extraSpells || []).map(e => typeof e === 'string' ? e : e.name);
+    const allSpellNames = [
+        ...(char.knownSpells || []),
+        ...extraSpellNames,
+        ...(featEffects.bonusSpells || []).map(s => s.name),
+        ...levelChoiceEffects.bonusSpells.map(s => s.name),
+    ];
+    const hasFindFamiliar = allSpellNames.some(s => s.toLowerCase() === 'find familiar');
+    const isPactChain = levelChoiceEffects.pactBoon === 'chain';
+    const isBeastMaster = char.subclassName && char.subclassName.includes('Beast Master');
+    const hasCompanionAccess = hasFindFamiliar || isPactChain || isBeastMaster;
+
+    let familiarStats = null;
+    const cd = char.companionData || {};
+    if (hasCompanionAccess && cd.form) {
+        if (cd.type === 'familiar' && FAMILIAR_CREATURES[cd.form]) {
+            familiarStats = { ...FAMILIAR_CREATURES[cd.form] };
+            if (cd.name) familiarStats.customName = cd.name;
+            if (cd.creatureType) familiarStats.creatureType = cd.creatureType;
+        } else if (cd.type === 'primal' && companion) {
+            if (cd.name) companion.customName = cd.name;
+        }
     }
 
     const classEffects = collectClassEffects(
@@ -191,6 +218,7 @@ export function computeCharacterStats(char) {
         hasArmor: !!char.equippedArmor,
         equippedWeaponCount: (char.weapons || []).length,
         draconicElement: effectiveDraconicElement,
+        levelChoiceEffects,
     };
 
     // --- HP ---
@@ -253,9 +281,10 @@ export function computeCharacterStats(char) {
 
     // --- Saves ---
     const saves = {};
-    const saveProficiencies = char.saveProficiencies || [];
+    const saveProficiencies = new Set(char.saveProficiencies || []);
+    for (const s of (featEffects.extraSaves || [])) saveProficiencies.add(s);
     for (const ab of ABILITY_KEYS) {
-        const isProficient = saveProficiencies.includes(ab);
+        const isProficient = saveProficiencies.has(ab);
         saves[ab] = {
             mod: mods[ab] + (isProficient ? proficiency : 0),
             proficient: isProficient,
@@ -378,10 +407,17 @@ export function computeCharacterStats(char) {
         return { name, annotation: buildSpellAnnotation(name, info), info };
     });
 
-    const annotatedSpells = [...(char.knownSpells || []), ...(char.extraSpells || [])].map(name => {
+    const annotatedSpells = (char.knownSpells || []).map(name => {
         const info = getSpellDamageInfo(name, level, spellBonuses);
         return { name, annotation: buildSpellAnnotation(name, info), info };
     });
+    for (const entry of (char.extraSpells || [])) {
+        const name = typeof entry === 'string' ? entry : entry.name;
+        const source = (typeof entry === 'object' && entry.source) || '';
+        const freeCast = (typeof entry === 'object' && entry.freeCast) || '';
+        const info = getSpellDamageInfo(name, level, spellBonuses);
+        annotatedSpells.push({ name, annotation: buildSpellAnnotation(name, info), info, extraSource: source, extraFreeCast: freeCast });
+    }
 
     // --- Combat Notes (class prompt notes) ---
     const combatNotes = [];
@@ -404,14 +440,31 @@ export function computeCharacterStats(char) {
     const senses = [];
     if (char.speciesDarkvision) senses.push(`Darkvision ${char.speciesDarkvision}ft`);
 
-    // --- Level Choice Details (for prompt output) ---
+    // --- Class Resources ---
+    const classResources = getClassResources(classKey, level, mods);
+
+    // --- Level Choice Details (for prompt output + character sheet) ---
+    const resolveOptions = (ids, options) =>
+        ids.map(id => options.find(o => o.id === id)).filter(Boolean);
+
+    const pactBoonObj = levelChoiceEffects.pactBoon
+        ? PACT_BOON_OPTIONS.find(o => o.id === levelChoiceEffects.pactBoon) || null
+        : null;
+
+    const kenseiDef = SUBCLASS_LEVEL_FEATURES['monk|Way of the Kensei']?.find(f => f.id === 'kensei-weapons');
+    const kenseiOpts = kenseiDef?.options || [];
+    const resolvedKensei = levelChoiceEffects.kenseiWeapons.map(id => {
+        const opt = kenseiOpts.find(o => o.id === id);
+        return opt?.label || id;
+    });
+
     const levelChoiceDetails = {
-        metamagic: levelChoiceEffects.metamagic,
-        invocations: levelChoiceEffects.invocations,
-        pactBoon: levelChoiceEffects.pactBoon,
-        maneuvers: levelChoiceEffects.maneuvers,
-        arcaneShots: levelChoiceEffects.arcaneShots,
-        kenseiWeapons: levelChoiceEffects.kenseiWeapons,
+        metamagic: resolveOptions(levelChoiceEffects.metamagic, METAMAGIC_OPTIONS),
+        invocations: resolveOptions(levelChoiceEffects.invocations, ELDRITCH_INVOCATIONS),
+        pactBoon: pactBoonObj,
+        maneuvers: resolveOptions(levelChoiceEffects.maneuvers, BATTLE_MASTER_MANEUVERS),
+        arcaneShots: resolveOptions(levelChoiceEffects.arcaneShots, ARCANE_SHOT_OPTIONS),
+        kenseiWeapons: resolvedKensei,
     };
 
     return {
@@ -459,7 +512,6 @@ export function computeCharacterStats(char) {
         // Equipment
         equippedArmor: char.equippedArmor,
         hasShield: char.hasShield,
-        items: char.items || [],
 
         // Feats
         chosenFeats: getChosenFeatNames(char),
@@ -478,8 +530,16 @@ export function computeCharacterStats(char) {
         subclassSpells: subclassSpellData.spells,
         subclassSpellsAreKnown: subclassSpellData.isKnown,
 
-        // Companion (Beast Master)
+        // Class resources (Ki, Sorcery Points, Rage, etc.)
+        classResources,
+
+        // Companion
         companion,
+        familiarStats,
+        hasCompanionAccess,
+        hasFindFamiliar,
+        companionData: cd,
+        isPactChain,
 
         // Level choice details (metamagic, invocations, maneuvers, etc.)
         levelChoiceDetails,

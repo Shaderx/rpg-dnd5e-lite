@@ -1,17 +1,14 @@
 /**
  * V1 Character System - Spellbook Panel
- * Interactive spell list with hover tooltips, click-to-copy, filter/search,
- * and an "Add Spell" modal for browsing CDN spell data by class.
+ * Interactive spell list with hover tooltips, click-to-copy, and filter/search.
  */
 
 import { characterV1 } from '../core/state.js';
-import { saveCharacterV1 } from '../core/persistence.js';
-import { preloadSpellData, getClassSpells, getClassCantrips, lookupSpellSync } from '../features/spells.js';
+import { lookupSpellSync } from '../features/spells.js';
 import { computeCharacterStats } from '../features/character.js';
 import { SPELL_SCHOOLS } from '../core/constants.js';
 
 let activeTooltip = null;
-let addSpellDebounce = null;
 
 const SCHOOL_NAMES = { ...SPELL_SCHOOLS };
 
@@ -145,24 +142,37 @@ function gatherCharacterSpells() {
     const spells = [];
     const char = characterV1;
 
-    for (const name of (char.selectedCantrips || [])) {
+    for (const name of (char.knownCantrips || [])) {
         spells.push({ name, level: 0, source: 'class' });
     }
-    for (const name of (char.selectedSpells || [])) {
+    for (const name of (char.knownSpells || [])) {
         const spell = lookupSpellSync(name);
         spells.push({ name, level: spell?.level ?? 1, source: 'class' });
     }
-    for (const name of (char.extraSpells || [])) {
+    for (const entry of (char.extraSpells || [])) {
+        const name = typeof entry === 'string' ? entry : entry.name;
         const spell = lookupSpellSync(name);
-        spells.push({ name, level: spell?.level ?? 1, source: 'extra' });
+        const src = (typeof entry === 'object' && entry.source) ? `extra:${entry.source}` : 'extra';
+        const freeCast = (typeof entry === 'object' && entry.freeCast) || '';
+        spells.push({ name, level: spell?.level ?? 1, source: src, freeCast });
     }
     for (const name of (char.customSpells || [])) {
         const spell = lookupSpellSync(name);
         spells.push({ name, level: spell?.level ?? 0, source: 'custom' });
     }
 
-    // Feat-granted spells
+    // Subclass spells (always prepared / bonus known)
     const stats = computeCharacterStats(char);
+    if (stats?.subclassSpells?.length) {
+        for (const name of stats.subclassSpells) {
+            if (!spells.some(s => s.name === name)) {
+                const spell = lookupSpellSync(name);
+                spells.push({ name, level: spell?.level ?? 1, source: 'subclass' });
+            }
+        }
+    }
+
+    // Feat-granted spells
     if (stats?.featBonusCantrips?.length) {
         for (const c of stats.featBonusCantrips) {
             if (!spells.some(s => s.name === c.name)) {
@@ -173,7 +183,14 @@ function gatherCharacterSpells() {
     if (stats?.featBonusSpells?.length) {
         for (const s of stats.featBonusSpells) {
             if (!spells.some(sp => sp.name === s.name)) {
-                spells.push({ name: s.name, level: s.level || 1, source: `feat:${s.source}` });
+                const freeCast = s.freeCast ? '1/LR' : '';
+                spells.push({
+                    name: s.name,
+                    level: s.level || 1,
+                    source: `feat:${s.source}`,
+                    freeCast,
+                    ritualOnly: s.ritualOnly || false,
+                });
             }
         }
     }
@@ -231,17 +248,17 @@ export function renderV1Spellbook() {
     for (const spell of filtered) {
         const lvlChar = shortLevel(spell.level);
         const badgeClass = levelBadgeClass(spell.level);
-        const spellData = lookupSpellSync(spell.name);
-        const school = spellData?.school ? schoolName(spellData.school) : '';
-        const sourceTag = spell.source.startsWith('feat:') ? `<span class="dnd-v1-spell-source-tag">${esc(spell.source.replace('feat:', ''))}</span>` : '';
-        const isCustom = spell.source === 'custom';
+        let sourceTag = '';
+        if (spell.source.startsWith('feat:')) sourceTag = `<span class="dnd-v1-spell-source-tag">${esc(spell.source.replace('feat:', ''))}</span>`;
+        else if (spell.source.startsWith('extra:')) sourceTag = `<span class="dnd-v1-spell-source-tag">${esc(spell.source.replace('extra:', ''))}</span>`;
+        else if (spell.source === 'subclass') sourceTag = '<span class="dnd-v1-spell-source-tag">Subclass</span>';
+        const freeCastTag = spell.freeCast ? `<span class="dnd-v1-spell-freecast-tag">${esc(spell.freeCast)}</span>` : '';
+        const ritualTag = spell.ritualOnly ? '<span class="dnd-v1-spell-freecast-tag">Ritual</span>' : '';
 
-        html += `<div class="dnd-spellbook-item${isCustom ? ' v1-custom-spell' : ''}" data-spell="${esc(spell.name)}" data-source="${esc(spell.source)}">` +
+        html += `<div class="dnd-spellbook-item" data-spell="${esc(spell.name)}" data-source="${esc(spell.source)}">` +
             `<span class="dnd-spellbook-lvl ${badgeClass}">${lvlChar}</span>` +
             `<span class="dnd-spellbook-name">${esc(spell.name)}</span>` +
-            (school ? `<span class="dnd-spellbook-school">${esc(school)}</span>` : '') +
-            sourceTag +
-            (isCustom ? `<button class="dnd-v1-spell-remove" data-spell="${esc(spell.name)}" title="Remove"><i class="fa-solid fa-xmark"></i></button>` : '') +
+            freeCastTag + ritualTag + sourceTag +
             `</div>`;
     }
 
@@ -258,8 +275,7 @@ function bindSpellbookEvents(container) {
 
         el.addEventListener('mouseleave', () => hideSpellTooltip());
 
-        el.addEventListener('click', (e) => {
-            if (e.target.closest('.dnd-v1-spell-remove')) return;
+        el.addEventListener('click', () => {
             const name = el.dataset.spell;
             const spellData = lookupSpellSync(name);
             const level = spellData?.level !== undefined ? formatLevel(spellData.level) : '?';
@@ -269,18 +285,6 @@ function bindSpellbookEvents(container) {
                     toastr.success(`Copied: ${text}`, '', { timeOut: 1500 });
                 }
             }).catch(() => {});
-        });
-    });
-
-    container.querySelectorAll('.dnd-v1-spell-remove').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const name = btn.dataset.spell;
-            if (characterV1?.customSpells) {
-                characterV1.customSpells = characterV1.customSpells.filter(s => s !== name);
-                saveCharacterV1(characterV1);
-                renderV1Spellbook();
-            }
         });
     });
 }
@@ -332,144 +336,4 @@ export function initV1Spellbook() {
 
     if (searchInput) searchInput.oninput = () => renderV1Spellbook();
     if (levelFilter) levelFilter.onchange = () => renderV1Spellbook();
-
-    const addBtn = document.getElementById('dnd-v1-spellbook-add');
-    if (addBtn) addBtn.onclick = () => openAddSpellModal();
-
-    const closeBtn = document.getElementById('dnd-v1-add-spell-close');
-    if (closeBtn) closeBtn.onclick = () => closeAddSpellModal();
-
-    const overlay = document.getElementById('dnd-v1-add-spell-modal');
-    if (overlay) overlay.onclick = (e) => { if (e.target === overlay) closeAddSpellModal(); };
-}
-
-function openAddSpellModal() {
-    const modal = document.getElementById('dnd-v1-add-spell-modal');
-    if (modal) modal.style.display = 'flex';
-
-    const classSelect = document.getElementById('dnd-v1-add-spell-class');
-    const levelSelect = document.getElementById('dnd-v1-add-spell-level');
-    const searchInput = document.getElementById('dnd-v1-add-spell-search');
-    const results = document.getElementById('dnd-v1-add-spell-results');
-
-    if (classSelect) {
-        if (characterV1?.className) {
-            classSelect.value = characterV1.className.toLowerCase();
-        }
-        classSelect.onchange = () => runAddSpellSearch();
-    }
-    if (levelSelect) levelSelect.onchange = () => runAddSpellSearch();
-    if (searchInput) {
-        searchInput.value = '';
-        searchInput.oninput = () => {
-            clearTimeout(addSpellDebounce);
-            addSpellDebounce = setTimeout(runAddSpellSearch, 200);
-        };
-    }
-    if (results) results.innerHTML = '<div class="dnd-empty-state">Select a class and search for spells</div>';
-}
-
-function closeAddSpellModal() {
-    const modal = document.getElementById('dnd-v1-add-spell-modal');
-    if (modal) modal.style.display = 'none';
-}
-
-async function runAddSpellSearch() {
-    const results = document.getElementById('dnd-v1-add-spell-results');
-    const classSelect = document.getElementById('dnd-v1-add-spell-class');
-    const levelSelect = document.getElementById('dnd-v1-add-spell-level');
-    const searchInput = document.getElementById('dnd-v1-add-spell-search');
-    if (!results) return;
-
-    const classKey = classSelect?.value || '';
-    const levelVal = levelSelect?.value || 'all';
-    const query = (searchInput?.value || '').toLowerCase().trim();
-
-    if (!classKey && !query) {
-        results.innerHTML = '<div class="dnd-empty-state">Select a class or type to search</div>';
-        return;
-    }
-
-    results.innerHTML = '<div class="dnd-empty-state">Loading...</div>';
-
-    let spells;
-    if (classKey) {
-        const maxLevel = levelVal === 'all' ? 9 : parseInt(levelVal);
-        spells = await getClassSpells(classKey, maxLevel);
-        if (levelVal !== 'all') {
-            spells = spells.filter(s => s.level === parseInt(levelVal));
-        }
-    } else {
-        const all = await preloadSpellData();
-        spells = (all || []).filter(s => {
-            if (levelVal !== 'all' && s.level !== parseInt(levelVal)) return false;
-            return true;
-        });
-    }
-
-    if (query) {
-        spells = spells.filter(s => s.name.toLowerCase().includes(query));
-    }
-
-    spells.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
-    const shown = spells.slice(0, 50);
-
-    if (!shown.length) {
-        results.innerHTML = '<div class="dnd-empty-state">No spells found</div>';
-        return;
-    }
-
-    const existing = new Set([
-        ...(characterV1?.selectedCantrips || []),
-        ...(characterV1?.selectedSpells || []),
-        ...(characterV1?.extraSpells || []),
-        ...(characterV1?.customSpells || []),
-    ].map(s => s.toLowerCase()));
-
-    let html = '';
-    for (const spell of shown) {
-        const isOwned = existing.has(spell.name.toLowerCase());
-        const lvlChar = shortLevel(spell.level);
-        const badgeClass = levelBadgeClass(spell.level);
-        const school = spell.school ? schoolName(spell.school) : '';
-
-        html += `<div class="dnd-v1-add-spell-item${isOwned ? ' v1-spell-owned' : ''}" data-spell="${esc(spell.name)}">` +
-            `<span class="dnd-spellbook-lvl ${badgeClass}">${lvlChar}</span>` +
-            `<span class="dnd-spellbook-name">${esc(spell.name)}</span>` +
-            (school ? `<span class="dnd-spellbook-school">${esc(school)}</span>` : '') +
-            (isOwned ? '<span class="v1-spell-owned-tag">Known</span>' : `<button class="dnd-v1-add-spell-btn" data-spell="${esc(spell.name)}"><i class="fa-solid fa-plus"></i></button>`) +
-            `</div>`;
-    }
-    if (spells.length > 50) {
-        html += `<div class="dnd-empty-state">${spells.length - 50} more spells — refine your search</div>`;
-    }
-
-    results.innerHTML = html;
-
-    results.querySelectorAll('.dnd-v1-add-spell-item').forEach(el => {
-        el.addEventListener('mouseenter', () => {
-            const spellData = lookupSpellSync(el.dataset.spell);
-            if (spellData) showSpellTooltip(el, spellData);
-        });
-        el.addEventListener('mouseleave', () => hideSpellTooltip());
-    });
-
-    results.querySelectorAll('.dnd-v1-add-spell-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            e.stopPropagation();
-            const name = btn.dataset.spell;
-            addCustomSpell(name);
-            btn.closest('.dnd-v1-add-spell-item')?.classList.add('v1-spell-owned');
-            btn.replaceWith(Object.assign(document.createElement('span'), { className: 'v1-spell-owned-tag', textContent: 'Added' }));
-        };
-    });
-}
-
-function addCustomSpell(name) {
-    if (!characterV1) return;
-    if (!characterV1.customSpells) characterV1.customSpells = [];
-    if (characterV1.customSpells.includes(name)) return;
-    characterV1.customSpells.push(name);
-    saveCharacterV1(characterV1);
-    renderV1Spellbook();
 }

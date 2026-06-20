@@ -442,3 +442,89 @@ export const COMMON_LANGUAGES = [
     'Draconic', 'Deep Speech', 'Infernal', 'Primordial',
     'Sylvan', 'Undercommon',
 ];
+
+// ============================================================
+// CLASS RESOURCE SCALING (PHB'24)
+// ============================================================
+
+// Barbarian rage uses per long rest (unlimited at L17+ in PHB'24)
+export const RAGE_USES = [
+    2,2,3,3,3,3,4,4,4,4,4,5,5,5,5,6,6,-1,-1,-1
+]; // -1 = unlimited
+
+// Channel Divinity uses per short rest (Cleric PHB'24)
+export const CHANNEL_DIVINITY_USES_CLERIC = [
+    0,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,3,3,3
+];
+
+// Channel Divinity uses per long rest (Paladin PHB'24)
+export const CHANNEL_DIVINITY_USES_PALADIN = [
+    0,0,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2
+];
+
+// Action Surge uses per short rest (Fighter)
+export const ACTION_SURGE_USES = [
+    0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2
+];
+
+// Indomitable uses per long rest (Fighter)
+export const INDOMITABLE_USES = [
+    0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3
+];
+
+/**
+ * Compute class resources for a given class/level/ability mods.
+ * @returns {{ label: string, value: string|number, recharge: string }[]}
+ */
+export function getClassResources(classKey, level, mods) {
+    const res = [];
+
+    switch (classKey) {
+        case 'barbarian': {
+            const uses = RAGE_USES[level - 1];
+            res.push({ label: 'Rage', value: uses === -1 ? 'Unlimited' : uses, recharge: 'LR' });
+            break;
+        }
+        case 'bard': {
+            const uses = Math.max(1, mods.cha || 0);
+            const recharge = level >= 5 ? 'SR' : 'LR';
+            res.push({ label: 'Bardic Inspiration', value: uses, recharge });
+            break;
+        }
+        case 'cleric': {
+            const uses = CHANNEL_DIVINITY_USES_CLERIC[level - 1];
+            if (uses > 0) res.push({ label: 'Channel Divinity', value: uses, recharge: 'SR' });
+            break;
+        }
+        case 'druid': {
+            if (level >= 2) res.push({ label: 'Wild Shape', value: level >= 20 ? 'Unlimited' : 2, recharge: 'SR' });
+            break;
+        }
+        case 'fighter': {
+            if (level >= 2) res.push({ label: 'Second Wind', value: 1, recharge: 'SR' });
+            const surge = ACTION_SURGE_USES[level - 1];
+            if (surge > 0) res.push({ label: 'Action Surge', value: surge, recharge: 'SR' });
+            const indom = INDOMITABLE_USES[level - 1];
+            if (indom > 0) res.push({ label: 'Indomitable', value: indom, recharge: 'LR' });
+            break;
+        }
+        case 'monk': {
+            if (level >= 2) res.push({ label: 'Focus Points', value: level, recharge: 'SR' });
+            break;
+        }
+        case 'paladin': {
+            res.push({ label: 'Lay on Hands', value: `${level * 5} HP`, recharge: 'LR' });
+            const cdUses = CHANNEL_DIVINITY_USES_PALADIN[level - 1];
+            if (cdUses > 0) res.push({ label: 'Channel Divinity', value: cdUses, recharge: 'LR' });
+            break;
+        }
+        case 'sorcerer': {
+            if (level >= 2) res.push({ label: 'Sorcery Points', value: level, recharge: 'LR' });
+            break;
+        }
+        default:
+            break;
+    }
+
+    return res;
+}

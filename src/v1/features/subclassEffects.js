@@ -258,11 +258,11 @@ register('bard', 'Shadow Lore', 14, {
 function registerCleric() {
 
 // --- Trickery Domain (XPHB) ---
-register('cleric', 'Blessing of the Trickster', 1, {
+register('cleric', 'Blessing of the Trickster', 3, {
     promptNote: () => 'Blessing of the Trickster: Grant touched creature advantage on Stealth checks (until next use)',
 }, { subclass: 'Trickery' });
 
-register('cleric', 'Invoke Duplicity', 2, {
+register('cleric', 'Invoke Duplicity', 3, {
     promptNote: () => 'Invoke Duplicity: Channel Divinity to create illusory duplicate within 30ft; cast spells from its space; advantage on attacks when both within 5ft of target',
 }, { subclass: 'Trickery' });
 
@@ -275,11 +275,11 @@ register('cleric', 'Improved Duplicity', 17, {
 }, { subclass: 'Trickery' });
 
 // --- War Domain (XPHB) ---
-register('cleric', 'War Priest', 1, {
+register('cleric', 'War Priest', 3, {
     promptNote: (stats) => `War Priest: Make one weapon attack as bonus action (${Math.max(1, stats.mods.wis || 0)} uses/LR)`,
 }, { subclass: 'War' });
 
-register('cleric', 'Guided Strike', 2, {
+register('cleric', 'Guided Strike', 3, {
     promptNote: () => 'Guided Strike: Channel Divinity to add +10 to an attack roll',
 }, { subclass: 'War' });
 
@@ -292,11 +292,11 @@ register('cleric', 'Avatar of Battle', 17, {
 }, { subclass: 'War' });
 
 // --- Forge Domain (XGE) ---
-register('cleric', 'Blessing of the Forge', 1, {
+register('cleric', 'Blessing of the Forge', 3, {
     promptNote: () => 'Blessing of the Forge: At end of LR, enchant one weapon or armor with +1 bonus (until next LR)',
 }, { subclass: 'Forge' });
 
-register('cleric', 'Artisan\'s Blessing', 2, {
+register('cleric', 'Artisan\'s Blessing', 3, {
     promptNote: () => 'Artisan\'s Blessing: Channel Divinity to create simple metal item (ritual, 1hr)',
 }, { subclass: 'Forge' });
 
@@ -314,15 +314,15 @@ register('cleric', 'Saint of Forge and Fire', 17, {
 }, { subclass: 'Forge' });
 
 // --- Grave Domain (XGE) ---
-register('cleric', 'Circle of Mortality', 1, {
+register('cleric', 'Circle of Mortality', 3, {
     promptNote: () => 'Circle of Mortality: Max healing on spells for creatures at 0 HP; Spare the Dying as bonus action at 30ft range',
 }, { subclass: 'Grave' });
 
-register('cleric', 'Eyes of the Grave', 1, {
+register('cleric', 'Eyes of the Grave', 3, {
     promptNote: (stats) => `Eyes of the Grave: Detect undead within 60ft not behind total cover (${Math.max(1, stats.mods.wis || 0)} uses/LR)`,
 }, { subclass: 'Grave' });
 
-register('cleric', 'Path to the Grave', 2, {
+register('cleric', 'Path to the Grave', 3, {
     promptNote: () => 'Path to the Grave: Channel Divinity — curse creature within 30ft; next attack deals double damage (vulnerability)',
 }, { subclass: 'Grave' });
 
@@ -364,11 +364,11 @@ register('druid', 'Nature\'s Sanctuary', 14, {
 }, { subclass: 'Land' });
 
 // --- Circle of the Moon (XPHB) ---
-register('druid', 'Combat Wild Shape', 2, {
+register('druid', 'Combat Wild Shape', 3, {
     promptNote: () => 'Combat Wild Shape: Wild Shape as bonus action; can spend spell slots for 1d8/slot healing while transformed',
 }, { subclass: 'Moon' });
 
-register('druid', 'Circle Forms', 2, {
+register('druid', 'Circle Forms', 3, {
     promptNote: (stats) => {
         const cr = stats.level >= 18 ? 6 : stats.level >= 15 ? 5 : stats.level >= 12 ? 4 : stats.level >= 9 ? 3 : stats.level >= 6 ? 2 : 1;
         return `Circle Forms: Wild Shape into beasts up to CR ${cr}`;
@@ -406,11 +406,11 @@ register('druid', 'Oceanic Gift', 14, {
 }, { subclass: 'Sea' });
 
 // --- Circle of the Stars (XPHB) ---
-register('druid', 'Star Map', 2, {
+register('druid', 'Star Map', 3, {
     promptNote: () => 'Star Map: Guidance cantrip + Guiding Bolt always prepared; cast Guiding Bolt free PB/LR',
 }, { subclass: 'Stars' });
 
-register('druid', 'Starry Form', 2, {
+register('druid', 'Starry Form', 3, {
     promptNote: () => 'Starry Form: Spend Wild Shape use as bonus action to assume starry form (Archer/Chalice/Dragon) for 10 min',
 }, { subclass: 'Stars' });
 
@@ -427,7 +427,7 @@ register('druid', 'Full of Stars', 14, {
 }, { subclass: 'Stars' });
 
 // --- Circle of Dreams (XGE) ---
-register('druid', 'Balm of the Summer Court', 2, {
+register('druid', 'Balm of the Summer Court', 3, {
     promptNote: (stats) => `Balm of the Summer Court: Pool of ${stats.level}d6 healing dice; bonus action heal ally within 120ft + temp HP`,
 }, { subclass: 'Dreams' });
 
@@ -444,7 +444,7 @@ register('druid', 'Walker in Dreams', 14, {
 }, { subclass: 'Dreams' });
 
 // --- Circle of the Shepherd (XGE) ---
-register('druid', 'Spirit Totem', 2, {
+register('druid', 'Spirit Totem', 3, {
     promptNote: () => 'Spirit Totem: Bonus action summon spirit (Bear: temp HP / Hawk: advantage on perception + advantage attacks vs enemies in aura / Unicorn: advantage heal in aura)',
 }, { subclass: 'Shepherd' });
 
@@ -1128,7 +1128,7 @@ register('rogue', 'Master Duelist', 17, {
 function registerSorcerer() {
 
 // --- Aberrant Sorcery (XPHB) ---
-register('sorcerer', 'Telepathic Speech', 1, {
+register('sorcerer', 'Telepathic Speech', 3, {
     promptNote: () => 'Telepathic Speech: Bonus action grant telepathy to creature within 30ft for sorcerer level minutes',
 }, { subclass: 'Aberrant' });
 
@@ -1149,7 +1149,7 @@ register('sorcerer', 'Warping Implosion', 18, {
 }, { subclass: 'Aberrant' });
 
 // --- Clockwork Soul (XPHB) ---
-register('sorcerer', 'Restore Balance', 1, {
+register('sorcerer', 'Restore Balance', 3, {
     promptNote: (stats) => `Restore Balance: Reaction cancel advantage/disadvantage on roll within 60ft (${stats.proficiency} uses/LR)`,
 }, { subclass: 'Clockwork' });
 
@@ -1166,11 +1166,11 @@ register('sorcerer', 'Clockwork Cavalcade', 18, {
 }, { subclass: 'Clockwork' });
 
 // --- Wild Magic (XPHB) ---
-register('sorcerer', 'Wild Magic Surge', 1, {
+register('sorcerer', 'Wild Magic Surge', 3, {
     promptNote: () => 'Wild Magic Surge: After casting sorcerer spell, DM may have you roll d20; on 1, roll on Wild Magic table',
 }, { subclass: 'Wild Magic' });
 
-register('sorcerer', 'Tides of Chaos', 1, {
+register('sorcerer', 'Tides of Chaos', 3, {
     promptNote: () => 'Tides of Chaos: Advantage on one attack/check/save (1/LR or recharge via Wild Magic Surge)',
 }, { subclass: 'Wild Magic' });
 
@@ -1187,11 +1187,11 @@ register('sorcerer', 'Spell Bombardment', 18, {
 }, { subclass: 'Wild Magic' });
 
 // --- Shadow Magic (XGE) ---
-register('sorcerer', 'Eyes of the Dark', 1, {
+register('sorcerer', 'Eyes of the Dark', 3, {
     promptNote: () => 'Eyes of the Dark: Darkvision 120ft; at L3 cast Darkness for 2 SP (can see through it)',
 }, { subclass: 'Shadow' });
 
-register('sorcerer', 'Strength of the Grave', 1, {
+register('sorcerer', 'Strength of the Grave', 3, {
     promptNote: (stats) => `Strength of the Grave: When reduced to 0 HP (not radiant/crit), CHA save DC 5+damage — success: drop to 1 HP (1/LR)`,
 }, { subclass: 'Shadow' });
 
@@ -1208,11 +1208,11 @@ register('sorcerer', 'Umbral Form', 18, {
 }, { subclass: 'Shadow' });
 
 // --- Storm Sorcery (XGE) ---
-register('sorcerer', 'Wind Speaker', 1, {
+register('sorcerer', 'Wind Speaker', 3, {
     promptNote: () => 'Wind Speaker: Speak, read, and write Primordial (and Aquan, Auran, Ignan, Terran)',
 }, { subclass: 'Storm' });
 
-register('sorcerer', 'Tempestuous Magic', 1, {
+register('sorcerer', 'Tempestuous Magic', 3, {
     promptNote: () => 'Tempestuous Magic: After casting 1st+ level spell, bonus action fly 10ft without OA',
 }, { subclass: 'Storm' });
 
@@ -1241,7 +1241,7 @@ register('sorcerer', 'Wind Soul', 18, {
 function registerWarlock() {
 
 // --- Archfey Patron (XPHB) ---
-register('warlock', 'Steps of the Fey', 1, {
+register('warlock', 'Steps of the Fey', 3, {
     promptNote: (stats) => `Steps of the Fey: Misty Step free ${stats.proficiency} uses/LR; on teleport choose Taunting (CHA save or attacks you) or Refreshing (gain PB temp HP)`,
 }, { subclass: 'Archfey' });
 
@@ -1258,7 +1258,7 @@ register('warlock', 'Bewitching Magic', 14, {
 }, { subclass: 'Archfey' });
 
 // --- Celestial Patron (XPHB) ---
-register('warlock', 'Healing Light', 1, {
+register('warlock', 'Healing Light', 3, {
     promptNote: (stats) => `Healing Light: Pool of ${1 + stats.level}d6; bonus action heal ally within 60ft (up to ${Math.max(1, stats.mods.cha || 0)} dice at once)`,
 }, { subclass: 'Celestial' });
 
@@ -1271,7 +1271,7 @@ register('warlock', 'Searing Vengeance', 14, {
 }, { subclass: 'Celestial' });
 
 // --- Fiend Patron (XPHB) ---
-register('warlock', 'Dark One\'s Blessing', 1, {
+register('warlock', 'Dark One\'s Blessing', 3, {
     promptNote: (stats) => `Dark One's Blessing: When you reduce hostile to 0 HP, gain ${stats.level + (stats.mods.cha || 0)} temp HP`,
 }, { subclass: 'Fiend' });
 
@@ -1288,7 +1288,7 @@ register('warlock', 'Hurl Through Hell', 14, {
 }, { subclass: 'Fiend' });
 
 // --- Great Old One Patron (XPHB) ---
-register('warlock', 'Awakened Mind', 1, {
+register('warlock', 'Awakened Mind', 3, {
     promptNote: () => 'Awakened Mind: Telepathy 120ft with any creature (can be one-way); speak to non-linguistic creatures',
 }, { subclass: 'Great Old One' });
 
@@ -1321,11 +1321,11 @@ register('warlock', 'Create Thrall', 14, {
 function registerWizard() {
 
 // --- School of Abjuration (XPHB) ---
-register('wizard', 'Abjuration Savant', 2, {
+register('wizard', 'Abjuration Savant', 3, {
     promptNote: () => 'Abjuration Savant: Copy abjuration spells in half time and cost',
 }, { subclass: 'Abjuration' });
 
-register('wizard', 'Arcane Ward', 2, {
+register('wizard', 'Arcane Ward', 3, {
     promptNote: (stats) => `Arcane Ward: Ward HP = ${stats.level * 2 + (stats.mods.int || 0)}; recharges when you cast abjuration spells`,
     hpBonus: () => 0,
     meta: { arcaneWard: true },
@@ -1344,11 +1344,11 @@ register('wizard', 'Spell Resistance', 14, {
 }, { subclass: 'Abjuration' });
 
 // --- School of Divination (XPHB) ---
-register('wizard', 'Divination Savant', 2, {
+register('wizard', 'Divination Savant', 3, {
     promptNote: () => 'Divination Savant: Copy divination spells in half time and cost',
 }, { subclass: 'Divination' });
 
-register('wizard', 'Portent', 2, {
+register('wizard', 'Portent', 3, {
     promptNote: (stats) => `Portent: Roll ${stats.level >= 14 ? 3 : 2}d20 after LR; replace any attack/save/check you can see with stored roll`,
 }, { subclass: 'Divination' });
 
@@ -1365,11 +1365,11 @@ register('wizard', 'Greater Portent', 14, {
 }, { subclass: 'Divination' });
 
 // --- School of Illusion (XPHB) ---
-register('wizard', 'Illusion Savant', 2, {
+register('wizard', 'Illusion Savant', 3, {
     promptNote: () => 'Illusion Savant: Copy illusion spells in half time and cost',
 }, { subclass: 'Illusion' });
 
-register('wizard', 'Improved Minor Illusion', 2, {
+register('wizard', 'Improved Minor Illusion', 3, {
     promptNote: () => 'Improved Minor Illusion: Minor Illusion creates both sound and image simultaneously',
 }, { subclass: 'Illusion' });
 
@@ -1386,11 +1386,11 @@ register('wizard', 'Illusory Reality', 14, {
 }, { subclass: 'Illusion' });
 
 // --- War Magic (XGE) ---
-register('wizard', 'Arcane Deflection', 2, {
+register('wizard', 'Arcane Deflection', 3, {
     promptNote: () => 'Arcane Deflection: Reaction when hit: +2 AC vs that attack; or +4 to failed save (then can only cast cantrips next turn)',
 }, { subclass: 'War Magic' });
 
-register('wizard', 'Tactical Wit', 2, {
+register('wizard', 'Tactical Wit', 3, {
     promptNote: (stats) => `Tactical Wit: +${stats.mods.int || 0} (INT) to initiative rolls`,
 }, { subclass: 'War Magic' });
 

@@ -10,9 +10,9 @@
 
 import { getContext } from '../../../../../extensions.js';
 import { setHeaderInfo } from '../core/state.js';
-import { parseCurrencySection } from './currencyParser.js';
+import { parseCurrencySection, extractCurrency, hasCurrencySignal, hasCurrency } from './currencyParser.js';
 
-const KNOWN_LEADERS = /^(?:🕰️|🗓️|📍|🪄|⚡|💰)/u;
+const KNOWN_LEADERS = /^(?:🕰️|🗓️|📍|🪄|⚡|💰|🪙)/u;
 
 /**
  * Extract the leading emoji from a string.
@@ -134,14 +134,14 @@ function parseKnownSection(section, result) {
         return true;
     }
 
-    // Currency: gp/sp/cp, emoji coins, platinum/electrum, bare amounts — see currencyParser.js
-    if (/^💰/.test(section)) {
+    // Currency: 💰 or 🪙 leader — see currencyParser.js
+    if (/^(?:💰|🪙)/u.test(section)) {
         const currency = parseCurrencySection(section);
         if (currency) {
             result.currency = currency;
             return true;
         }
-        return true; // 💰 section present but unparseable — still a known leader
+        return true;
     }
 
     return false;
@@ -151,6 +151,15 @@ const TEMP_PATTERN = /°[CF]\b/i;
 
 function parseUnknownSection(section, result) {
     if (KNOWN_LEADERS.test(section)) return;
+
+    // Signal-based currency detection — no emoji leader required
+    if (!result.currency && hasCurrencySignal(section)) {
+        const currency = extractCurrency(section);
+        if (hasCurrency(currency)) {
+            result.currency = currency;
+            return;
+        }
+    }
 
     const emoji = extractLeadingEmoji(section);
     const hasTemp = TEMP_PATTERN.test(section);

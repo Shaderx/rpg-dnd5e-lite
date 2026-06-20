@@ -19,12 +19,17 @@ import {
     PREPARED_CASTERS, getPreparedCount, SPELLCASTING_ABILITY, CASTER_TYPE,
     SPELLCASTING_SUBCLASSES, SUBCLASS_EXTRA_SPELL_LISTS,
 } from '../core/constants.js';
-import { getLevelFeatures, getMultiSelectCount, filterByPrereqs, computeCompanionStats } from '../features/levelFeatures.js';
+import { getLevelFeatures, getMultiSelectCount, filterByPrereqs, computeCompanionStats, collectLevelChoiceEffects } from '../features/levelFeatures.js';
+import { getSubclassSpells } from '../features/subclassSpells.js';
 import { renderV1CharacterPanel } from './character.js';
 import { renderV1Spellbook } from './spellbook.js';
+import { renderV1CompanionPanel } from './companion.js';
+import { bindTooltipEvents } from '../../rendering/tooltip.js';
 
 const STEPS = ['identity', 'species', 'background', 'class', 'abilities', 'asi', 'proficiencies', 'equipment', 'spells'];
+const LOCKED_STEPS_ON_EDIT = new Set(['identity', 'species', 'background', 'class', 'abilities']);
 let currentStep = 0;
+let isEditMode = false;
 
 // Wizard state (accumulated across steps before final save)
 let wizState = {};
@@ -37,17 +42,17 @@ let classList = [];
  * Open the character config modal for creating or editing.
  * @param {string|null} editId - If set, load existing character for editing
  */
-export async function openV1ConfigModal(editId) {
+export async function openV1ConfigModal(editId, levelUp = false) {
     const popup = document.getElementById('dnd-v1-config-popup');
     if (!popup) return;
 
     currentStep = 0;
     wizState = {};
     classDataCache = null;
+    isEditMode = !!(editId && characterV1 && characterV1.id === editId);
 
-    if (editId && characterV1 && characterV1.id === editId) {
+    if (isEditMode) {
         wizState = { ...characterV1 };
-        // Restore featData from asiChoices.featConfig for editing
         if (!wizState.featData) wizState.featData = {};
         for (const choice of Object.values(wizState.asiChoices || {})) {
             if (choice?.type === 'feat' && choice.feat && choice.featConfig) {
@@ -55,7 +60,13 @@ export async function openV1ConfigModal(editId) {
             }
         }
         document.getElementById('dnd-v1-config-id').value = editId;
-        document.getElementById('dnd-v1-config-title').textContent = 'Edit Character';
+
+        if (levelUp) {
+            wizState.level = Math.min((wizState.level || 1) + 1, 20);
+            document.getElementById('dnd-v1-config-title').textContent = `Level Up \u2014 Level ${wizState.level}`;
+        } else {
+            document.getElementById('dnd-v1-config-title').textContent = 'Edit Character';
+        }
     } else {
         document.getElementById('dnd-v1-config-id').value = '';
         document.getElementById('dnd-v1-config-title').textContent = 'Create Character';
@@ -63,7 +74,6 @@ export async function openV1ConfigModal(editId) {
 
     popup.style.display = 'flex';
 
-    // Preload data
     [speciesList, backgroundList, classList] = await Promise.all([
         getAvailableSpecies(),
         getAvailableBackgrounds(),
@@ -71,8 +81,12 @@ export async function openV1ConfigModal(editId) {
         preloadSpellData(),
     ]);
 
-    showStep(0);
+    const startStep = (levelUp && editId)
+        ? STEPS.indexOf('asi')
+        : (editId ? STEPS.indexOf('spells') : 0);
+    showStep(startStep);
     bindWizardEvents();
+    bindTooltipEvents(popup);
 }
 
 /**
@@ -94,9 +108,14 @@ function showStep(idx) {
     });
 
     // Update step buttons
+    const firstUnlocked = isEditMode ? STEPS.findIndex(s => !LOCKED_STEPS_ON_EDIT.has(s)) : 0;
     document.querySelectorAll('.dnd-v1-step-btn').forEach((btn, i) => {
+        const locked = isEditMode && LOCKED_STEPS_ON_EDIT.has(STEPS[i]);
         btn.classList.toggle('active', i === idx);
-        btn.classList.toggle('completed', i < idx);
+        btn.classList.toggle('completed', i < idx && !locked);
+        btn.classList.toggle('disabled', locked);
+        btn.style.opacity = locked ? '0.4' : '';
+        btn.style.pointerEvents = locked ? 'none' : '';
     });
 
     // Show/hide prev/next/save
@@ -104,7 +123,7 @@ function showStep(idx) {
     const nextBtn = document.getElementById('dnd-v1-config-next');
     const saveBtn = document.getElementById('dnd-v1-config-save');
 
-    if (prevBtn) prevBtn.style.display = idx > 0 ? '' : 'none';
+    if (prevBtn) prevBtn.style.display = idx > firstUnlocked ? '' : 'none';
     if (nextBtn) nextBtn.style.display = idx < STEPS.length - 1 ? '' : 'none';
     if (saveBtn) saveBtn.style.display = idx === STEPS.length - 1 ? '' : 'none';
 
@@ -528,7 +547,9 @@ async function buildMagicInitiateConfig(body, config) {
         cantripTags.innerHTML = '';
         for (const name of config.miCantrips) {
             const tag = document.createElement('span');
-            tag.className = 'v1-feat-tag';
+            tag.className = 'v1-feat-tag dnd-tt-hover';
+            tag.dataset.ttType = 'spell';
+            tag.dataset.ttName = name;
             tag.innerHTML = `${esc(name)} <button class="v1-feat-remove">&times;</button>`;
             tag.querySelector('.v1-feat-remove').onclick = () => {
                 config.miCantrips = config.miCantrips.filter(c => c !== name);
@@ -557,7 +578,7 @@ async function buildMagicInitiateConfig(body, config) {
         const q = cantripInput.value.toLowerCase().trim();
         if (!q) { cantripDD.classList.remove('open'); return; }
         const matches = cantrips.filter(s => s.name.toLowerCase().includes(q) && !config.miCantrips.includes(s.name)).slice(0, 10);
-        cantripDD.innerHTML = matches.map(s => `<div class="dropdown-item" data-name="${esc(s.name)}">${esc(s.name)}</div>`).join('') || '<div class="dropdown-empty">No cantrips found</div>';
+        cantripDD.innerHTML = matches.map(s => `<div class="dropdown-item dnd-tt-hover" data-name="${esc(s.name)}" data-tt-type="spell" data-tt-name="${esc(s.name)}">${esc(s.name)}</div>`).join('') || '<div class="dropdown-empty">No cantrips found</div>';
         cantripDD.classList.add('open');
         cantripDD.querySelectorAll('.dropdown-item').forEach(item => {
             item.onclick = () => {
@@ -580,7 +601,9 @@ async function buildMagicInitiateConfig(body, config) {
 
     if (config.miSpell) {
         const tag = document.createElement('span');
-        tag.className = 'v1-feat-tag';
+        tag.className = 'v1-feat-tag dnd-tt-hover';
+        tag.dataset.ttType = 'spell';
+        tag.dataset.ttName = config.miSpell;
         tag.innerHTML = `${esc(config.miSpell)} <button class="v1-feat-remove">&times;</button>`;
         tag.querySelector('.v1-feat-remove').onclick = () => {
             config.miSpell = '';
@@ -606,7 +629,7 @@ async function buildMagicInitiateConfig(body, config) {
             if (!q) { spellDD.classList.remove('open'); return; }
             const allSpells = await getClassSpells(config.miClass, 1);
             const matches = allSpells.filter(s => s.level === 1 && s.name.toLowerCase().includes(q)).slice(0, 10);
-            spellDD.innerHTML = matches.map(s => `<div class="dropdown-item" data-name="${esc(s.name)}">${esc(s.name)}</div>`).join('') || '<div class="dropdown-empty">No spells found</div>';
+            spellDD.innerHTML = matches.map(s => `<div class="dropdown-item dnd-tt-hover" data-name="${esc(s.name)}" data-tt-type="spell" data-tt-name="${esc(s.name)}">${esc(s.name)}</div>`).join('') || '<div class="dropdown-empty">No spells found</div>';
             spellDD.classList.add('open');
             spellDD.querySelectorAll('.dropdown-item').forEach(item => {
                 item.onclick = () => {
@@ -643,7 +666,7 @@ function buildShadowTouchedConfig(body, config) {
 function buildTouchedConfig(body, config, featLabel, fixedSpell, allowedSchools, configKey) {
     const fixedDiv = document.createElement('div');
     fixedDiv.className = 'v1-origin-feat-label';
-    fixedDiv.innerHTML = `<b>Granted:</b> ${esc(fixedSpell)} (free 1/LR)`;
+    fixedDiv.innerHTML = `<b>Granted:</b> <span class="dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(fixedSpell)}">${esc(fixedSpell)}</span> (free 1/LR)`;
     body.appendChild(fixedDiv);
 
     const chooseLabel = document.createElement('div');
@@ -653,7 +676,9 @@ function buildTouchedConfig(body, config, featLabel, fixedSpell, allowedSchools,
 
     if (config[configKey]) {
         const tag = document.createElement('span');
-        tag.className = 'v1-feat-tag';
+        tag.className = 'v1-feat-tag dnd-tt-hover';
+        tag.dataset.ttType = 'spell';
+        tag.dataset.ttName = config[configKey];
         tag.innerHTML = `${esc(config[configKey])} <button class="v1-feat-remove">&times;</button>`;
         tag.querySelector('.v1-feat-remove').onclick = () => {
             config[configKey] = '';
@@ -689,7 +714,7 @@ function buildTouchedConfig(body, config, featLabel, fixedSpell, allowedSchools,
             const allSpells = await preloadSpellData();
             const filtered = (allSpells || []).filter(s => s.level === 1 && schoolCodes.has(s.school));
             const matches = filtered.filter(s => s.name.toLowerCase().includes(q)).slice(0, 10);
-            dd.innerHTML = matches.map(s => `<div class="dropdown-item" data-name="${esc(s.name)}">${esc(s.name)} <span style="opacity:0.5">(${SCHOOL_MAP[s.school] || s.school})</span></div>`).join('') || '<div class="dropdown-empty">No spells found</div>';
+            dd.innerHTML = matches.map(s => `<div class="dropdown-item dnd-tt-hover" data-name="${esc(s.name)}" data-tt-type="spell" data-tt-name="${esc(s.name)}">${esc(s.name)} <span style="opacity:0.5">(${SCHOOL_MAP[s.school] || s.school})</span></div>`).join('') || '<div class="dropdown-empty">No spells found</div>';
             dd.classList.add('open');
             dd.querySelectorAll('.dropdown-item').forEach(item => {
                 item.onclick = () => {
@@ -815,7 +840,9 @@ function buildRitualCasterConfig(body, config) {
 
         for (let i = 0; i < config.rcSpells.length; i++) {
             const tag = document.createElement('span');
-            tag.className = 'v1-feat-tag';
+            tag.className = 'v1-feat-tag dnd-tt-hover';
+            tag.dataset.ttType = 'spell';
+            tag.dataset.ttName = config.rcSpells[i];
             tag.innerHTML = `${esc(config.rcSpells[i])} <button class="v1-feat-remove">&times;</button>`;
             tag.querySelector('.v1-feat-remove').onclick = () => {
                 config.rcSpells.splice(i, 1);
@@ -845,7 +872,7 @@ function buildRitualCasterConfig(body, config) {
                 const matches = rituals.filter(s => s.name.toLowerCase().includes(q))
                     .filter(s => !config.rcSpells.includes(s.name))
                     .slice(0, 10);
-                dd.innerHTML = matches.map(s => `<div class="dropdown-item" data-name="${esc(s.name)}">${esc(s.name)} (Lv${s.level})</div>`).join('') || '<div class="dropdown-empty">No ritual spells found</div>';
+                dd.innerHTML = matches.map(s => `<div class="dropdown-item dnd-tt-hover" data-name="${esc(s.name)}" data-tt-type="spell" data-tt-name="${esc(s.name)}">${esc(s.name)} (Lv${s.level})</div>`).join('') || '<div class="dropdown-empty">No ritual spells found</div>';
                 dd.classList.add('open');
                 dd.querySelectorAll('.dropdown-item').forEach(item => {
                     item.onclick = () => {
@@ -1292,6 +1319,14 @@ function populateASI() {
         container.appendChild(levelSection);
     }
 
+    // Restore saved feat selections (must happen after DOM insertion
+    // so document.querySelector can find the elements)
+    for (const [lv, choice] of Object.entries(wizState.asiChoices || {})) {
+        if (choice?.type === 'feat' && choice.feat) {
+            renderSelectedFeat(parseInt(lv), choice.feat, choice.featAbility);
+        }
+    }
+
     bindASIEvents(container);
 }
 
@@ -1333,10 +1368,6 @@ function renderASIFeature(parent, lv) {
         </div>
     `;
     parent.appendChild(row);
-
-    if (!isAsi && choice.feat) {
-        renderSelectedFeat(lv, choice.feat, choice.featAbility);
-    }
 }
 
 function renderSingleSelectFeature(parent, lv, featDef) {
@@ -1396,7 +1427,7 @@ function renderFeatureSubconfig(container, lv, featDef, selectedId) {
     if (opt.grantSpell) {
         const div = document.createElement('div');
         div.className = 'v1-level-feature-grant';
-        div.innerHTML = `<b>Granted spell:</b> ${esc(opt.grantSpell)} (always prepared)`;
+        div.innerHTML = `<b>Granted spell:</b> <span class="dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(opt.grantSpell)}">${esc(opt.grantSpell)}</span> (always prepared)`;
         container.appendChild(div);
     }
 
@@ -1418,7 +1449,9 @@ function renderFeatureSubconfig(container, lv, featDef, selectedId) {
             tagDiv.innerHTML = '';
             for (const name of data.cantrips) {
                 const tag = document.createElement('span');
-                tag.className = 'v1-feat-tag';
+                tag.className = 'v1-feat-tag dnd-tt-hover';
+                tag.dataset.ttType = 'spell';
+                tag.dataset.ttName = name;
                 tag.innerHTML = `${esc(name)} <button class="v1-feat-remove">&times;</button>`;
                 tag.querySelector('.v1-feat-remove').onclick = () => {
                     data.cantrips = data.cantrips.filter(c => c !== name);
@@ -1450,7 +1483,7 @@ function renderFeatureSubconfig(container, lv, featDef, selectedId) {
                 const { getClassCantrips } = await import('../features/spells.js');
                 const cantrips = await getClassCantrips(opt.cantripClass);
                 const matches = cantrips.filter(s => s.name.toLowerCase().includes(q) && !data.cantrips.includes(s.name)).slice(0, 10);
-                dd.innerHTML = matches.map(s => `<div class="dropdown-item" data-name="${esc(s.name)}">${esc(s.name)}</div>`).join('') || '<div class="dropdown-empty">No cantrips found</div>';
+                dd.innerHTML = matches.map(s => `<div class="dropdown-item dnd-tt-hover" data-name="${esc(s.name)}" data-tt-type="spell" data-tt-name="${esc(s.name)}">${esc(s.name)}</div>`).join('') || '<div class="dropdown-empty">No cantrips found</div>';
                 dd.classList.add('open');
                 dd.querySelectorAll('.dropdown-item').forEach(item => {
                     item.onclick = () => {
@@ -1704,7 +1737,9 @@ function renderSpellPickFeature(parent, lv, featDef) {
         tagDiv.innerHTML = '';
         for (const name of picks) {
             const tag = document.createElement('span');
-            tag.className = 'v1-feat-tag';
+            tag.className = 'v1-feat-tag dnd-tt-hover';
+            tag.dataset.ttType = 'spell';
+            tag.dataset.ttName = name;
             tag.innerHTML = `${esc(name)} <button class="v1-feat-remove">&times;</button>`;
             tag.querySelector('.v1-feat-remove').onclick = () => {
                 const idx = picks.indexOf(name);
@@ -1736,7 +1771,7 @@ function renderSpellPickFeature(parent, lv, featDef) {
             .slice(0, 12);
         const unique = [...new Map(matches.map(s => [s.name, s])).values()];
 
-        dd.innerHTML = unique.map(s => `<div class="dropdown-item" data-name="${esc(s.name)}">${esc(s.name)} (Lv${s.level || '?'})</div>`).join('') || '<div class="dropdown-empty">No spells found</div>';
+        dd.innerHTML = unique.map(s => `<div class="dropdown-item dnd-tt-hover" data-name="${esc(s.name)}" data-tt-type="spell" data-tt-name="${esc(s.name)}">${esc(s.name)} (Lv${s.level || '?'})</div>`).join('') || '<div class="dropdown-empty">No spells found</div>';
         dd.classList.add('open');
 
         dd.querySelectorAll('.dropdown-item').forEach(item => {
@@ -1900,7 +1935,9 @@ async function featSearchHandler(input) {
             const featName = item.dataset.featName;
             input.value = '';
             dropdown.classList.remove('open');
-            renderSelectedFeat(lv, featName, null);
+            const saved = wizState.asiChoices?.[lv];
+            const savedAb = (saved?.feat === featName) ? saved.featAbility : null;
+            renderSelectedFeat(lv, featName, savedAb);
         };
     });
 }
@@ -1926,7 +1963,7 @@ async function renderSelectedFeat(level, featName, savedAbility) {
 
     const feat = await findFeat(featName);
 
-    selectedEl.innerHTML = `<span class="v1-feat-tag">${esc(featName)} <button class="v1-feat-remove" data-level="${level}">&times;</button></span>`;
+    selectedEl.innerHTML = `<span class="v1-feat-tag dnd-tt-hover" data-tt-type="feat" data-tt-name="${esc(featName)}">${esc(featName)} <button class="v1-feat-remove" data-level="${level}">&times;</button></span>`;
     selectedEl.querySelector('.v1-feat-remove').onclick = () => {
         clearSelectedFeat(level);
     };
@@ -2097,25 +2134,19 @@ async function populateEquipment() {
     const weaponsList = document.getElementById('dnd-v1-weapons-list');
     if (weaponsList) {
         weaponsList.innerHTML = '';
-        for (const wpn of (wizState.weapons || [])) {
+        for (let i = 0; i < (wizState.weapons || []).length; i++) {
+            const wpn = wizState.weapons[i];
             const div = document.createElement('div');
             div.className = 'dnd-v1-equip-item';
             div.innerHTML = `<span>${esc(wpn.name)} (${wpn.damageDice} ${wpn.damageType || ''})</span>
-                <span class="item-remove" data-weapon="${esc(wpn.name)}">✕</span>`;
+                <span class="item-remove" data-weapon-idx="${i}">✕</span>`;
+            div.querySelector('.item-remove').onclick = (e) => {
+                e.stopPropagation();
+                const idx = parseInt(e.currentTarget.dataset.weaponIdx);
+                wizState.weapons.splice(idx, 1);
+                populateEquipment();
+            };
             weaponsList.appendChild(div);
-        }
-    }
-
-    // Items list
-    const itemsList = document.getElementById('dnd-v1-items-list');
-    if (itemsList) {
-        itemsList.innerHTML = '';
-        for (const item of (wizState.items || [])) {
-            const text = typeof item === 'string' ? item : item.text || '';
-            const div = document.createElement('div');
-            div.className = 'dnd-v1-equip-item';
-            div.innerHTML = `<span>${esc(text)}</span><span class="item-remove" data-item="${esc(text)}">✕</span>`;
-            itemsList.appendChild(div);
         }
     }
 
@@ -2145,9 +2176,19 @@ async function populateSpells() {
         isSpellcaster = validSubs.some(s => wizState.subclassName?.includes(s));
     }
 
-    // Check if feat grants spells (Magic Initiate etc)
-    const cfg = wizState.originFeatConfig || {};
-    const hasFeatSpells = (cfg.miCantrips?.length > 0) || !!cfg.miSpell;
+    // Collect ALL feat configs (origin feat + ASI feats)
+    const allFeatConfigs = [];
+    if (wizState.originFeatConfig) allFeatConfigs.push(wizState.originFeatConfig);
+    for (const choice of Object.values(wizState.asiChoices || {})) {
+        if (choice?.type === 'feat' && choice.feat) {
+            const fc = wizState.featData?.[choice.feat];
+            if (fc) allFeatConfigs.push(fc);
+        }
+    }
+
+    const hasFeatSpells = allFeatConfigs.some(c =>
+        c.miCantrips?.length > 0 || !!c.miSpell || !!c.ftSpell || !!c.stSpell || c.rcSpells?.length > 0
+    );
 
     if (!isSpellcaster && !hasFeatSpells) {
         if (noSpells) noSpells.style.display = '';
@@ -2202,34 +2243,52 @@ async function populateSpells() {
     renderSpellTags('dnd-v1-spell-tags', wizState.knownSpells || []);
     renderSpellTags('dnd-v1-extra-spell-tags', wizState.extraSpells || []);
 
-    // Show feat-granted and level-choice spells
+    // Show all bonus spells: feats, subclass, level choices
     const featSpellsSection = document.getElementById('dnd-v1-feat-spells-display');
     if (featSpellsSection) {
         const parts = [];
+        const seen = new Set();
+        const add = (text) => { if (!seen.has(text)) { seen.add(text); parts.push(text); } };
 
-        // Feat spells
-        if (hasFeatSpells) {
-            const listName = cfg.miClass || '';
-            for (const c of (cfg.miCantrips || [])) parts.push(`${c} (cantrip, ${listName})`);
-            if (cfg.miSpell) parts.push(`${cfg.miSpell} (1st, ${listName}, 1/LR free)`);
+        // All feat configs (origin + ASI feats)
+        for (const fc of allFeatConfigs) {
+            if (fc.miCantrips?.length) {
+                const list = fc.miClass || 'Magic Initiate';
+                for (const c of fc.miCantrips) add(`${c} (cantrip, ${list})`);
+            }
+            if (fc.miSpell) add(`${fc.miSpell} (1st, ${fc.miClass || 'MI'}, 1/LR free)`);
+            if (fc.ftSpell) {
+                add(`Misty Step (2nd, Fey Touched, 1/LR free)`);
+                add(`${fc.ftSpell} (1st, Fey Touched, 1/LR free)`);
+            }
+            if (fc.stSpell) {
+                add(`Invisibility (2nd, Shadow Touched, 1/LR free)`);
+                add(`${fc.stSpell} (1st, Shadow Touched, 1/LR free)`);
+            }
+            if (fc.rcSpells?.length) {
+                for (const s of fc.rcSpells) add(`${s} (ritual, Ritual Caster)`);
+            }
         }
 
-        // Fey/Shadow Touched spells
-        if (cfg.ftSpell) {
-            parts.push(`Misty Step (2nd, Fey Touched, 1/LR free)`);
-            parts.push(`${cfg.ftSpell} (1st, Fey Touched, 1/LR free)`);
-        }
-        if (cfg.stSpell) {
-            parts.push(`Invisibility (2nd, Shadow Touched, 1/LR free)`);
-            parts.push(`${cfg.stSpell} (1st, Shadow Touched, 1/LR free)`);
+        // Subclass granted spells
+        if (classKey && wizState.subclassName) {
+            const subSpells = getSubclassSpells(classKey, wizState.subclassName, level);
+            for (const c of (subSpells.bonusCantrips || [])) add(`${c} (cantrip, subclass)`);
+            for (const s of subSpells.spells) add(`${s} (subclass, always prepared)`);
         }
 
-        // Level choice spells (Divine Soul affinity, Druidic Warrior cantrips, etc.)
-        const levelChoices = wizState.levelChoices || {};
-        for (const [_lv, choices] of Object.entries(levelChoices)) {
+        // Level choice effects (Divine Soul affinity, fighting style cantrips, spell picks)
+        if (classKey) {
+            const fx = collectLevelChoiceEffects(wizState.levelChoices, classKey, wizState.subclassName, level);
+            for (const bc of fx.bonusCantrips) add(`${bc.name} (cantrip, ${bc.source})`);
+            for (const bs of fx.bonusSpells) add(`${bs.name} (${bs.source}${bs.alwaysPrepared ? ', always prepared' : ''})`);
+        }
+
+        // Spell picks from level features (Magical Discoveries etc.)
+        for (const [_lv, choices] of Object.entries(wizState.levelChoices || {})) {
             for (const [_fId, data] of Object.entries(choices || {})) {
-                if (data?.cantrips?.length) {
-                    for (const c of data.cantrips) parts.push(`${c} (cantrip, level feature)`);
+                if (data?.picks?.length && typeof data.picks[0] === 'string') {
+                    for (const s of data.picks) add(`${s} (level feature)`);
                 }
             }
         }
@@ -2248,28 +2307,64 @@ function renderSpellTags(containerId, spells) {
     if (!container) return;
     container.innerHTML = '';
 
-    // Map container IDs to wizState keys
     const keyMap = {
         'dnd-v1-cantrip-tags': 'knownCantrips',
         'dnd-v1-spell-tags': 'knownSpells',
         'dnd-v1-extra-spell-tags': 'extraSpells',
     };
     const stateKey = keyMap[containerId];
+    const isExtra = containerId === 'dnd-v1-extra-spell-tags';
 
-    for (const name of spells) {
-        const tag = document.createElement('span');
-        tag.className = 'dnd-v1-spell-tag';
-        tag.innerHTML = `${esc(name)} <span class="tag-remove" data-spell="${esc(name)}">\u2715</span>`;
+    for (let i = 0; i < spells.length; i++) {
+        const entry = spells[i];
 
-        tag.querySelector('.tag-remove').onclick = (e) => {
-            e.stopPropagation();
-            if (stateKey && wizState[stateKey]) {
-                wizState[stateKey] = wizState[stateKey].filter(s => s !== name);
-                populateSpells();
-            }
-        };
+        if (isExtra) {
+            const obj = typeof entry === 'string' ? { name: entry, source: '', freeCast: '' } : entry;
+            const row = document.createElement('div');
+            row.className = 'dnd-v1-extra-spell-row';
+            row.innerHTML =
+                `<span class="dnd-v1-extra-spell-name dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(obj.name)}">${esc(obj.name)}</span>` +
+                `<input type="text" class="dnd-v1-extra-spell-source" value="${esc(obj.source)}" placeholder="Source (e.g. Drow Racial, Staff of Fire...)" />` +
+                `<select class="dnd-v1-extra-spell-freecast">` +
+                    `<option value=""${!obj.freeCast ? ' selected' : ''}>No free cast</option>` +
+                    `<option value="1/LR"${obj.freeCast === '1/LR' ? ' selected' : ''}>1/LR</option>` +
+                    `<option value="1/SR"${obj.freeCast === '1/SR' ? ' selected' : ''}>1/SR</option>` +
+                    `<option value="at will"${obj.freeCast === 'at will' ? ' selected' : ''}>At will</option>` +
+                `</select>` +
+                `<span class="tag-remove" data-idx="${i}">\u2715</span>`;
 
-        container.appendChild(tag);
+            const idx = i;
+            row.querySelector('.dnd-v1-extra-spell-source').oninput = (e) => {
+                if (wizState.extraSpells?.[idx]) wizState.extraSpells[idx].source = e.target.value;
+            };
+            row.querySelector('.dnd-v1-extra-spell-freecast').onchange = (e) => {
+                if (wizState.extraSpells?.[idx]) wizState.extraSpells[idx].freeCast = e.target.value;
+            };
+            row.querySelector('.tag-remove').onclick = (e) => {
+                e.stopPropagation();
+                if (wizState.extraSpells) {
+                    wizState.extraSpells.splice(idx, 1);
+                    populateSpells();
+                }
+            };
+            container.appendChild(row);
+        } else {
+            const name = entry;
+            const tag = document.createElement('span');
+            tag.className = 'dnd-v1-spell-tag dnd-tt-hover';
+            tag.dataset.ttType = 'spell';
+            tag.dataset.ttName = name;
+            tag.innerHTML = `${esc(name)} <span class="tag-remove" data-spell="${esc(name)}">\u2715</span>`;
+
+            tag.querySelector('.tag-remove').onclick = (e) => {
+                e.stopPropagation();
+                if (stateKey && wizState[stateKey]) {
+                    wizState[stateKey] = wizState[stateKey].filter(s => s !== name);
+                    populateSpells();
+                }
+            };
+            container.appendChild(tag);
+        }
     }
 }
 
@@ -2458,6 +2553,7 @@ function saveFromWizard() {
     saveCharacterV1(char);
     renderV1CharacterPanel();
     renderV1Spellbook();
+    renderV1CompanionPanel();
     closeV1ConfigModal();
 }
 
@@ -2473,9 +2569,12 @@ function showError(msg) {
  * Bind event handlers for wizard navigation and step interactions.
  */
 function bindWizardEvents() {
+    const firstUnlocked = isEditMode ? STEPS.findIndex(s => !LOCKED_STEPS_ON_EDIT.has(s)) : 0;
+
     // Step navigation buttons
     document.querySelectorAll('.dnd-v1-step-btn').forEach((btn, i) => {
         btn.onclick = () => {
+            if (isEditMode && LOCKED_STEPS_ON_EDIT.has(STEPS[i])) return;
             collectFromStep(STEPS[currentStep]);
             showStep(i);
         };
@@ -2490,7 +2589,8 @@ function bindWizardEvents() {
     const prevBtn = document.getElementById('dnd-v1-config-prev');
     if (prevBtn) prevBtn.onclick = () => {
         collectFromStep(STEPS[currentStep]);
-        if (currentStep > 0) showStep(currentStep - 1);
+        const target = currentStep - 1;
+        if (target >= firstUnlocked) showStep(target);
     };
 
     const saveBtn = document.getElementById('dnd-v1-config-save');
@@ -2597,19 +2697,6 @@ function bindWizardEvents() {
         });
     };
 
-    // Item add
-    const itemAdd = document.getElementById('dnd-v1-item-add');
-    const itemInput = document.getElementById('dnd-v1-item-input');
-    if (itemAdd && itemInput) {
-        itemAdd.onclick = () => {
-            const text = itemInput.value.trim();
-            if (!text) return;
-            if (!wizState.items) wizState.items = [];
-            wizState.items.push(text);
-            itemInput.value = '';
-            populateEquipment();
-        };
-    }
 
     // Spell search bindings
     bindSpellSearch('dnd-v1-cantrip-search', 'dnd-v1-cantrip-dropdown', 'knownCantrips', true);
@@ -2657,10 +2744,11 @@ function bindSpellSearch(inputId, dropdownId, stateKey, cantripOnly, allSpells =
 
         const matches = spells.filter(s => s.name.toLowerCase().includes(query)).slice(0, 15);
         const existing = wizState[stateKey] || [];
+        const existingNames = existing.map(e => typeof e === 'string' ? e : e.name);
 
         dropdown.innerHTML = matches
-            .filter(s => !existing.includes(s.name))
-            .map(s => `<div class="dropdown-item" data-spell="${esc(s.name)}">
+            .filter(s => !existingNames.includes(s.name))
+            .map(s => `<div class="dropdown-item dnd-tt-hover" data-spell="${esc(s.name)}" data-tt-type="spell" data-tt-name="${esc(s.name)}">
                 ${esc(s.name)} <span class="item-level">Lv${s.level}</span>
             </div>`).join('');
         dropdown.classList.add('open');
@@ -2668,7 +2756,11 @@ function bindSpellSearch(inputId, dropdownId, stateKey, cantripOnly, allSpells =
         dropdown.querySelectorAll('.dropdown-item').forEach(item => {
             item.onclick = () => {
                 if (!wizState[stateKey]) wizState[stateKey] = [];
-                wizState[stateKey].push(item.dataset.spell);
+                if (stateKey === 'extraSpells') {
+                    wizState[stateKey].push({ name: item.dataset.spell, source: '', freeCast: '' });
+                } else {
+                    wizState[stateKey].push(item.dataset.spell);
+                }
                 dropdown.classList.remove('open');
                 input.value = '';
                 populateSpells();
