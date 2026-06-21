@@ -507,6 +507,28 @@
             </div>
 
             <div style="margin-top:0.8em; padding-top:0.8em; border-top:1px solid var(--dnd-border);">
+                <div style="font-size:0.85em;font-weight:600;margin-bottom:0.35em;">Omni widget widths</div>
+                <p style="font-size:0.72em;opacity:0.55;margin:0 0 0.5em;line-height:1.35;">
+                    Minimum character count for each column span in the secondary grid (1–4 cols).
+                </p>
+                <div class="dnd-setting-row">
+                    <span>2-wide at ≥</span>
+                    <input type="number" id="dnd-setting-omni-two-wide" min="1" max="999" style="width:4em;" />
+                    <span style="opacity:0.5;font-size:0.8em;">chars</span>
+                </div>
+                <div class="dnd-setting-row">
+                    <span>3-wide at ≥</span>
+                    <input type="number" id="dnd-setting-omni-three-wide" min="1" max="999" style="width:4em;" />
+                    <span style="opacity:0.5;font-size:0.8em;">chars</span>
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Full width at ≥</span>
+                    <input type="number" id="dnd-setting-omni-full-wide" min="0" max="999" style="width:4em;" />
+                    <span style="opacity:0.5;font-size:0.8em;">chars (0 = off)</span>
+                </div>
+            </div>
+
+            <div style="margin-top:0.8em; padding-top:0.8em; border-top:1px solid var(--dnd-border);">
                 <label class="dnd-toggle-label" style="margin-bottom:0.5em;">
                     <input type="checkbox" id="dnd-setting-weather-visuals" />
                     <i class="fa-solid fa-cloud-sun-rain"></i>

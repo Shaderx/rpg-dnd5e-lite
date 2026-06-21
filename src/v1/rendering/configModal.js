@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * V1 Character System - Config Modal (Multi-step Wizard)
  * Handles the character creation/edit wizard UI logic.
@@ -8,7 +9,7 @@ import { saveCharacterV1 } from '../core/persistence.js';
 import { createCharacter, computeCharacterStats } from '../features/character.js';
 import { getAvailableSpecies } from '../features/species.js';
 import { getAvailableBackgrounds } from '../features/background.js';
-import { listAvailableClasses, getClassData } from '../features/classData.js';
+import { listAvailableClasses, getClassData, getResolvedClassFeaturesSync } from '../features/classData.js';
 import { getClassSpells, getClassCantrips, preloadSpellData, lookupSpell } from '../features/spells.js';
 import { getAvailableArmor, getAvailableWeapons, computeAC, searchEquipment } from '../features/equipment.js';
 import { getFeatsForLevel, findFeat } from '../features/feats.js';
@@ -1277,57 +1278,89 @@ function populateASI() {
     const classKey = wizState.className?.toLowerCase() || '';
     const subclassName = wizState.subclassName || null;
 
-    const features = getLevelFeatures(classKey, subclassName, level);
+    const render = () => {
+        const features = getLevelFeatures(classKey, subclassName, level);
+        const cdnFeatures = getResolvedClassFeaturesSync(
+            wizState.classFile,
+            wizState.className,
+            wizState.classSource,
+            subclassName,
+            level,
+        );
 
-    if (features.length === 0) {
-        container.innerHTML = '<div class="dnd-v1-info-text">No level features at level ' + level + '</div>';
-        return;
-    }
+        if (features.length === 0 && cdnFeatures.length === 0) {
+            container.innerHTML = '<div class="dnd-v1-info-text">No level features at level ' + level + '</div>';
+            return;
+        }
 
-    if (!wizState.levelChoices) wizState.levelChoices = {};
+        if (!wizState.levelChoices) wizState.levelChoices = {};
 
-    container.innerHTML = '';
+        container.innerHTML = '';
 
-    // Group features by level
-    const byLevel = {};
-    for (const feat of features) {
-        if (!byLevel[feat.level]) byLevel[feat.level] = [];
-        byLevel[feat.level].push(feat);
-    }
+        const byLevel = {};
+        for (const feat of cdnFeatures) {
+            if (!byLevel[feat.level]) byLevel[feat.level] = { cdn: [], choices: [] };
+            byLevel[feat.level].cdn.push(feat);
+        }
+        for (const feat of features) {
+            if (!byLevel[feat.level]) byLevel[feat.level] = { cdn: [], choices: [] };
+            byLevel[feat.level].choices.push(feat);
+        }
 
-    for (const [lv, feats] of Object.entries(byLevel).sort((a, b) => a[0] - b[0])) {
-        const levelSection = document.createElement('div');
-        levelSection.className = 'dnd-v1-level-section';
-        levelSection.innerHTML = `<div class="v1-level-header">Level ${lv}</div>`;
+        for (const [lv, group] of Object.entries(byLevel).sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10))) {
+            const levelSection = document.createElement('div');
+            levelSection.className = 'dnd-v1-level-section';
+            levelSection.innerHTML = `<div class="v1-level-header">Level ${lv}</div>`;
 
-        for (const feat of feats) {
-            if (feat.type === 'asi') {
-                renderASIFeature(levelSection, parseInt(lv));
-            } else if (feat.type === 'single-select') {
-                renderSingleSelectFeature(levelSection, parseInt(lv), feat);
-            } else if (feat.type === 'multi-select') {
-                renderMultiSelectFeature(levelSection, parseInt(lv), feat);
-            } else if (feat.type === 'proficiency-pick') {
-                renderProficiencyPickFeature(levelSection, parseInt(lv), feat);
-            } else if (feat.type === 'spell-pick') {
-                renderSpellPickFeature(levelSection, parseInt(lv), feat);
-            } else if (feat.type === 'companion') {
-                renderCompanionFeature(levelSection, parseInt(lv), feat);
+            for (const feat of group.cdn) {
+                const row = document.createElement('div');
+                row.className = 'dnd-v1-level-feature-row dnd-v1-class-feature-info';
+                const tag = feat.featureSource === 'subclass' ? 'Subclass — ' : '';
+                row.innerHTML = `
+                    <div class="v1-level-feature-label">${esc(tag + feat.name)}</div>
+                    <div class="v1-level-feature-desc">${esc(feat.description || '')}</div>
+                `;
+                levelSection.appendChild(row);
+            }
+
+            for (const feat of group.choices) {
+                if (feat.type === 'asi') {
+                    renderASIFeature(levelSection, parseInt(lv));
+                } else if (feat.type === 'single-select') {
+                    renderSingleSelectFeature(levelSection, parseInt(lv), feat);
+                } else if (feat.type === 'multi-select') {
+                    renderMultiSelectFeature(levelSection, parseInt(lv), feat);
+                } else if (feat.type === 'proficiency-pick') {
+                    renderProficiencyPickFeature(levelSection, parseInt(lv), feat);
+                } else if (feat.type === 'spell-pick') {
+                    renderSpellPickFeature(levelSection, parseInt(lv), feat);
+                } else if (feat.type === 'companion') {
+                    renderCompanionFeature(levelSection, parseInt(lv), feat);
+                }
+            }
+
+            container.appendChild(levelSection);
+        }
+
+        for (const [lv, choice] of Object.entries(wizState.asiChoices || {})) {
+            if (choice?.type === 'feat' && choice.feat) {
+                renderSelectedFeat(parseInt(lv), choice.feat, choice.featAbility);
             }
         }
 
-        container.appendChild(levelSection);
+        bindASIEvents(container);
+    };
+
+    if (wizState.classFile && wizState.className && !classDataCache) {
+        container.innerHTML = '<div class="dnd-v1-info-text">Loading class features...</div>';
+        getClassData(wizState.classFile, wizState.className, wizState.classSource).then(data => {
+            classDataCache = data;
+            render();
+        });
+        return;
     }
 
-    // Restore saved feat selections (must happen after DOM insertion
-    // so document.querySelector can find the elements)
-    for (const [lv, choice] of Object.entries(wizState.asiChoices || {})) {
-        if (choice?.type === 'feat' && choice.feat) {
-            renderSelectedFeat(parseInt(lv), choice.feat, choice.featAbility);
-        }
-    }
-
-    bindASIEvents(container);
+    render();
 }
 
 function renderASIFeature(parent, lv) {
@@ -2539,6 +2572,17 @@ function updateStatsPreview() {
 function saveFromWizard() {
     // Collect from current step
     collectFromStep(STEPS[currentStep]);
+
+    // Ensure ASI feat configs are synced from featData into asiChoices
+    // (covers cases where the user saved from a different step without revisiting ASI)
+    if (wizState.asiChoices && wizState.featData) {
+        for (const [lv, choice] of Object.entries(wizState.asiChoices)) {
+            if (choice?.type === 'feat' && choice.feat && !choice.featConfig) {
+                const fc = wizState.featData[choice.feat];
+                if (fc) wizState.asiChoices[lv] = { ...choice, featConfig: fc };
+            }
+        }
+    }
 
     if (!wizState.className) {
         showError('Please select a class');

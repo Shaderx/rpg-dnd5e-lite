@@ -198,10 +198,10 @@ function trimToTwoLongRests(entries) {
 function entryKey(entry) {
     if (entry.type === 'cast') {
         const action = entry.action || 'cast';
-        return `${action}|${entry.spell}|${entry.details || ''}|${entry.time || ''}|${entry.date || ''}|${entry.msgIndex ?? ''}`;
+        return `${action}|${entry.spell}|${entry.details || ''}|${entry.msgIndex ?? ''}`;
     }
     if (entry.type === 'short-rest' && entry.msgIndex != null) {
-        return `short-rest|${entry.date || ''}|${entry.msgIndex}`;
+        return `short-rest|${entry.msgIndex}`;
     }
     return `${entry.type}|${entry.date || ''}`;
 }
@@ -290,11 +290,26 @@ function scanChatForSpells({ skipLastAssistant = false } = {}) {
             continue;
         }
 
+        // Use time/date from the next assistant reply (the LLM response to this
+        // user message) since that reflects when the action actually takes place.
+        // Falls back to previous assistant time if no reply exists yet.
+        let useTime = lastTime;
+        let useDate = lastDate;
+        for (let j = i + 1; j < chat.length; j++) {
+            if (skipLastAssistant && j === lastAssistantIdx) continue;
+            const nextMsg = chat[j];
+            if (nextMsg.is_system || nextMsg.is_user) continue;
+            const nextHeader = parseHeader(nextMsg.mes);
+            if (nextHeader?.time) useTime = nextHeader.time;
+            if (nextHeader?.date) useDate = nextHeader.date;
+            break;
+        }
+
         if (SHORT_REST_REGEX.test(msg.mes)) {
             parsed.push({
                 type: 'short-rest',
-                time: lastTime,
-                date: lastDate,
+                time: useTime,
+                date: useDate,
                 text: `${userName} has short rested here for 1 hour.`,
                 msgIndex: i,
             });
@@ -307,8 +322,8 @@ function scanChatForSpells({ skipLastAssistant = false } = {}) {
                 spell,
                 action,
                 details: details || '',
-                time: lastTime,
-                date: lastDate,
+                time: useTime,
+                date: useDate,
                 msgIndex: i,
             });
         }

@@ -1,9 +1,11 @@
 /**
  * D&D 5e Lite - Header Parser
  * Parses the status header from LLM messages:
- * [ 🕰️ Time HH:MM AM/PM | 🗓️ Date | 📍 Location | [WeatherEmoji] Weather | 🪄 Spell Slot (X/X) | ⚡ Sorcery Points (X/X) | 💰 150 gp / 12🟡45⚪30🟤 / etc. ]
+ * [ 🕰️ Time HH:MM AM/PM | 🗓️ Date | 📍 Location | [WeatherEmoji] Weather | 🪄 1️⃣4/4 2️⃣3/3 | ⚡ 12/12 | 🔥 2/2 | 💰 150 gp / etc. ]
  * [ Additional tracker lines parsed as omni/extras ]
  *
+ * Spell slots (🪄), sorcery points (⚡), and secondary class resources (🔥 — Innate Sorcery, Rage, etc.)
+ * are parsed independently from the full header text, so section order does not matter.
  * Weather emoji is detected dynamically. Sections after known leaders become omni extras.
  * Additional [...] blocks following the main header are also captured as extras.
  */
@@ -12,7 +14,62 @@ import { getContext } from '../../../../../extensions.js';
 import { setHeaderInfo } from '../core/state.js';
 import { parseCurrencySection, extractCurrency, hasCurrencySignal, hasCurrency } from './currencyParser.js';
 
-const KNOWN_LEADERS = /^(?:🕰️|🗓️|📍|🪄|⚡|💰|🪙)/u;
+const KNOWN_LEADERS = /^(?:🕰️|🗓️|📍|🪄|⚡|🔥|💰|🪙)/u;
+
+/**
+ * Scan arbitrary text for per-level spell slot tokens (location-independent).
+ * @param {string|null|undefined} text
+ * @returns {Array<{ level: number, current: number, max: number }>|null}
+ */
+export function parseSpellSlotsFromText(text) {
+    if (!text) return null;
+
+    const slots = [];
+    const levelRe = /([1-9])\uFE0F?\u20E3\s*(\d+)\/(\d+)/g;
+    let lm;
+    while ((lm = levelRe.exec(text)) !== null) {
+        slots.push({
+            level: parseInt(lm[1], 10),
+            current: parseInt(lm[2], 10),
+            max: parseInt(lm[3], 10),
+        });
+    }
+    if (slots.length > 0) {
+        slots.sort((a, b) => a.level - b.level);
+        return slots;
+    }
+
+    const oldMatch = text.match(/Spell\s*Slots?\s*\((\d+)\/(\d+)\)/i);
+    if (oldMatch) {
+        return [{ level: 0, current: parseInt(oldMatch[1], 10), max: parseInt(oldMatch[2], 10) }];
+    }
+
+    return null;
+}
+
+/**
+ * Scan arbitrary text for sorcery points ⚡ X/X (location-independent).
+ * @param {string|null|undefined} text
+ * @returns {{ current: number, max: number }|null}
+ */
+export function parseSorceryPointsFromText(text) {
+    if (!text) return null;
+    const m = text.match(/⚡\s*(\d+)\s*\/\s*(\d+)/);
+    if (!m) return null;
+    return { current: parseInt(m[1], 10), max: parseInt(m[2], 10) };
+}
+
+/**
+ * Scan arbitrary text for secondary class resources 🔥 X/X (Innate Sorcery, Rage, etc.).
+ * @param {string|null|undefined} text
+ * @returns {{ current: number, max: number }|null}
+ */
+export function parseSecondaryResourceFromText(text) {
+    if (!text) return null;
+    const m = text.match(/🔥\s*(\d+)\s*\/\s*(\d+)/);
+    if (!m) return null;
+    return { current: parseInt(m[1], 10), max: parseInt(m[2], 10) };
+}
 
 /**
  * Extract the leading emoji from a string.
@@ -20,6 +77,40 @@ const KNOWN_LEADERS = /^(?:🕰️|🗓️|📍|🪄|⚡|💰|🪙)/u;
 function extractLeadingEmoji(str) {
     const m = str.match(/^(\p{Emoji_Presentation}(?:\uFE0F?\u200D\p{Emoji_Presentation})*\uFE0F?|\p{Extended_Pictographic}\uFE0F?)/u);
     return m ? m[0] : null;
+}
+
+/**
+ * Collect all scannable header text (main block + trailing tracker blocks).
+ */
+function collectScannableHeaderText(text, headerMatch) {
+    const parts = [];
+    const raw = headerMatch[0].replace(/^\[\s*/, '').replace(/\s*\]$/, '');
+    parts.push(raw);
+
+    const afterIdx = headerMatch.index + headerMatch[0].length;
+    const rest = text.substring(afterIdx, afterIdx + 500);
+    const addRegex = /\[\s*([^\]]+)\]/g;
+    let addMatch;
+    while ((addMatch = addRegex.exec(rest)) !== null) {
+        const content = addMatch[1].trim();
+        if (/^🕰️/.test(content)) break;
+        parts.push(content);
+    }
+
+    return parts.join(' | ');
+}
+
+function headerHasTrackableData(parsed) {
+    return !!(
+        parsed.time ||
+        parsed.date ||
+        parsed.location ||
+        parsed.weather ||
+        parsed.spellSlots ||
+        parsed.sorceryPoints ||
+        parsed.secondaryResource ||
+        parsed.currency
+    );
 }
 
 /**
@@ -39,11 +130,12 @@ export function parseHeader(text) {
         weatherEmoji: null,
         spellSlots: null,
         sorceryPoints: null,
+        secondaryResource: null,
         currency: null,
-        extras: []
+        extras: [],
     };
 
-    // Parse main header sections
+    // Parse main header sections (time, date, location, weather, currency leaders)
     const header = headerMatch[0];
     const raw = header.replace(/^\[\s*/, '').replace(/\s*\]$/, '');
     const sections = raw.split('|').map(s => s.trim());
@@ -52,6 +144,12 @@ export function parseHeader(text) {
         if (parseKnownSection(section, result)) continue;
         parseUnknownSection(section, result);
     }
+
+    // Location-independent resource parsing across the full header + trailing blocks
+    const scanText = collectScannableHeaderText(text, headerMatch);
+    result.spellSlots = parseSpellSlotsFromText(scanText);
+    result.sorceryPoints = parseSorceryPointsFromText(scanText);
+    result.secondaryResource = parseSecondaryResourceFromText(scanText);
 
     // Look for additional [...] blocks immediately after the main header
     const afterIdx = headerMatch.index + headerMatch[0].length;
@@ -98,41 +196,10 @@ function parseKnownSection(section, result) {
     const locationMatch = section.match(/📍\s*(.*)/);
     if (locationMatch) { result.location = locationMatch[1].trim(); return true; }
 
-    // Spell slots: per-level "🪄 1️⃣4/4 2️⃣3/3 ... ⚡12/12" or legacy "🪄 Spell Slot (X/X)"
-    if (/^🪄/.test(section)) {
-        const slots = [];
-        const levelRe = /([1-9])\uFE0F?\u20E3\s*(\d+)\/(\d+)/g;
-        let lm;
-        while ((lm = levelRe.exec(section)) !== null) {
-            slots.push({ level: parseInt(lm[1]), current: parseInt(lm[2]), max: parseInt(lm[3]) });
-        }
-        // Sorcery points: ⚡XX/XX
-        const sorceryMatch = section.match(/⚡\s*(\d+)\s*\/\s*(\d+)/);
-        if (sorceryMatch) {
-            result.sorceryPoints = { current: parseInt(sorceryMatch[1]), max: parseInt(sorceryMatch[2]) };
-        }
-        if (slots.length > 0) {
-            slots.sort((a, b) => a.level - b.level);
-            result.spellSlots = slots;
-            return true;
-        }
-        const oldMatch = section.match(/Spell\s*Slots?\s*\((\d+)\/(\d+)\)/i);
-        if (oldMatch) {
-            result.spellSlots = [{ level: 0, current: parseInt(oldMatch[1]), max: parseInt(oldMatch[2]) }];
-            return true;
-        }
-        return true;
-    }
-
-    // Sorcery points: standalone ⚡ section "⚡ 12/12"
-    if (/^⚡/.test(section)) {
-        const sorceryMatch = section.match(/⚡\s*(\d+)\s*\/\s*(\d+)/);
-        if (sorceryMatch) {
-            result.sorceryPoints = { current: parseInt(sorceryMatch[1]), max: parseInt(sorceryMatch[2]) };
-            return true;
-        }
-        return true;
-    }
+    // Spell slots, sorcery points, and secondary resources are parsed globally — only mark section as known.
+    if (/^🪄/.test(section)) return true;
+    if (/^⚡/.test(section)) return true;
+    if (/^🔥/.test(section)) return true;
 
     // Currency: 💰 or 🪙 leader — see currencyParser.js
     if (/^(?:💰|🪙)/u.test(section)) {
@@ -213,7 +280,7 @@ export function refreshHeaderFromChat({ skipLastAssistant = false } = {}) {
         }
 
         const parsed = parseHeader(msg.mes);
-        if (parsed && (parsed.time || parsed.date || parsed.location || parsed.weather || parsed.spellSlots || parsed.sorceryPoints || parsed.currency)) {
+        if (parsed && headerHasTrackableData(parsed)) {
             setHeaderInfo(parsed);
             return parsed;
         }
@@ -227,7 +294,7 @@ export function refreshHeaderFromChat({ skipLastAssistant = false } = {}) {
  */
 export function updateHeaderFromMessage(messageText) {
     const parsed = parseHeader(messageText);
-    if (parsed && (parsed.time || parsed.date || parsed.location || parsed.weather || parsed.spellSlots || parsed.sorceryPoints || parsed.currency)) {
+    if (parsed && headerHasTrackableData(parsed)) {
         setHeaderInfo(parsed);
         return parsed;
     }

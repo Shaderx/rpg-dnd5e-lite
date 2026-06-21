@@ -5,7 +5,7 @@
 
 import { extensionSettings, quests, headerInfo } from '../core/state.js';
 import { hasCurrency, formatCurrencyStrip, formatCurrencyTitle } from '../features/currencyParser.js';
-import { rollD20, updateDiceDisplay, clearDiceRoll } from '../features/dice.js';
+import { rollD20, updateDiceDisplay, clearDiceRoll, formatDmgTooltip } from '../features/dice.js';
 import { applyWeatherVisuals } from '../features/weatherVisuals.js';
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -122,13 +122,18 @@ const KEYCAP_EMOJIS = ['', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'
 // Previous state for diff-based animation
 let _prevSlots = null;   // Map<level, { current, max }>
 let _prevSorcery = null; // { current, max }
+let _prevSecondary = null; // { current, max }
 
-function snapshotSlotState(spellSlots, sorceryPoints) {
+function snapshotSlotState(spellSlots, sorceryPoints, secondaryResource) {
     const map = new Map();
     if (spellSlots && Array.isArray(spellSlots)) {
         for (const s of spellSlots) map.set(s.level, { current: s.current, max: s.max });
     }
-    return { slots: map, sorcery: sorceryPoints ? { ...sorceryPoints } : null };
+    return {
+        slots: map,
+        sorcery: sorceryPoints ? { ...sorceryPoints } : null,
+        secondary: secondaryResource ? { ...secondaryResource } : null,
+    };
 }
 
 const ANIM_STAGGER_MS = 120;
@@ -179,19 +184,22 @@ function animateRowDiff(rowEl, oldCurrent, newCurrent, max) {
     }
 }
 
-function renderSpellLevels(container, spellSlots, sorceryPoints) {
+function renderSpellLevels(container, spellSlots, sorceryPoints, secondaryResource) {
     if (!container) return;
 
-    const hasData = (spellSlots && Array.isArray(spellSlots) && spellSlots.length > 0) || sorceryPoints;
+    const hasData = (spellSlots && Array.isArray(spellSlots) && spellSlots.length > 0)
+        || sorceryPoints
+        || secondaryResource;
     if (!hasData) {
         _prevSlots = null;
         _prevSorcery = null;
+        _prevSecondary = null;
         container.innerHTML = '';
         return;
     }
 
-    const oldSnap = { slots: _prevSlots, sorcery: _prevSorcery };
-    const newSnap = snapshotSlotState(spellSlots, sorceryPoints);
+    const oldSnap = { slots: _prevSlots, sorcery: _prevSorcery, secondary: _prevSecondary };
+    const newSnap = snapshotSlotState(spellSlots, sorceryPoints, secondaryResource);
 
     // Build the new HTML (always reflects latest state)
     let html = '';
@@ -223,6 +231,19 @@ function renderSpellLevels(container, spellSlots, sorceryPoints) {
             <span class="dnd-spell-level-count">${sp.current}/${sp.max}</span>
         </div>`;
     }
+    if (secondaryResource) {
+        const sr = secondaryResource;
+        const filled = Math.max(0, Math.min(sr.current, sr.max));
+        const empty = Math.max(0, sr.max - filled);
+        let circles = '';
+        for (let i = 0; i < filled; i++) circles += '<div class="dnd-spell-circle dnd-spell-filled"></div>';
+        for (let i = 0; i < empty; i++) circles += '<div class="dnd-spell-circle dnd-spell-empty"></div>';
+        html += `<div class="dnd-spell-level-row dnd-spell-secondary-row" data-spell-level="sr">
+            <span class="dnd-spell-level-label">🔥</span>
+            <div class="dnd-spell-level-cubes">${circles}</div>
+            <span class="dnd-spell-level-count">${sr.current}/${sr.max}</span>
+        </div>`;
+    }
 
     container.innerHTML = html;
 
@@ -249,15 +270,24 @@ function renderSpellLevels(container, spellSlots, sorceryPoints) {
         }
     }
 
+    // Secondary resource diff
+    if (oldSnap.secondary && newSnap.secondary && oldSnap.secondary.current !== newSnap.secondary.current) {
+        const srRow = container.querySelector('[data-spell-level="sr"]');
+        if (srRow) {
+            animateRowDiff(srRow, oldSnap.secondary.current, newSnap.secondary.current, newSnap.secondary.max);
+        }
+    }
+
     // Save current as previous for next diff
     _prevSlots = newSnap.slots;
     _prevSorcery = newSnap.sorcery;
+    _prevSecondary = newSnap.secondary;
 }
 
-function renderStripSpellLevels($container, spellSlots, sorceryPoints) {
+function renderStripSpellLevels($container, spellSlots, sorceryPoints, secondaryResource) {
     const $el = $container.find('.dnd-strip-spell-levels');
     if (!$el.length) return;
-    if ((!spellSlots || !Array.isArray(spellSlots) || spellSlots.length === 0) && !sorceryPoints) {
+    if ((!spellSlots || !Array.isArray(spellSlots) || spellSlots.length === 0) && !sorceryPoints && !secondaryResource) {
         $el.html('<span style="font-size:0.5em;opacity:0.3">--</span>');
         return;
     }
@@ -277,6 +307,13 @@ function renderStripSpellLevels($container, spellSlots, sorceryPoints) {
         if (sp.current === 0) cls = 'dnd-strip-spell-depleted';
         else if (sp.current < sp.max) cls = 'dnd-strip-spell-partial';
         html += `<span class="dnd-strip-spell-level dnd-strip-spell-sorcery"><span class="${cls}">⚡${sp.current}/${sp.max}</span></span>`;
+    }
+    if (secondaryResource) {
+        const sr = secondaryResource;
+        let cls = 'dnd-strip-spell-full';
+        if (sr.current === 0) cls = 'dnd-strip-spell-depleted';
+        else if (sr.current < sr.max) cls = 'dnd-strip-spell-partial';
+        html += `<span class="dnd-strip-spell-level dnd-strip-spell-secondary"><span class="${cls}">🔥${sr.current}/${sr.max}</span></span>`;
     }
     $el.html(html);
 }
@@ -333,10 +370,15 @@ export function updateHeaderWidgets() {
     }
 
     // Spell slots per-level
-    renderSpellLevels(document.getElementById('dnd-spell-levels'), info.spellSlots, info.sorceryPoints);
+    renderSpellLevels(
+        document.getElementById('dnd-spell-levels'),
+        info.spellSlots,
+        info.sorceryPoints,
+        info.secondaryResource,
+    );
     const $spellsWidget = $('#dnd-spells-widget');
     if ($spellsWidget.length) {
-        if ((info.spellSlots && info.spellSlots.length > 0) || info.sorceryPoints) {
+        if ((info.spellSlots && info.spellSlots.length > 0) || info.sorceryPoints || info.secondaryResource) {
             $spellsWidget.show();
         } else {
             $spellsWidget.hide();
@@ -370,19 +412,58 @@ function escapeAttr(str) {
 
 const GRID_COLS = 4;
 
+export const DEFAULT_OMNI_WIDGET_SIZES = {
+    twoWide: 13,
+    threeWide: 31,
+    fullWide: 0,
+};
+
+export function getOmniWidgetSizes() {
+    const o = extensionSettings.omniWidgetSizes;
+    if (!o) return { ...DEFAULT_OMNI_WIDGET_SIZES };
+    return {
+        twoWide: o.twoWide ?? DEFAULT_OMNI_WIDGET_SIZES.twoWide,
+        threeWide: o.threeWide ?? DEFAULT_OMNI_WIDGET_SIZES.threeWide,
+        fullWide: o.fullWide ?? DEFAULT_OMNI_WIDGET_SIZES.fullWide,
+    };
+}
+
+function omniTextWeight(len) {
+    const { twoWide, threeWide, fullWide } = getOmniWidgetSizes();
+    if (fullWide > 0 && len >= fullWide) return GRID_COLS;
+    if (len >= threeWide) return 3;
+    if (len >= twoWide) return 2;
+    return 1;
+}
+
+function buildCurrencyItemHtml(currency) {
+    const chips = [];
+    if (currency.gold > 0) {
+        chips.push(`<span class="dnd-coin-chip dnd-coin-gold" title="${currency.gold} gp">${currency.gold}<i class="dnd-coin-dot"></i></span>`);
+    }
+    if (currency.silver > 0) {
+        chips.push(`<span class="dnd-coin-chip dnd-coin-silver" title="${currency.silver} sp">${currency.silver}<i class="dnd-coin-dot"></i></span>`);
+    }
+    if (currency.copper > 0) {
+        chips.push(`<span class="dnd-coin-chip dnd-coin-copper" title="${currency.copper} cp">${currency.copper}<i class="dnd-coin-dot"></i></span>`);
+    }
+    if (chips.length === 0) {
+        chips.push(`<span class="dnd-coin-chip dnd-coin-gold" title="0 gp">0<i class="dnd-coin-dot"></i></span>`);
+    }
+    return `<div class="dnd-sec-currency-inner">
+        <span class="dnd-currency-wallet" aria-hidden="true">💰</span>
+        <div class="dnd-currency-stack">${chips.join('')}</div>
+    </div>`;
+}
+
 function renderSecondaryGrid(container, currency, extras) {
     const items = [];
 
     if (currency) {
-        const parts = [];
-        if (currency.gold > 0)   parts.push(`<span class="dnd-coin dnd-coin-gold"><span class="dnd-coin-val">${currency.gold}</span>🟡</span>`);
-        if (currency.silver > 0) parts.push(`<span class="dnd-coin dnd-coin-silver"><span class="dnd-coin-val">${currency.silver}</span>⚪</span>`);
-        if (currency.copper > 0) parts.push(`<span class="dnd-coin dnd-coin-copper"><span class="dnd-coin-val">${currency.copper}</span>🟤</span>`);
-        if (parts.length === 0)  parts.push(`<span class="dnd-coin dnd-coin-gold"><span class="dnd-coin-val">0</span>🟡</span>`);
         items.push({
-            html: `<span class="dnd-omni-emoji">💰</span><span class="dnd-currency-coins">${parts.join(' ')}</span>`,
-            title: `${currency.gold} gp, ${currency.silver} sp, ${currency.copper} cp`,
-            weight: 2,
+            html: buildCurrencyItemHtml(currency),
+            title: formatCurrencyTitle(currency),
+            weight: 1,
             cls: 'dnd-sec-item dnd-sec-currency',
         });
     }
@@ -393,7 +474,7 @@ function renderSecondaryGrid(container, currency, extras) {
         items.push({
             html: `${emojiHtml}<span class="dnd-omni-text">${escapeAttr(e.text || '')}</span>`,
             title: e.text || '',
-            weight: len > 30 ? 3 : len > 12 ? 2 : 1,
+            weight: omniTextWeight(len),
             cls: 'dnd-sec-item',
         });
     }
@@ -492,7 +573,7 @@ function renderStripHeaderInfo($container) {
     $container.find('.dnd-strip-weather-value').text(shortWeather).attr('title', weatherText);
 
     // Spell slots per-level (strip)
-    renderStripSpellLevels($container, info.spellSlots, info.sorceryPoints);
+    renderStripSpellLevels($container, info.spellSlots, info.sorceryPoints, info.secondaryResource);
 
     // Currency
     const $stripCurrency = $container.find('.dnd-strip-widget-currency');
@@ -547,11 +628,12 @@ function renderStripDice($container) {
         for (let i = 0; i < allies.length; i++) {
             const a = allies[i];
             const label = allies.length === 1 ? 'Ally' : `A${i + 1}`;
-            allyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-ally">`
+            const dmgTip = a.dmg ? `\nDmg: ${formatDmgTooltip(a.dmg)}` : '';
+            allyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${dmgTip}">`
                 + `<span class="dnd-strip-dice-row-label">${label}</span>`
-                + `<span class="dnd-strip-dice-result dnd-strip-dice-ally" title="${label} 1st: ${a.roll1}">${a.roll1}</span>`
+                + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">${a.roll1}</span>`
                 + `<span class="dnd-strip-dice-sep">/</span>`
-                + `<span class="dnd-strip-dice-result dnd-strip-dice-ally" title="${label} 2nd: ${a.roll2}">${a.roll2}</span>`
+                + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">${a.roll2}</span>`
                 + `</div>`;
         }
         $allyRows.html(allyHtml);
@@ -562,11 +644,12 @@ function renderStripDice($container) {
         for (let i = 0; i < enemies.length; i++) {
             const e = enemies[i];
             const label = enemies.length === 1 ? 'Foe' : `F${i + 1}`;
-            enemyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-enemy">`
+            const dmgTip = e.dmg ? `\nDmg: ${formatDmgTooltip(e.dmg)}` : '';
+            enemyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-enemy" title="${label}: d20 ${e.roll1} / ${e.roll2}${dmgTip}">`
                 + `<span class="dnd-strip-dice-row-label">${label}</span>`
-                + `<span class="dnd-strip-dice-result dnd-strip-dice-npc" title="${label} 1st: ${e.roll1}">${e.roll1}</span>`
+                + `<span class="dnd-strip-dice-result dnd-strip-dice-npc">${e.roll1}</span>`
                 + `<span class="dnd-strip-dice-sep">/</span>`
-                + `<span class="dnd-strip-dice-result dnd-strip-dice-npc" title="${label} 2nd: ${e.roll2}">${e.roll2}</span>`
+                + `<span class="dnd-strip-dice-result dnd-strip-dice-npc">${e.roll2}</span>`
                 + `</div>`;
         }
         $enemyRows.html(enemyHtml);

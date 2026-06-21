@@ -198,9 +198,10 @@ export function getFeatEffect(featName) {
  * @param {object} asiChoices - { [level]: { type:'feat', feat:'...' } }
  * @param {string} [originFeat] - Background origin feat name
  * @param {object} [originFeatConfig] - Config choices for origin feat (e.g. Skilled picks)
+ * @param {object} [featData] - Fallback config store keyed by feat name (used when asiChoices[].featConfig is missing)
  * @returns {object} Aggregated effects
  */
-export function collectFeatEffects(asiChoices, originFeat, originFeatConfig) {
+export function collectFeatEffects(asiChoices, originFeat, originFeatConfig, featData) {
     const effects = {
         hpBonus: [],
         acBonus: [],
@@ -248,9 +249,13 @@ export function collectFeatEffects(asiChoices, originFeat, originFeatConfig) {
     }
 
     // Apply ASI feat config choices (e.g. Magic Initiate chosen via ASI)
+    // Falls back to featData[featName] when featConfig wasn't embedded in asiChoices
     for (const choice of Object.values(asiChoices || {})) {
-        if (choice?.type === 'feat' && choice.feat && choice.featConfig) {
-            applyOriginFeatConfig(effects, choice.feat, choice.featConfig);
+        if (choice?.type === 'feat' && choice.feat) {
+            const config = choice.featConfig || featData?.[choice.feat] || null;
+            if (config) {
+                applyOriginFeatConfig(effects, choice.feat, config);
+            }
         }
     }
 

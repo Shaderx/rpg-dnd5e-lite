@@ -192,6 +192,15 @@ function buildStatCard(stats) {
         }
     }
 
+    if (stats.classFeatures?.length > 0) {
+        lines.push('<hr class="v1-divider" />');
+        lines.push('<div class="v1-section-title">Class Features</div>');
+        for (const feat of stats.classFeatures) {
+            const tag = feat.featureSource === 'subclass' ? 'Subclass — ' : '';
+            lines.push(`<div class="v1-feature-item"><span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(tag + feat.name)}" data-tt-text="${esc(feat.description || '')}"><b>Lv ${feat.level}: ${esc(feat.name)}</b></span></div>`);
+        }
+    }
+
     // Feats
     if (stats.chosenFeats?.length > 0) {
         lines.push(`<div class="v1-row"><span class="v1-label">Feats:</span><span>${stats.chosenFeats.map(f => `<span class="dnd-tt-hover" data-tt-type="feat" data-tt-name="${esc(f)}">${esc(f)}</span>`).join(', ')}</span></div>`);
@@ -330,6 +339,15 @@ function buildDetailContent(stats) {
         lines.push('<p><b>Combat Notes:</b></p><ul>');
         for (const note of stats.combatNotes) {
             lines.push(`<li>${esc(note)}</li>`);
+        }
+        lines.push('</ul>');
+    }
+
+    if (stats.classFeatures?.length > 0) {
+        lines.push('<p><b>Class Features:</b></p><ul>');
+        for (const feat of stats.classFeatures) {
+            const tag = feat.featureSource === 'subclass' ? 'Subclass — ' : '';
+            lines.push(`<li><span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(tag + feat.name)}" data-tt-text="${esc(feat.description || '')}"><b>Lv ${feat.level}: ${esc(feat.name)}</b></span>: ${esc(feat.description)}</li>`);
         }
         lines.push('</ul>');
     }

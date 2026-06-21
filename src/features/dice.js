@@ -36,8 +36,22 @@ export function executeRoll(count, sides) {
     return { total, rolls };
 }
 
+export const COMBAT_DAMAGE_SIDES = [4, 6, 8, 10, 12];
+
+export function formatDmgTooltip(dmg) {
+    if (!dmg) return '';
+    return COMBAT_DAMAGE_SIDES.map(s => `d${s}:${dmg[`d${s}`]}`).join(' ');
+}
+
+function rollCombatDamageDice() {
+    const dice = {};
+    for (const s of COMBAT_DAMAGE_SIDES) dice[`d${s}`] = secureRoll(s);
+    return dice;
+}
+
 /**
- * Roll d20 sets: 2 player + 2×N ally + 2 enemy for advantage/disadvantage checks.
+ * Roll d20 sets: 2 player + 2×N ally + 2×N enemy for advantage/disadvantage checks.
+ * Each ally/enemy also gets a pre-rolled d4-d12 set for combat damage/skill use.
  * Ally count is driven by extensionSettings.allyCount (default 1).
  * Once rolled, the roll button is locked until cleared (by user or LLM reply).
  */
@@ -50,11 +64,11 @@ export function rollD20() {
     const r2 = secureRoll(20);
     const allyRolls = [];
     for (let i = 0; i < allyCount; i++) {
-        allyRolls.push({ roll1: secureRoll(20), roll2: secureRoll(20) });
+        allyRolls.push({ roll1: secureRoll(20), roll2: secureRoll(20), dmg: rollCombatDamageDice() });
     }
     const enemyRolls = [];
     for (let i = 0; i < enemyCount; i++) {
-        enemyRolls.push({ roll1: secureRoll(20), roll2: secureRoll(20) });
+        enemyRolls.push({ roll1: secureRoll(20), roll2: secureRoll(20), dmg: rollCombatDamageDice() });
     }
 
     const totalDice = 2 + allyCount * 2 + enemyCount * 2;
@@ -115,7 +129,8 @@ export function updateDiceDisplay() {
         for (let i = 0; i < allies.length; i++) {
             const a = allies[i];
             const label = allies.length === 1 ? 'Ally' : `A${i + 1}`;
-            allyHtml += `<div class="dnd-roll-chip dnd-roll-chip-ally" title="${label}: ${a.roll1} / ${a.roll2}">`
+            const dmgTip = a.dmg ? `\nDmg: ${formatDmgTooltip(a.dmg)}` : '';
+            allyHtml += `<div class="dnd-roll-chip dnd-roll-chip-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${dmgTip}">`
                 + `<span class="dnd-roll-chip-label">${label}</span>`
                 + `<span class="dnd-roll-chip-val">${a.roll1}</span>`
                 + `<span class="dnd-roll-chip-sep">/</span>`
@@ -130,7 +145,8 @@ export function updateDiceDisplay() {
         for (let i = 0; i < enemies.length; i++) {
             const e = enemies[i];
             const label = enemies.length === 1 ? 'Foe' : `F${i + 1}`;
-            enemyHtml += `<div class="dnd-roll-chip dnd-roll-chip-enemy" title="${label}: ${e.roll1} / ${e.roll2}">`
+            const dmgTip = e.dmg ? `\nDmg: ${formatDmgTooltip(e.dmg)}` : '';
+            enemyHtml += `<div class="dnd-roll-chip dnd-roll-chip-enemy" title="${label}: d20 ${e.roll1} / ${e.roll2}${dmgTip}">`
                 + `<span class="dnd-roll-chip-label">${label}</span>`
                 + `<span class="dnd-roll-chip-val">${e.roll1}</span>`
                 + `<span class="dnd-roll-chip-sep">/</span>`
@@ -225,12 +241,47 @@ function rollBrightness(result, sides) {
 }
 
 
-function dieChipHtml(sides, result) {
+function dieChipHtml(sides, result, index) {
     const opacity = rollBrightness(result, sides).toFixed(2);
-    return `<span class="dnd-damage-chip" data-sides="${sides}" title="d${sides}">`
+    return `<span class="dnd-damage-chip" data-sides="${sides}" data-index="${index}" title="d${sides} — click to remove" role="button" tabindex="0">`
         + `<span class="dnd-damage-chip-val" style="opacity:${opacity}">${result}</span>`
         + `<span class="dnd-damage-chip-die">d${sides}</span>`
         + `</span>`;
+}
+
+function normalizeDamageRoll(roll) {
+    if (!roll) return roll;
+    if (!Array.isArray(roll.dice) && Array.isArray(roll.rolls)) {
+        const sides = roll.sides || 6;
+        roll.dice = roll.rolls.map(r => ({ sides, result: r }));
+    }
+    return roll;
+}
+
+/**
+ * Remove a single damage die by index from the accumulated pool.
+ */
+export function removeDamageDie(index) {
+    const roll = extensionSettings.lastDamageRoll;
+    if (!roll) return null;
+
+    normalizeDamageRoll(roll);
+    if (!Array.isArray(roll.dice) || index < 0 || index >= roll.dice.length) return null;
+
+    const removed = roll.dice.splice(index, 1)[0];
+    if (roll.dice.length === 0) {
+        extensionSettings.lastDamageRoll = null;
+    } else {
+        roll.total = roll.dice.reduce((sum, d) => sum + d.result, 0);
+        roll.formula = buildDamageFormula(roll.dice);
+        roll.rolls = roll.dice.map(d => d.result);
+        roll.timestamp = Date.now();
+        extensionSettings.lastDamageRoll = roll;
+    }
+
+    saveSettings();
+    updateDamageDisplay();
+    return removed;
 }
 
 /**
@@ -243,13 +294,10 @@ export function updateDamageDisplay() {
     const $result = $('#dnd-damage-result');
     if (!$result.length) return;
 
+    normalizeDamageRoll(roll);
     const dice = roll?.dice;
     if (dice && dice.length > 0) {
-        $('#dnd-damage-dice').html(dice.map(d => dieChipHtml(d.sides, d.result)).join(''));
-        $result.show();
-    } else if (roll?.rolls) {
-        const s = roll.sides || 6;
-        $('#dnd-damage-dice').html(roll.rolls.map(r => dieChipHtml(s, r)).join(''));
+        $('#dnd-damage-dice').html(dice.map((d, i) => dieChipHtml(d.sides, d.result, i)).join(''));
         $result.show();
     } else {
         $result.hide();

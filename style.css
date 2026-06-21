@@ -1105,6 +1105,18 @@
     color: rgba(255,193,7,0.9);
 }
 
+.dnd-spell-secondary-row .dnd-anim-spend {
+    animation: dnd-spell-spend 0.45s ease-out forwards;
+    --dnd-anim-glow: rgba(255, 87, 34, 0.75);
+}
+.dnd-spell-secondary-row .dnd-anim-restore {
+    animation: dnd-spell-restore 0.45s ease-out forwards;
+    --dnd-anim-glow: rgba(255, 87, 34, 0.75);
+}
+.dnd-spell-secondary-row .dnd-spell-level-label {
+    color: rgba(255, 87, 34, 0.95);
+}
+
 /* Strip: per-level spell slots */
 .dnd-strip-spell-levels {
     display: flex;
@@ -1125,6 +1137,9 @@
 .dnd-strip-spell-sorcery .dnd-strip-spell-full { color: rgba(255,193,7,0.85); }
 .dnd-strip-spell-sorcery .dnd-strip-spell-partial { color: #ffc107; }
 .dnd-strip-spell-sorcery .dnd-strip-spell-depleted { color: rgba(255,193,7,0.2); }
+.dnd-strip-spell-secondary .dnd-strip-spell-full { color: rgba(255, 87, 34, 0.9); }
+.dnd-strip-spell-secondary .dnd-strip-spell-partial { color: #ff7043; }
+.dnd-strip-spell-secondary .dnd-strip-spell-depleted { color: rgba(255, 87, 34, 0.2); }
 
 /* Secondary widgets: 4-col single-row grid (currency + omni items) */
 .dnd-secondary-widgets {
@@ -1151,26 +1166,76 @@
     overflow: hidden;
 }
 
-/* Currency-specific */
-.dnd-sec-currency .dnd-currency-coins {
+/* Currency-specific — compact 1-col vertical stack */
+.dnd-sec-currency {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    padding: 0.28em 0.22em;
+    gap: 0;
+    background: linear-gradient(165deg, rgba(255, 215, 0, 0.07) 0%, rgba(255, 255, 255, 0.02) 55%, rgba(0, 0, 0, 0.08) 100%);
+    border-color: rgba(255, 215, 0, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.dnd-sec-currency-inner {
     display: flex;
-    gap: 0.5em;
+    flex-direction: column;
     align-items: center;
-    flex-wrap: nowrap;
+    gap: 0.18em;
+    width: 100%;
     min-width: 0;
 }
-.dnd-coin {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.1em;
-    font-size: 0.75em;
-    font-weight: 600;
-    white-space: nowrap;
+.dnd-currency-wallet {
+    font-size: 0.78em;
+    line-height: 1;
+    opacity: 0.92;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
 }
-.dnd-coin-val { font-variant-numeric: tabular-nums; }
-.dnd-coin-gold .dnd-coin-val { color: #ffd700; }
-.dnd-coin-silver .dnd-coin-val { color: #c0c0c0; }
-.dnd-coin-copper .dnd-coin-val { color: #cd7f32; }
+.dnd-currency-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.1em;
+    width: 100%;
+}
+.dnd-coin-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25em;
+    padding: 0.1em 0.38em;
+    border-radius: 999px;
+    font-size: 0.6em;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    line-height: 1.25;
+    min-width: 0;
+}
+.dnd-coin-dot {
+    display: block;
+    width: 0.42em;
+    height: 0.42em;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.dnd-coin-gold { color: #ffe566; }
+.dnd-coin-gold .dnd-coin-dot {
+    background: linear-gradient(145deg, #fff0a0, #c9a000);
+    box-shadow: 0 0 4px rgba(255, 215, 0, 0.45);
+}
+.dnd-coin-silver { color: #e8e8e8; }
+.dnd-coin-silver .dnd-coin-dot {
+    background: linear-gradient(145deg, #f5f5f5, #9a9a9a);
+    box-shadow: 0 0 3px rgba(200, 200, 200, 0.35);
+}
+.dnd-coin-copper { color: #e8a86a; }
+.dnd-coin-copper .dnd-coin-dot {
+    background: linear-gradient(145deg, #e8b080, #8b4513);
+    box-shadow: 0 0 3px rgba(205, 127, 50, 0.35);
+}
 
 /* Omni emoji + text */
 .dnd-omni-emoji {
@@ -1809,6 +1874,14 @@
     font-weight: 700;
     line-height: 1.3;
     white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+.dnd-damage-chip:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+.dnd-damage-chip:active {
+    transform: scale(0.92);
 }
 .dnd-damage-chip-die {
     font-size: 0.65em;

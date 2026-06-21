@@ -95,6 +95,23 @@ export function buildCharacterPrompt() {
         }
     }
 
+    // Automatic class/subclass features (from CDN class data, with compact notes preferred)
+    if (stats.classFeatures?.length > 0) {
+        lines.push('Class Features:');
+        for (const feat of stats.classFeatures) {
+            const prefix = feat.featureSource === 'subclass' ? '[SC] ' : '';
+            if (feat.compactNote) {
+                lines.push(`  Lv${feat.level}: ${prefix}${feat.compactNote}`);
+            } else {
+                const desc = feat.description || '';
+                const truncated = desc.length > 150
+                    ? desc.substring(0, 147) + '...'
+                    : desc;
+                lines.push(`  Lv${feat.level}: ${prefix}${feat.name}${truncated ? ` — ${truncated}` : ''}`);
+            }
+        }
+    }
+
     // Species Traits
     if (stats.speciesTraits?.length > 0) {
         lines.push('Species Traits:');

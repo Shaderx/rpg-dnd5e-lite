@@ -15,6 +15,7 @@ import { collectFeatEffects, parseFeatAbilityBonus } from './featEffects.js';
 import { collectClassEffects } from './classEffects.js';
 import { collectLevelChoiceEffects, computeCompanionStats, FAMILIAR_CREATURES, METAMAGIC_OPTIONS, ELDRITCH_INVOCATIONS, PACT_BOON_OPTIONS, BATTLE_MASTER_MANEUVERS, ARCANE_SHOT_OPTIONS, SUBCLASS_LEVEL_FEATURES } from './levelFeatures.js';
 import { getSubclassSpells } from './subclassSpells.js';
+import { getResolvedClassFeaturesSync } from './classData.js';
 import { computeAC, computeWeaponStats } from './equipment.js';
 import { getSpellDamageInfo, buildSpellAnnotation, getMaxSpellLevel, formatSlots } from './spells.js';
 
@@ -153,7 +154,7 @@ export function computeCharacterStats(char) {
     }
 
     // --- Collect Effects ---
-    const featEffects = collectFeatEffects(char.asiChoices, char.originFeat, char.originFeatConfig);
+    const featEffects = collectFeatEffects(char.asiChoices, char.originFeat, char.originFeatConfig, char.featData);
 
     // Gather level-choice effects (fighting styles, subclass selections, etc.)
     const levelChoiceEffects = collectLevelChoiceEffects(char.levelChoices, classKey, char.subclassName, level);
@@ -419,10 +420,35 @@ export function computeCharacterStats(char) {
         annotatedSpells.push({ name, annotation: buildSpellAnnotation(name, info), info, extraSource: source, extraFreeCast: freeCast });
     }
 
-    // --- Combat Notes (class prompt notes) ---
+    const classFeatures = getResolvedClassFeaturesSync(
+        char.classFile,
+        char.className,
+        char.classSource,
+        char.subclassName,
+        level,
+    );
+    const cdnFeatureNames = new Set(classFeatures.map(f => f.name.toLowerCase()));
+
+    // Build compact note lookup from class effects for CDN feature annotation
+    const compactNoteMap = new Map();
+    for (const entry of classEffects.promptNotes) {
+        if (entry.name) {
+            const note = entry.fn(statsCtx);
+            if (note) compactNoteMap.set(entry.name.toLowerCase(), note);
+        }
+    }
+
+    // Annotate CDN features with compact notes where available
+    const annotatedClassFeatures = classFeatures.map(f => ({
+        ...f,
+        compactNote: compactNoteMap.get(f.name.toLowerCase()) || null,
+    }));
+
+    // Combat Notes: class notes without CDN match + all feat notes
     const combatNotes = [];
-    for (const fn of classEffects.promptNotes) {
-        const note = fn(statsCtx);
+    for (const entry of classEffects.promptNotes) {
+        if (entry.name && cdnFeatureNames.has(entry.name.toLowerCase())) continue;
+        const note = entry.fn(statsCtx);
         if (note) combatNotes.push(note);
     }
     for (const fn of featEffects.promptNotes) {
@@ -492,6 +518,7 @@ export function computeCharacterStats(char) {
         // Combat
         computedWeapons,
         combatNotes,
+        classFeatures: annotatedClassFeatures,
 
         // Spellcasting
         spellcasting,

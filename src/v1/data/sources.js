@@ -93,6 +93,12 @@ export async function fetchClassFile(filename) {
     return data;
 }
 
+/** Synchronous access to a previously fetched class file (for prompt building). */
+export function getCachedClassFile(filename) {
+    if (!filename) return null;
+    return _classFileCache.get(filename) || null;
+}
+
 // --- Spells ---
 
 const _spellSourceCache = new Map();

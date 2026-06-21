@@ -42,6 +42,9 @@ export const extensionSettings = {
     // Strip widgets
     stripWidgetsEnabled: true,
 
+    // Omni widget column spans in secondary grid (min character counts; fullWide 0 = disabled)
+    omniWidgetSizes: null,
+
     // Injection depth for all prompts (0 = right before user message)
     injectionDepth: 0,
 
@@ -170,6 +173,7 @@ export let headerInfo = {
     weatherEmoji: null, // "🌙" - the raw emoji from the header
     spellSlots: null,   // [{ level: 1, current: 4, max: 4 }, ...] or legacy { current, max }
     sorceryPoints: null, // { current: 12, max: 12 } — ⚡ Sorcery Points
+    secondaryResource: null, // { current: 2, max: 2 } — 🔥 Innate Sorcery, Rage, etc.
     currency: null,     // { gold: 0, silver: 0, copper: 0 }
     extras: []
 };

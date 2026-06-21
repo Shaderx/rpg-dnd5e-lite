@@ -21,9 +21,9 @@ import { renderQuests, addQuestFromInput } from './src/rendering/quests.js';
 import { renderInventory, addInventoryItemFromInput } from './src/rendering/inventory.js';
 import { renderSpellLog, addSpellFromInput, addRestFromButton, addShortRestFromButton, addDispelFromButton, hardRefreshSpellLogFromButton } from './src/rendering/spellLog.js';
 import { refreshSpellLog, hardRefreshSpellLog } from './src/features/spellTracker.js';
-import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, updateDamageDisplay, clearDamageRoll, toggleModifier, updateModifierDisplay, clearModifiers, updateAllyCountLabel, updateEnemyCountLabel, renderModifierButtons } from './src/features/dice.js';
+import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, removeDamageDie, updateDamageDisplay, clearDamageRoll, toggleModifier, updateModifierDisplay, clearModifiers, updateAllyCountLabel, updateEnemyCountLabel, renderModifierButtons } from './src/features/dice.js';
 import { refreshHeaderFromChat, updateHeaderFromMessage } from './src/features/headerParser.js';
-import { updateStripWidgets, updateHeaderWidgets } from './src/ui/desktop.js';
+import { updateStripWidgets, updateHeaderWidgets, getOmniWidgetSizes, DEFAULT_OMNI_WIDGET_SIZES } from './src/ui/desktop.js';
 import { setupMobileFab } from './src/ui/mobile.js';
 import { setupCollapseToggle, applyPanelPosition, updatePanelVisibility, updateStripWidgetClass } from './src/ui/layout.js';
 import { applyWeatherVisuals, destroyWeatherVisuals, rebuildWeatherParticles, refreshLightingOverlay } from './src/features/weatherVisuals.js';
@@ -34,6 +34,7 @@ import { renderV1DetailModal } from './src/v1/rendering/detail.js';
 import { openV1ConfigModal } from './src/v1/rendering/configModal.js';
 import { renderV1Spellbook, initV1Spellbook } from './src/v1/rendering/spellbook.js';
 import { preloadSpellData as preloadV1SpellData } from './src/v1/features/spells.js';
+import { fetchClassFile } from './src/v1/data/sources.js';
 import { renderV1CompanionPanel, initCompanionPanel } from './src/v1/rendering/companion.js';
 import { listCustomSpecies, createCustomSpecies, updateCustomSpecies, deleteCustomSpecies, blankCustomSpecies } from './src/v1/features/customSpecies.js';
 import { CREATURE_TYPES as V1_CREATURE_TYPES, DAMAGE_TYPES, ABILITY_KEYS as V1_ABILITY_KEYS, ABILITY_LABELS as V1_ABILITY_LABELS } from './src/v1/core/constants.js';
@@ -1755,9 +1756,24 @@ function onChatChanged() {
         renderV1CharacterPanel();
         renderV1Spellbook();
         renderV1CompanionPanel();
-        Promise.all([preloadV1SpellData(), preloadSpellData(), fetchFeats(), fetchEquipmentItems().then(() => fetchMagicItems())]).then(() => renderV1Spellbook());
+        preloadV1Assets();
     }
 }
+
+function preloadV1Assets() {
+    const tasks = [
+        preloadV1SpellData(),
+        preloadSpellData(),
+        fetchFeats(),
+        fetchEquipmentItems().then(() => fetchMagicItems()),
+    ];
+    if (characterV1?.classFile) tasks.push(fetchClassFile(characterV1.classFile));
+    return Promise.all(tasks).then(() => {
+        renderV1Spellbook();
+        renderV1CharacterPanel();
+    });
+}
+
 
 // ─── Random event display ───────────────────────────────────
 
@@ -2162,7 +2178,7 @@ async function initUI() {
         renderV1Spellbook();
         initCompanionPanel();
         renderV1CompanionPanel();
-        Promise.all([preloadV1SpellData(), preloadSpellData(), fetchFeats(), fetchEquipmentItems().then(() => fetchMagicItems())]).then(() => renderV1Spellbook());
+        preloadV1Assets();
     }
 
     // ─── Event bindings ─────────────────────────────────
@@ -2213,6 +2229,12 @@ async function initUI() {
     $('.dnd-damage-die-btn').on('click', function () {
         const sides = parseInt($(this).data('sides'));
         addDamageDie(sides);
+        updateStripWidgets();
+    });
+    $('#dnd-damage-dice').on('click', '.dnd-damage-chip', function () {
+        const index = parseInt($(this).data('index'), 10);
+        if (Number.isNaN(index)) return;
+        removeDamageDie(index);
         updateStripWidgets();
     });
     $('#dnd-damage-clear').on('click', () => {
@@ -2624,6 +2646,10 @@ async function initUI() {
         $('#dnd-setting-lighting-intensity').val(lIntensity);
         $('#dnd-setting-lighting-intensity-val').text(lIntensity.toFixed(2));
         $('#dnd-setting-lighting-blend').val(extensionSettings.lightingOverlay?.blendMode ?? 'soft-light');
+        const omniSizes = getOmniWidgetSizes();
+        $('#dnd-setting-omni-two-wide').val(omniSizes.twoWide);
+        $('#dnd-setting-omni-three-wide').val(omniSizes.threeWide);
+        $('#dnd-setting-omni-full-wide').val(omniSizes.fullWide);
         $('#dnd-settings-popup').css('display', 'flex');
     });
     $('#dnd-settings-close').on('click', () => $('#dnd-settings-popup').hide());
@@ -2668,6 +2694,22 @@ async function initUI() {
         extensionSettings.randomEventRole = String($(this).val());
         saveSettings();
     });
+
+    function saveOmniWidgetSizesFromInputs() {
+        const twoWide = Math.max(1, parseInt(String($('#dnd-setting-omni-two-wide').val())) || DEFAULT_OMNI_WIDGET_SIZES.twoWide);
+        let threeWide = Math.max(1, parseInt(String($('#dnd-setting-omni-three-wide').val())) || DEFAULT_OMNI_WIDGET_SIZES.threeWide);
+        let fullWide = Math.max(0, parseInt(String($('#dnd-setting-omni-full-wide').val())) || 0);
+        if (threeWide <= twoWide) threeWide = twoWide + 1;
+        if (fullWide > 0 && fullWide <= threeWide) fullWide = threeWide + 1;
+        extensionSettings.omniWidgetSizes = { twoWide, threeWide, fullWide };
+        $('#dnd-setting-omni-two-wide').val(twoWide);
+        $('#dnd-setting-omni-three-wide').val(threeWide);
+        $('#dnd-setting-omni-full-wide').val(fullWide);
+        saveSettings();
+        updateHeaderWidgets();
+    }
+    $('#dnd-setting-omni-two-wide, #dnd-setting-omni-three-wide, #dnd-setting-omni-full-wide')
+        .on('change', saveOmniWidgetSizesFromInputs);
 
     // Event tags: shift-click opens threshold modal (both strip and expanded panel)
     $('#dnd-strip-event-tag, #dnd-panel-event-tag').on('click', function (e) {
@@ -2775,7 +2817,7 @@ jQuery(async () => {
             renderV1Spellbook();
             initCompanionPanel();
             renderV1CompanionPanel();
-            Promise.all([preloadV1SpellData(), preloadSpellData(), fetchFeats(), fetchEquipmentItems().then(() => fetchMagicItems())]).then(() => renderV1Spellbook());
+            preloadV1Assets();
         }
     });
 

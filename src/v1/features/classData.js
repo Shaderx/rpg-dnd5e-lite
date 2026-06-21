@@ -3,8 +3,9 @@
  * Fetch and parse class/subclass data from CDN for the V1 character builder.
  */
 
-import { fetchClassIndex, fetchClassFile, fetchOptionalFeatures } from '../data/sources.js';
+import { fetchClassIndex, fetchClassFile, fetchOptionalFeatures, getCachedClassFile } from '../data/sources.js';
 import { V1_SOURCES, CLASS_SAVE_PROFICIENCIES, CLASS_SKILL_OPTIONS, CLASS_SKILL_COUNT, CLASS_ARMOR_PROFICIENCY, CLASS_WEAPON_PROFICIENCY, HIT_DICE, SPELLCASTING_ABILITY, CASTER_TYPE } from '../core/constants.js';
+import { CLASS_LEVEL_FEATURES, SUBCLASS_LEVEL_FEATURES } from './levelFeatures.js';
 
 /**
  * List all available classes with metadata.
@@ -245,6 +246,87 @@ export function getAllFeaturesUpToLevel(classData, subclassName, level) {
 
     results.sort((a, b) => (a.level || 0) - (b.level || 0));
     return results;
+}
+
+const CDN_SKIP_EXACT = new Set([
+    'Spellcasting',
+    'Pact Magic',
+]);
+
+const CDN_SKIP_PATTERNS = [
+    /^Ability Score Improvement/i,
+    /^Epic Boon/i,
+    /Subclass$/i,
+    /^Subclass Feature/i,
+    /^Metamagic/i,
+    /\(Cost: \d+d\d+\)/,
+];
+
+function collectChoiceLabels(classKey, subclassName, maxLevel) {
+    const labels = new Set();
+    for (const feat of CLASS_LEVEL_FEATURES[classKey] || []) {
+        if (feat.level <= maxLevel) labels.add(feat.label);
+    }
+    if (subclassName) {
+        const subKey = `${classKey}|${subclassName}`;
+        for (const feat of SUBCLASS_LEVEL_FEATURES[subKey] || []) {
+            if (feat.level <= maxLevel) labels.add(feat.label);
+        }
+    }
+    return labels;
+}
+
+function matchesChoiceLabel(featureName, choiceLabels) {
+    const name = featureName.toLowerCase();
+    for (const label of choiceLabels) {
+        const l = label.toLowerCase();
+        if (name === l || name.includes(l) || l.includes(name)) return true;
+    }
+    return false;
+}
+
+function shouldSkipCdnFeature(feat, choiceLabels) {
+    if (feat.isOptional) return true;
+    if (CDN_SKIP_EXACT.has(feat.name)) return true;
+    if (CDN_SKIP_PATTERNS.some(p => p.test(feat.name))) return true;
+    if (matchesChoiceLabel(feat.name, choiceLabels)) return true;
+    return false;
+}
+
+function buildClassDataFromCache(data, className, classSource) {
+    const seen = new Set();
+    const subclasses = (data.subclass || [])
+        .filter(sc => {
+            if (sc.className !== className) return false;
+            if (!V1_SOURCES.includes(sc.source)) return false;
+            if (sc.classSource && sc.classSource !== classSource) return false;
+            const dedupeKey = `${sc.name}|${sc.source}`;
+            if (seen.has(dedupeKey)) return false;
+            seen.add(dedupeKey);
+            return true;
+        })
+        .map(sc => parseSubclass(sc));
+
+    const features = extractClassFeatures(data.classFeature || [], className, classSource);
+    return { features, subclasses };
+}
+
+/**
+ * Resolve automatic class/subclass features from the CDN cache (sync).
+ * Skips choice-based or redundant entries already shown elsewhere.
+ */
+export function getResolvedClassFeaturesSync(classFile, className, classSource, subclassName, level) {
+    const data = getCachedClassFile(classFile);
+    if (!data || !className || !level) return [];
+
+    const classKey = className.toLowerCase();
+    const choiceLabels = collectChoiceLabels(classKey, subclassName, level);
+    const classData = buildClassDataFromCache(data, className, classSource);
+    const all = getAllFeaturesUpToLevel(classData, subclassName, level);
+
+    return all
+        .filter(feat => !shouldSkipCdnFeature(feat, choiceLabels))
+        .sort((a, b) => (a.level || 0) - (b.level || 0) || a.name.localeCompare(b.name));
 }
 
 /**

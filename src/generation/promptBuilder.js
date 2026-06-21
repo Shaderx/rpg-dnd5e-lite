@@ -122,18 +122,17 @@ const KEYCAP = ['', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️
 function buildSpellSlotsString() {
     const slots = headerInfo?.spellSlots;
     const sp = headerInfo?.sorceryPoints;
-    let str = '';
+    const sr = headerInfo?.secondaryResource;
+    const parts = [];
     if (slots && Array.isArray(slots) && slots.length > 0) {
-        str = slots.map(s => {
+        parts.push(slots.map(s => {
             const label = s.level > 0 ? KEYCAP[s.level] : '🪄';
             return `${label}${s.current}/${s.max}`;
-        }).join(' ');
+        }).join(' '));
     }
-    if (sp) {
-        const spStr = `⚡${sp.current}/${sp.max}`;
-        str = str ? `${str} ${spStr}` : spStr;
-    }
-    return str;
+    if (sp) parts.push(`⚡${sp.current}/${sp.max}`);
+    if (sr) parts.push(`🔥${sr.current}/${sr.max}`);
+    return parts.join(' ');
 }
 
 /**
@@ -194,8 +193,17 @@ export function buildSpellLogPrompt() {
 }
 
 /**
+ * Format a dmg object { d4, d6, d8, d10, d12 } into a compact prompt string.
+ */
+function fmtDmgDice(dmg) {
+    if (!dmg) return '';
+    return ['d4', 'd6', 'd8', 'd10', 'd12'].map(k => `${k}→${dmg[k]}`).join(', ');
+}
+
+/**
  * Build the roll+attributes prompt (sent only when a roll is active).
- * Six d20 rolls: 2 player, 2 ally, 2 enemy — each pair supports advantage/disadvantage independently.
+ * These rolls are for COMBAT ONLY. The LLM generates its own rolls for
+ * non-combat skill checks, social encounters, exploration, etc.
  * Returns empty string if no roll.
  */
 export function buildRollPrompt() {
@@ -210,16 +218,16 @@ export function buildRollPrompt() {
     let prompt = '';
 
     if (roll) {
+        prompt += `[Combat Dice — use ONLY for combat actions this turn. For non-combat checks, use your own rolls.]\n`;
         if (includeAttrs) {
             prompt += `${userName}'s attributes: ${buildAttributesString()}\n`;
         }
         prompt += `${userName} rolled two combat d20 dice — combat_user_d20_1 = ${roll.roll1}, combat_user_d20_2 = ${roll.roll2}.\n`;
-        prompt += `Disregard any rolls if not needed. If the situation grants advantage, use the higher roll. If it imposes disadvantage, use the lower roll. Otherwise use the 1st roll.\n`;
         if (includeAttrs) {
             prompt += `The relevant ability modifier is calculated from their attributes above. Add the appropriate modifier to the chosen roll and compare against the DC to determine success or failure. Attack rolls are d20 + Modifier + Proficiency Bonus.\n`;
             prompt += `Remember to apply all applicable proficiencies and expertise: skill proficiency, tool proficiency, weapon/armor proficiency, saving throw proficiency, and expertise (double proficiency bonus) where the character has them.\n\n`;
         } else {
-            prompt += `Compare the chosen roll against the DC to determine success or failure. Remember to apply all applicable proficiencies and expertise (double proficiency bonus) the character has when calculating the final result.\n\n`;
+            //prompt += `Compare the chosen roll against the AC/DC to determine success or failure. Remember to apply all applicable proficiencies and expertise (double proficiency bonus) the character has when calculating the final result.\n\n`;
         }
         const allies = roll.allyRolls ?? (roll.allyRoll1 != null
             ? [{ roll1: roll.allyRoll1, roll2: roll.allyRoll2 }] : []);
@@ -228,10 +236,11 @@ export function buildRollPrompt() {
                 const a = allies[i];
                 const n = i + 1;
                 const tag = allies.length === 1 ? 'Ally' : `Ally ${n}`;
-                prompt += `${tag} combat rolls (use only when this ally needs to roll this turn; otherwise ignore) — ally${n}_combat_d20_1 = ${a.roll1}, ally${n}_combat_d20_2 = ${a.roll2}.\n`;
+                prompt += `${tag} combat d20 — ally${n}_d20_1 = ${a.roll1}, ally${n}_d20_2 = ${a.roll2}`;
+                if (a.dmg) prompt += ` | dmg: ${fmtDmgDice(a.dmg)}`;
+                prompt += `\n`;
             }
-            prompt += `Apply the same advantage/disadvantage logic for each ally: use the higher if advantage, the lower if disadvantage, otherwise the 1st roll.\n`;
-            prompt += `Use these ally rolls for any checks, saves, attacks, or contested rolls a friendly NPC or companion must make this turn.\n\n`;
+            //prompt += `Apply the same advantage/disadvantage logic for each ally. Use the damage die that matches the ally's weapon/spell damage die.\n\n`;
         }
         const enemies = roll.enemyRolls ?? (roll.npcRoll1 != null
             ? [{ roll1: roll.npcRoll1, roll2: roll.npcRoll2 }] : []);
@@ -240,10 +249,11 @@ export function buildRollPrompt() {
                 const e = enemies[i];
                 const n = i + 1;
                 const tag = enemies.length === 1 ? 'Enemy' : `Enemy ${n}`;
-                prompt += `${tag} combat rolls (use only when an enemy needs to roll this turn; otherwise ignore) — enemy${n}_combat_d20_1 = ${e.roll1}, enemy${n}_combat_d20_2 = ${e.roll2}.\n`;
+                prompt += `${tag} combat d20 — enemy${n}_d20_1 = ${e.roll1}, enemy${n}_d20_2 = ${e.roll2}`;
+                if (e.dmg) prompt += ` | dmg: ${fmtDmgDice(e.dmg)}`;
+                prompt += `\n`;
             }
-            prompt += `Apply the same advantage/disadvantage logic for each enemy: use the higher if advantage, the lower if disadvantage, otherwise the 1st roll.\n`;
-            prompt += `Use these enemy rolls for any opposing checks, saves, attacks, or contested rolls a hostile NPC must make this turn.\n`;
+           // prompt += `Apply the same advantage/disadvantage logic for each enemy. Use the damage die that matches the enemy's weapon/spell damage die.\n`;
         }
     }
 
@@ -252,13 +262,13 @@ export function buildRollPrompt() {
         const diceList = dmg.dice
             ? dmg.dice.map(d => `d${d.sides}→${d.result}`).join(', ')
             : dmg.rolls.map(r => `d${dmg.sides}→${r}`).join(', ');
-        prompt += `${userName} also rolled dice: ${diceList}.\n`;
-        prompt += `Apply each die result to the relevant effect of the spell, ability, or attack used this turn (damage, healing, save penalty, duration, etc.).`;
+        prompt += `${userName} also rolled damage dice: ${diceList}.\n`;
+        //prompt += `Apply each die result to the relevant combat effect (damage, healing, etc.) of the spell, ability, or attack used this turn.`;
     }
 
     if (hasModifiers) {
         if (prompt) prompt += '\n';
-        prompt += `${userName} has the following active dice modifiers:\n`;
+        prompt += `${userName} has the following active combat dice modifiers:\n`;
         for (const [id, modRoll] of Object.entries(mods)) {
             const def = MODIFIER_DEFS.find(m => m.id === id);
             if (!def || !modRoll) continue;
@@ -266,8 +276,6 @@ export function buildRollPrompt() {
             prompt += `- ${desc} Rolled ${modRoll.formula}: ${modRoll.rolls.join(' + ')} = ${modRoll.total}.\n`;
         }
     }
-// Disabling this for now.
-//    prompt += `\nIMPORTANT: Write out the roll results and calculations at the end of your response (e.g. the chosen roll, modifiers applied, total, DC, and outcome).`;
 
     return prompt;
 }
