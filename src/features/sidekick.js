@@ -255,9 +255,10 @@ export function getCreatureStats(name, source) {
     return null;
 }
 
-// ─── Equipment Items (Weapons + Armor + Shields) ────────────
+// ─── Equipment Items (Weapons + Armor + Shields + Mundane Gear) ────────────
 
 const ARMOR_TYPES = new Set(['LA', 'MA', 'HA']);
+let _mundaneItemCache = null;
 
 let _equipItemInflight = null;
 
@@ -269,20 +270,26 @@ export async function fetchEquipmentItems() {
         .then(data => {
             const items = data?.baseitem || [];
             const cache = new Map();
+            const mundane = new Map();
             for (const item of items) {
                 const rawType = (item.type || '').split('|')[0];
                 const isWeapon = !!(item.weapon || item.weaponCategory);
                 const isArmor = ARMOR_TYPES.has(rawType);
                 const isShield = rawType === 'S';
-                if (!isWeapon && !isArmor && !isShield) continue;
                 const key = item.name.toLowerCase();
-                if (cache.has(key)) continue;
-                cache.set(key, {
-                    ...item,
-                    _kind: isWeapon ? 'weapon' : isArmor ? 'armor' : 'shield',
-                    _armorType: isArmor ? rawType : isShield ? 'S' : null,
-                });
+                if (isWeapon || isArmor || isShield) {
+                    if (cache.has(key)) continue;
+                    cache.set(key, {
+                        ...item,
+                        _kind: isWeapon ? 'weapon' : isArmor ? 'armor' : 'shield',
+                        _armorType: isArmor ? rawType : isShield ? 'S' : null,
+                    });
+                } else {
+                    if (mundane.has(key)) continue;
+                    mundane.set(key, { ...item, _kind: 'gear' });
+                }
             }
+            _mundaneItemCache = mundane;
             setEquipmentItemCache(cache);
             return cache;
         })
@@ -412,6 +419,10 @@ export function lookupItemByName(name) {
         const base = equipmentItemCache.get(key);
         if (base) return base;
     }
+    if (_mundaneItemCache) {
+        const mundane = _mundaneItemCache.get(key);
+        if (mundane) return mundane;
+    }
     return null;
 }
 
@@ -438,15 +449,25 @@ export function lookupCreatureByName(name) {
 }
 
 export function searchMagicItems(query) {
-    if (!_magicItemCache || !query || query.length < 2) return [];
+    if (!query || query.length < 2) return [];
     const q = query.toLowerCase();
     const results = [];
     const seen = new Set();
-    for (const [key, item] of _magicItemCache) {
-        if (!key.includes(q)) continue;
-        if (seen.has(item.name.toLowerCase())) continue;
-        seen.add(item.name.toLowerCase());
-        results.push(item);
+    if (_magicItemCache) {
+        for (const [key, item] of _magicItemCache) {
+            if (!key.includes(q)) continue;
+            if (seen.has(item.name.toLowerCase())) continue;
+            seen.add(item.name.toLowerCase());
+            results.push(item);
+        }
+    }
+    if (_mundaneItemCache) {
+        for (const [key, item] of _mundaneItemCache) {
+            if (!key.includes(q)) continue;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            results.push(item);
+        }
     }
     return results.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 25);
 }
@@ -926,13 +947,78 @@ export function computeSidekickStats(sidekick, level) {
 
 // ─── Combat Stat Computation ────────────────────────────────
 
+function scaleDamageString(dmgStr, origMod, newMod) {
+    if (!dmgStr || origMod === newMod) return dmgStr;
+    const m = dmgStr.match(/^(\d+d\d+)\s*([+-]\s*\d+)?$/);
+    if (!m) return dmgStr;
+    const dice = m[1];
+    const oldBonus = m[2] ? parseInt(m[2].replace(/\s/g, '')) : 0;
+    const newBonus = oldBonus + (newMod - origMod);
+    if (newBonus === 0) return dice;
+    return newBonus > 0 ? `${dice} + ${newBonus}` : `${dice} - ${Math.abs(newBonus)}`;
+}
+
+function averageDiceDamage(dmgStr) {
+    if (!dmgStr) return 0;
+    const m = dmgStr.match(/^(\d+)d(\d+)(?:\s*([+-]\s*\d+))?$/);
+    if (!m) return 0;
+    const count = parseInt(m[1], 10);
+    const sides = parseInt(m[2], 10);
+    const bonus = m[3] ? parseInt(m[3].replace(/\s/g, ''), 10) : 0;
+    return Math.floor(count * (sides + 1) / 2) + bonus;
+}
+
+function formatActionHit(hit) {
+    return hit >= 0 ? `+${hit}` : `${hit}`;
+}
+
+/**
+ * Rewrite stored action text with recomputed hit, damage average, and DC.
+ * Original text is preserved on the action object; this is display-only.
+ */
+function buildComputedActionText(text, { hit, damage, dc }) {
+    if (!text) return text;
+    let result = text;
+    let changed = false;
+
+    if (hit != null) {
+        const hitStr = formatActionHit(hit);
+        const next = result.replace(/([+-]?\d+)\s+to hit/i, `${hitStr} to hit`);
+        if (next !== result) {
+            result = next;
+            changed = true;
+        }
+    }
+
+    if (damage) {
+        const avg = averageDiceDamage(damage);
+        const next = result.replace(/(\d+)\s*\((\d+d\d+(?:\s*[+-]\s*\d+)?)\)/, `${avg} (${damage})`);
+        if (next !== result) {
+            result = next;
+            changed = true;
+        }
+    }
+
+    if (dc != null) {
+        const next = result.replace(/DC\s+(\d+)/i, `DC ${dc}`);
+        if (next !== result) {
+            result = next;
+            changed = true;
+        }
+    }
+
+    return changed ? result : text;
+}
+
 /**
  * Recalculate creature action to-hit and DCs based on sidekick prof bonus.
  * The delta between sidekick prof and creature original prof is applied.
  */
 function computeActionStats(actions, sidekickProf, mods, attackerBonus) {
     return actions.map(a => {
-        if (!a.enabled) return { ...a, computedHit: null, computedDamage: null, computedDc: null };
+        if (!a.enabled) {
+            return { ...a, computedHit: null, computedDamage: null, computedDc: null, computedText: a.text };
+        }
         const origProf = a.origProf ?? 2;
         const profDelta = sidekickProf - origProf;
         let hit = null;
@@ -960,7 +1046,9 @@ function computeActionStats(actions, sidekickProf, mods, attackerBonus) {
             damage = scaleDamageString(a.origDamage, origMod, relevantMod);
         }
 
-        return { ...a, computedHit: hit, computedDamage: damage, computedDc: dc };
+        const computedText = buildComputedActionText(a.text, { hit, damage, dc });
+
+        return { ...a, computedHit: hit, computedDamage: damage, computedDc: dc, computedText };
     });
 }
 
@@ -992,21 +1080,6 @@ function computeWeaponStats(weapons, prof, mods, attackerBonus) {
             computedAbilityMod: abilityMod,
         };
     });
-}
-
-/**
- * Adjust damage dice string when ability modifier changes.
- * E.g. "1d6 + 3" with origMod=3, newMod=4 → "1d6 + 4"
- */
-function scaleDamageString(dmgStr, origMod, newMod) {
-    if (!dmgStr || origMod === newMod) return dmgStr;
-    const m = dmgStr.match(/^(\d+d\d+)\s*([+-]\s*\d+)?$/);
-    if (!m) return dmgStr;
-    const dice = m[1];
-    const oldBonus = m[2] ? parseInt(m[2].replace(/\s/g, '')) : 0;
-    const newBonus = oldBonus + (newMod - origMod);
-    if (newBonus === 0) return dice;
-    return newBonus > 0 ? `${dice} + ${newBonus}` : `${dice} - ${Math.abs(newBonus)}`;
 }
 
 // ─── Feature Summary ────────────────────────────────────────
@@ -1457,6 +1530,8 @@ export function createSidekickFromCreature(creature, config) {
         hireDate: config.hireDate || null,
         hirePayMode: config.hirePayMode || 'owed',
         hirePaidAmount: config.hirePaidAmount ?? 0,
+        hireQuestAmount: config.hireQuestAmount ?? 0,
+        hireQuestPaid: config.hireQuestPaid ?? false,
         enabled: true,
     };
 }

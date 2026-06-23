@@ -79,6 +79,9 @@
             <div class="dnd-strip-quests-list"></div>
         </div>
 
+        <!-- Strip: non-combat d20 rolls (subdued combat-roll colors) -->
+        <span id="dnd-strip-noncombat-tag" class="dnd-strip-noncombat-tag" style="display:none;" title="Non-Combat d20s">--</span>
+
         <!-- Strip: random event d100 (sleek inline before reload) -->
         <span id="dnd-strip-event-tag" class="dnd-strip-event-tag" style="display:none;" title="Random Event">--</span>
 
@@ -93,6 +96,7 @@
         <div class="dnd-panel-header">
             <h3><i class="fa-solid fa-dice-d20"></i> <span id="dnd-panel-title">D&D 5e Lite</span></h3>
             <div class="dnd-header-actions">
+                <span id="dnd-panel-noncombat-tag" class="dnd-panel-noncombat-tag" style="display:none;" title="Non-Combat d20s">--</span>
                 <span id="dnd-panel-event-tag" class="dnd-panel-event-tag" style="display:none;" title="Random Event">--</span>
                 <button id="dnd-refresh-btn" class="dnd-header-btn" title="Refresh from chat">
                     <i class="fa-solid fa-rotate"></i>
@@ -492,6 +496,11 @@
                 <span>Auto-detect long rests from date changes</span>
             </label>
             <label class="dnd-toggle-label">
+                <input type="checkbox" id="dnd-setting-noncombat-dice" />
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Non-combat d20s (skill/ability checks each turn)</span>
+            </label>
+            <label class="dnd-toggle-label">
                 <input type="checkbox" id="dnd-setting-random-events" />
                 <i class="fa-solid fa-dice"></i>
                 <span>Random events (d100 each turn)</span>
@@ -759,6 +768,10 @@
                     <span>Expertise:</span>
                 </div>
                 <div id="dnd-sk-expertise-checks" class="dnd-sk-skill-checks" style="display:none;"></div>
+                <div class="dnd-setting-row" id="dnd-sk-tool-row" style="display:none;">
+                    <span id="dnd-sk-tool-label">Tools (0/2):</span>
+                </div>
+                <div id="dnd-sk-tool-checks" class="dnd-sk-skill-checks" style="display:none;"></div>
                 <div id="dnd-sk-creature-skills-row" style="display:none;">
                     <div class="dnd-sk-equip-sub-title" style="margin-top:0.5em;">Base Creature Skills</div>
                     <div id="dnd-sk-creature-skills-list" class="dnd-sk-info-text"></div>
@@ -867,7 +880,7 @@
 
             <div class="dnd-sk-config-section">
                 <div class="dnd-sk-config-section-title">Hire Info</div>
-                <div class="dnd-setting-row">
+                <div class="dnd-setting-row" id="dnd-sk-hire-gold-row">
                     <span>Gold/day:</span>
                     <input type="number" id="dnd-sk-hire-gold" min="0" value="0" style="width:4em;" />
                 </div>
@@ -876,12 +889,21 @@
                     <select id="dnd-sk-hire-paymode">
                         <option value="owed">Track owed</option>
                         <option value="daily">Paid daily</option>
+                        <option value="quest">One-time / Quest</option>
                         <option value="free">Oathbound / Free</option>
                     </select>
                 </div>
                 <div class="dnd-setting-row" id="dnd-sk-hire-paid-row">
                     <span>Paid (gp):</span>
                     <input type="number" id="dnd-sk-hire-paid" min="0" value="0" style="width:5em;" />
+                </div>
+                <div class="dnd-setting-row" id="dnd-sk-hire-quest-row" style="display:none;">
+                    <span>Amount (gp):</span>
+                    <input type="number" id="dnd-sk-hire-quest-amount" min="0" value="0" style="width:5em;" />
+                    <label class="dnd-sk-check">
+                        <input type="checkbox" id="dnd-sk-hire-quest-paid" />
+                        Paid
+                    </label>
                 </div>
                 <div class="dnd-setting-row">
                     <span>Hire date:</span>
@@ -1055,6 +1077,9 @@
                         Shield
                     </label>
                     <span id="dnd-v1-ac-preview" class="dnd-v1-ac-preview"></span>
+                </div>
+                <div id="dnd-v1-armor-notes-wrap" class="dnd-setting-row" style="display:none;">
+                    <input type="text" id="dnd-v1-armor-notes" placeholder="Notes (e.g. bound spell, attunement details)" style="flex:1;" />
                 </div>
                 <div class="dnd-setting-row">
                     <input type="text" id="dnd-v1-armor-search" placeholder="Search armor..." />

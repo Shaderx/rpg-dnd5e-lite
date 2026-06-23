@@ -31,11 +31,17 @@ export function renderSidekickCards() {
 
         // Hire cost calculation
         let hireHtml = '';
-        if (sk.hireDate || sk.hireGoldPerDay > 0 || sk.hirePayMode === 'free') {
+        if (sk.hireDate || sk.hireGoldPerDay > 0 || sk.hirePayMode === 'free' || sk.hirePayMode === 'quest') {
             const parts = [];
             if (sk.hireDate) parts.push(`<span class="dnd-sk-card-hire-date">${escHtml(sk.hireDate)}</span>`);
             if (sk.hirePayMode === 'free') {
                 parts.push(`<span class="dnd-sk-card-paid">oathbound</span>`);
+            } else if (sk.hirePayMode === 'quest') {
+                const amt = sk.hireQuestAmount > 0 ? `${sk.hireQuestAmount}gp` : 'quest';
+                parts.push(`<span class="dnd-sk-card-rate">${amt}</span>`);
+                parts.push(sk.hireQuestPaid
+                    ? `<span class="dnd-sk-card-paid">paid</span>`
+                    : `<span class="dnd-sk-card-owed">due on completion</span>`);
             } else if (sk.hireGoldPerDay > 0) {
                 parts.push(`<span class="dnd-sk-card-rate">${sk.hireGoldPerDay}gp/day</span>`);
                 const cost = calculateHireCost(sk.hireDate, currentDate, sk.hireGoldPerDay, sk.hirePayMode, sk.hirePaidAmount);
@@ -190,15 +196,8 @@ export function renderSidekickDetail(sidekickId) {
     const computedActions = (stats.computedActions || []).filter(a => a.enabled);
     if (computedActions.length > 0) {
         const aLines = computedActions.map(a => {
-            let statLine = '';
-            if (a.computedHit != null || a.computedDamage || a.computedDc != null) {
-                const parts = [];
-                if (a.computedHit != null) parts.push(`<strong>${a.computedHit >= 0 ? '+' : ''}${a.computedHit}</strong> to hit`);
-                if (a.computedDamage) parts.push(`<strong>${escHtml(a.computedDamage)}</strong> dmg`);
-                if (a.computedDc != null) parts.push(`DC <strong>${a.computedDc}</strong>`);
-                statLine = ` <span class="dnd-sk-det-computed">[${parts.join(', ')}]</span>`;
-            }
-            return `<div class="dnd-sk-det-weapon"><strong>${escHtml(a.name)}.</strong> ${escHtml(a.text)}${statLine}</div>`;
+            const displayText = a.computedText || a.text;
+            return `<div class="dnd-sk-det-weapon"><strong>${escHtml(a.name)}.</strong> ${escHtml(displayText)}</div>`;
         });
         sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Actions</div>${aLines.join('')}</div>`);
     }
@@ -268,10 +267,14 @@ export function renderSidekickDetail(sidekickId) {
     }
 
     const fe = stats.featEffects;
+    const allTools = [...(sk.toolProficiencies || [])];
+    if (fe?.toolProficiencies?.length > 0) {
+        for (const t of fe.toolProficiencies) { if (!allTools.includes(t)) allTools.push(t); }
+    }
+    if (allTools.length > 0) {
+        sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Tool Proficiencies</div><div>${allTools.map(t => escHtml(t)).join(', ')}</div></div>`);
+    }
     if (fe) {
-        if (fe.toolProficiencies?.length > 0) {
-            sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Tool Proficiencies</div><div>${fe.toolProficiencies.map(t => escHtml(t)).join(', ')}</div></div>`);
-        }
         if (fe.bonusCantrips?.length > 0 || fe.bonusSpells?.length > 0) {
             const items = [...(fe.bonusCantrips || []), ...(fe.bonusSpells || [])].map(s => {
                 const free = s.freeCast ? ' <em>[1/LR free]</em>' : '';
@@ -285,10 +288,14 @@ export function renderSidekickDetail(sidekickId) {
         sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Extra Attack</div><div>${stats.extraAttack} attacks per Attack action</div></div>`);
     }
 
-    if (sk.hireGoldPerDay > 0 || sk.hireDate || sk.hirePayMode === 'free') {
+    if (sk.hireGoldPerDay > 0 || sk.hireDate || sk.hirePayMode === 'free' || sk.hirePayMode === 'quest') {
         const parts = [];
         if (sk.hirePayMode === 'free') {
             parts.push('Oathbound — no payment required');
+        } else if (sk.hirePayMode === 'quest') {
+            const amt = sk.hireQuestAmount > 0 ? `${sk.hireQuestAmount}gp` : 'agreed sum';
+            parts.push(`Quest payment: ${amt}`);
+            parts.push(sk.hireQuestPaid ? '(paid)' : '(due on completion)');
         } else {
             if (sk.hireGoldPerDay > 0) parts.push(`${sk.hireGoldPerDay}gp/day`);
             if (sk.hirePayMode === 'daily') {

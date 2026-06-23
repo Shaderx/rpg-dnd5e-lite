@@ -2157,7 +2157,24 @@ async function populateEquipment() {
     // Armor
     const armorCurrent = document.getElementById('dnd-v1-armor-current');
     if (armorCurrent) {
-        armorCurrent.textContent = wizState.equippedArmor?.name || 'None';
+        const armor = wizState.equippedArmor;
+        if (armor) {
+            armorCurrent.innerHTML = `<span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(armor.name)}">${esc(armor.name)}</span>`;
+        } else {
+            armorCurrent.textContent = 'None';
+        }
+    }
+
+    // Armor custom notes
+    const armorNotesWrap = document.getElementById('dnd-v1-armor-notes-wrap');
+    if (armorNotesWrap) {
+        if (wizState.equippedArmor?._magic) {
+            armorNotesWrap.style.display = '';
+            const input = armorNotesWrap.querySelector('input');
+            if (input) input.value = wizState.equippedArmor.customNotes || '';
+        } else {
+            armorNotesWrap.style.display = 'none';
+        }
     }
 
     const shieldCheck = document.getElementById('dnd-v1-shield-check');
@@ -2171,14 +2188,25 @@ async function populateEquipment() {
             const wpn = wizState.weapons[i];
             const div = document.createElement('div');
             div.className = 'dnd-v1-equip-item';
-            div.innerHTML = `<span>${esc(wpn.name)} (${wpn.damageDice} ${wpn.damageType || ''})</span>
-                <span class="item-remove" data-weapon-idx="${i}">✕</span>`;
+            const notesHtml = wpn._magic
+                ? `<input type="text" class="dnd-v1-equip-notes" data-weapon-idx="${i}" placeholder="Notes (e.g. bound spell: Shield)" value="${esc(wpn.customNotes || '')}" />`
+                : '';
+            const notesDisplay = wpn.customNotes ? ` <span class="dnd-v1-equip-note-text">[${esc(wpn.customNotes)}]</span>` : '';
+            div.innerHTML = `<span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(wpn.name)}">${esc(wpn.name)} (${wpn.damageDice} ${wpn.damageType || ''})</span>${notesDisplay}
+                <span class="item-remove" data-weapon-idx="${i}">✕</span>${notesHtml}`;
             div.querySelector('.item-remove').onclick = (e) => {
                 e.stopPropagation();
                 const idx = parseInt(e.currentTarget.dataset.weaponIdx);
                 wizState.weapons.splice(idx, 1);
                 populateEquipment();
             };
+            const notesInput = div.querySelector('.dnd-v1-equip-notes');
+            if (notesInput) {
+                notesInput.onchange = (e) => {
+                    const idx = parseInt(e.currentTarget.dataset.weaponIdx);
+                    wizState.weapons[idx].customNotes = e.currentTarget.value.trim();
+                };
+            }
             weaponsList.appendChild(div);
         }
     }
@@ -2674,6 +2702,14 @@ function bindWizardEvents() {
         updateACPreview();
     };
 
+    // Armor notes binding
+    const armorNotesInput = document.getElementById('dnd-v1-armor-notes');
+    if (armorNotesInput) armorNotesInput.onchange = () => {
+        if (wizState.equippedArmor) {
+            wizState.equippedArmor.customNotes = armorNotesInput.value.trim();
+        }
+    };
+
     // Armor search (with magic toggle)
     const armorSearch = document.getElementById('dnd-v1-armor-search');
     const magicArmorCheck = document.getElementById('dnd-v1-magic-armor-check');
@@ -2688,17 +2724,16 @@ function bindWizardEvents() {
         results.innerHTML = matches.map(a => {
             const magicTag = a._magic ? ' <span class="v1-magic-tag">\u2726</span>' : '';
             const totalAc = a.ac + (a.bonusAc || 0);
-            return `<div class="dropdown-item" data-armor='${JSON.stringify(a).replace(/'/g, '&#39;')}'>${esc(a.name)}${magicTag} (AC ${totalAc}, ${a.type})</div>`;
+            return `<div class="dropdown-item dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(a.name)}" data-armor='${JSON.stringify(a).replace(/'/g, '&#39;')}'>${esc(a.name)}${magicTag} (AC ${totalAc}, ${a.type})</div>`;
         }).join('');
         results.classList.add('open');
 
         results.querySelectorAll('.dropdown-item').forEach(item => {
             item.onclick = () => {
                 wizState.equippedArmor = JSON.parse(item.dataset.armor);
-                document.getElementById('dnd-v1-armor-current').textContent = wizState.equippedArmor.name;
                 results.classList.remove('open');
                 armorSearch.value = '';
-                updateACPreview();
+                populateEquipment();
             };
         });
     };
@@ -2707,8 +2742,7 @@ function bindWizardEvents() {
     const armorClear = document.getElementById('dnd-v1-armor-clear');
     if (armorClear) armorClear.onclick = () => {
         wizState.equippedArmor = null;
-        document.getElementById('dnd-v1-armor-current').textContent = 'None';
-        updateACPreview();
+        populateEquipment();
     };
 
     // Weapon search (with magic toggle)
@@ -2725,7 +2759,7 @@ function bindWizardEvents() {
         results.innerHTML = matches.map(w => {
             const magicTag = w._magic ? ' <span class="v1-magic-tag">\u2726</span>' : '';
             const bonusStr = w.bonus ? ` (+${w.bonus})` : '';
-            return `<div class="dropdown-item" data-weapon='${JSON.stringify(w).replace(/'/g, '&#39;')}'>${esc(w.name)}${magicTag} (${w.damageDice}${bonusStr} ${w.damageType || ''})</div>`;
+            return `<div class="dropdown-item dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(w.name)}" data-weapon='${JSON.stringify(w).replace(/'/g, '&#39;')}'>${esc(w.name)}${magicTag} (${w.damageDice}${bonusStr} ${w.damageType || ''})</div>`;
         }).join('');
         results.classList.add('open');
 

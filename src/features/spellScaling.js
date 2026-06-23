@@ -63,6 +63,7 @@ export function buildUpcastTable(baseDice, healDice, upcastInfo, spellLevel, max
 
 /**
  * Parse upcast dice scaling from entriesHigherLevel.
+ * Handles {@damage}, {@dice}, {@scaledice}, and {@scaledamage} tags.
  */
 export function parseUpcastInfo(entries, spellLevel = 1) {
     if (!entries || !Array.isArray(entries)) return null;
@@ -70,16 +71,31 @@ export function parseUpcastInfo(entries, spellLevel = 1) {
     for (const entry of entries) {
         const text = entryToPlain(entry);
 
-        const diceMatch = text.match(/\{@(?:damage|dice)\s+(\d+d\d+)\}.*?(?:each|every)\s+(?:slot\s+)?level\s+above\s+(\d+)/i);
+        // {@scaledice NdM|range|NdM} or {@scaledamage NdM|range|NdM} — extract increment dice
+        const scaledMatch = text.match(/\{@scale(?:dice|damage)\s+(\d+d\d+)\|[^}]*\}.*?(?:each|every|per)\s+(?:(?:spell\s+)?slot\s+)?level\s+above\s+(\d+)/i);
+        if (scaledMatch) {
+            return { dice: scaledMatch[1], aboveLevel: parseInt(scaledMatch[2], 10) || spellLevel };
+        }
+
+        // {@scaledice NdM|range|NdM} with "increases by" phrasing (no "above N" anchor)
+        const scaledIncMatch = text.match(/increases?\s+by\s+\{@scale(?:dice|damage)\s+(\d+d\d+)\|[^}]*\}/i);
+        if (scaledIncMatch) {
+            return { dice: scaledIncMatch[1], aboveLevel: spellLevel };
+        }
+
+        // {@damage NdM} or {@dice NdM} ... each/every level above N
+        const diceMatch = text.match(/\{@(?:damage|dice)\s+(\d+d\d+)\}.*?(?:each|every)\s+(?:(?:spell\s+)?slot\s+)?level\s+above\s+(\d+)/i);
         if (diceMatch) {
             return { dice: diceMatch[1], aboveLevel: parseInt(diceMatch[2], 10) || spellLevel };
         }
 
+        // "increases by {@damage NdM}" or "increases by {@dice NdM}"
         const incMatch = text.match(/increases?\s+by\s+\{@(?:damage|dice)\s+(\d+d\d+)\}/i);
         if (incMatch) {
             return { dice: incMatch[1], aboveLevel: spellLevel };
         }
 
+        // Plain text: "NdM damage/hit points ... per/for each level"
         const perLevelMatch = text.match(/(\d+d\d+)\s+(?:damage|hit points).*?(?:per|for)\s+(?:each|every)\s+(?:slot\s+)?level/i);
         if (perLevelMatch) {
             return { dice: perLevelMatch[1], aboveLevel: spellLevel };
@@ -90,14 +106,19 @@ export function parseUpcastInfo(entries, spellLevel = 1) {
 
 /**
  * Non-dice upcast effects (extra targets, duration, etc.)
+ * Excludes entries that are purely about dice scaling per level.
  */
 export function parseUpcastExtra(entries) {
     if (!entries || !Array.isArray(entries)) return null;
     const parts = [];
     for (const entry of entries) {
-        const text = stripTags(entryToPlain(entry));
+        const rawText = entryToPlain(entry);
+        if (!rawText) continue;
+        // Check for dice scaling patterns BEFORE stripping tags
+        if (/\{@(?:damage|dice|scale(?:dice|damage))/i.test(rawText) && /level\s+above/i.test(rawText)) continue;
+        if (/increases?\s+by\s+\{@(?:damage|dice|scale(?:dice|damage))/i.test(rawText)) continue;
+        const text = stripTags(rawText);
         if (!text) continue;
-        if (/\{@(?:damage|dice)/i.test(text) && /level\s+above/i.test(text)) continue;
         parts.push(text);
     }
     return parts.length > 0 ? parts.join(' ') : null;

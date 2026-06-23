@@ -160,7 +160,8 @@ function buildStatCard(stats) {
         lines.push('<div class="v1-section-title">Weapons</div>');
         for (const w of stats.computedWeapons) {
             const hit = w.computedHit >= 0 ? `+${w.computedHit}` : `${w.computedHit}`;
-            lines.push(`<div class="v1-feature-item"><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(w.name)}">${esc(w.name)}</span>: ${hit} to hit, ${esc(w.computedDamage)} ${esc(w.damageType || '')}</div>`);
+            const notes = w.customNotes ? ` <span class="v1-equip-notes">[${esc(w.customNotes)}]</span>` : '';
+            lines.push(`<div class="v1-feature-item"><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(w.name)}">${esc(w.name)}</span>: ${hit} to hit, ${esc(w.computedDamage)} ${esc(w.damageType || '')}${notes}</div>`);
         }
     }
 

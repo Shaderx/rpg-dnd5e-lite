@@ -5,7 +5,7 @@
 
 import { getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { eventSource, event_types } from '../../../../script.js';
-import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, autoLongRestEnabled, setAutoLongRestEnabled, character, sidekicks, headerInfo, lastEventRoll } from './src/core/state.js';
+import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, autoLongRestEnabled, setAutoLongRestEnabled, character, sidekicks, headerInfo, lastEventRoll, lastNonCombatRoll } from './src/core/state.js';
 import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled, saveSendAttributesOnRoll, loadSendAttributesOnRoll, saveSpellInjectEnabled, loadSpellInjectEnabled, saveAutoLongRest, loadAutoLongRest, loadSpellbook, loadCharacter, saveSidekicks, loadSidekicks, loadRandomEventState, saveRandomEventState } from './src/core/persistence.js';
 import { importSpellbook, clearSpellbook, ensureSpellData } from './src/features/spellbook.js';
 import { renderSpellbook, hideSpellTooltip } from './src/rendering/spellbook.js';
@@ -400,9 +400,13 @@ async function openSidekickConfigModal(editId) {
     $('#dnd-sk-equip-section').hide();
     $('#dnd-sk-spells-section').hide();
     $('#dnd-sk-hire-gold').val(0);
+    $('#dnd-sk-hire-gold-row').show();
     $('#dnd-sk-hire-paymode').val('owed');
     $('#dnd-sk-hire-paid').val(0);
     $('#dnd-sk-hire-paid-row').show();
+    $('#dnd-sk-hire-quest-row').hide();
+    $('#dnd-sk-hire-quest-amount').val(0);
+    $('#dnd-sk-hire-quest-paid').prop('checked', false);
     $('#dnd-sk-hire-date').val('');
     _skSelectedArmorName = null;
     $('#dnd-sk-armor-current').text('None');
@@ -432,8 +436,13 @@ async function openSidekickConfigModal(editId) {
             if (sk.subtype) $('#dnd-sk-subtype').val(sk.subtype);
             $('#dnd-sk-hire-gold').val(sk.hireGoldPerDay || 0);
             $('#dnd-sk-hire-paymode').val(sk.hirePayMode || 'owed');
+            const payMode = sk.hirePayMode || 'owed';
+            $('#dnd-sk-hire-gold-row').toggle(payMode !== 'quest' && payMode !== 'free');
+            $('#dnd-sk-hire-paid-row').toggle(payMode === 'owed');
             $('#dnd-sk-hire-paid').val(sk.hirePaidAmount || 0);
-            $('#dnd-sk-hire-paid-row').toggle((sk.hirePayMode || 'owed') === 'owed');
+            $('#dnd-sk-hire-quest-row').toggle(payMode === 'quest');
+            $('#dnd-sk-hire-quest-amount').val(sk.hireQuestAmount || 0);
+            $('#dnd-sk-hire-quest-paid').prop('checked', !!sk.hireQuestPaid);
             $('#dnd-sk-hire-date').val(sk.hireDate || '');
 
             _skTempActions = (sk.creatureActions || []).map(a => ({ ...a }));
@@ -472,7 +481,7 @@ async function openSidekickConfigModal(editId) {
             $('#dnd-sk-shield-check').prop('checked', !!sk.hasShield);
             showEquipmentSection();
 
-            populateProfSection(sk.type, sk.saveProficiency, sk.skillProficiencies, sk.skillExpertise);
+            populateProfSection(sk.type, sk.saveProficiency, sk.skillProficiencies, sk.skillExpertise, sk.toolProficiencies);
             populateAsiSection(sk.type, sk.asiChoices, sk.featData);
             populateClassFeatureChoices(sk.type, sk);
             if (sk.type === 'spellcaster') {
@@ -503,7 +512,7 @@ function onSkTypeChanged() {
     }
 
     if (type) {
-        populateProfSection(type, null, [], []);
+        populateProfSection(type, null, [], [], []);
         populateAsiSection(type, {});
         populateClassFeatureChoices(type, null);
     } else {
@@ -754,12 +763,20 @@ function renderWeaponsList() {
     let html = '';
     for (let i = 0; i < _skTempWeapons.length; i++) {
         const w = _skTempWeapons[i];
+        const notesInput = w._magic ? `<input type="text" class="dnd-sk-item-notes" data-equip-idx="${i}" placeholder="Notes (e.g. bound spell, attunement)" value="${escHtml(w.customNotes || '')}" />` : '';
         html += `<div class="dnd-sk-equip-item" data-item-name="${escHtml(w.name)}">
             <span>${escHtml(w.name)} &mdash; ${formatWeaponDesc(w)}</span>
             <button class="dnd-sk-equip-remove" data-equip-idx="${i}" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+            ${notesInput}
         </div>`;
     }
     $list.html(html);
+    $list.find('.dnd-sk-item-notes').on('change', function() {
+        const idx = parseInt($(this).data('equip-idx'));
+        if (idx >= 0 && idx < _skTempWeapons.length) {
+            _skTempWeapons[idx].customNotes = $(this).val().trim();
+        }
+    });
 }
 
 function updateAcPreview() {
@@ -842,9 +859,16 @@ function renderItemsList() {
         html += `<div class="dnd-sk-equip-item" data-item-name="${escHtml(it.name)}">
             <span>${escHtml(it.name)}${rarity}</span>
             <button class="dnd-sk-item-remove" data-item-idx="${i}" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+            <input type="text" class="dnd-sk-item-notes" data-item-idx="${i}" placeholder="Notes (e.g. bound spell, attunement)" value="${escHtml(it.customNotes || '')}" />
         </div>`;
     }
     $list.html(html);
+    $list.find('.dnd-sk-item-notes').on('change', function() {
+        const idx = parseInt($(this).data('item-idx'));
+        if (idx >= 0 && idx < _skTempItems.length) {
+            _skTempItems[idx].customNotes = $(this).val().trim();
+        }
+    });
 }
 
 function addItemCustom() {
@@ -901,7 +925,7 @@ function onSkItemSearch() {
     }, 300);
 }
 
-function populateProfSection(type, savedSave, savedSkills, savedExpertise) {
+function populateProfSection(type, savedSave, savedSkills, savedExpertise, savedTools) {
     const typeInfo = SIDEKICK_TYPES[type];
     if (!typeInfo) { $('#dnd-sk-prof-section').hide(); return; }
 
@@ -943,6 +967,34 @@ function populateProfSection(type, savedSave, savedSkills, savedExpertise) {
     } else {
         $('#dnd-sk-expertise-row').hide();
         $('#dnd-sk-expertise-checks').hide().html('');
+    }
+
+    // Tool proficiency selection for Expert sidekicks
+    const maxTools = 2;
+    if (type === 'expert') {
+        const $toolRow = $('#dnd-sk-tool-row');
+        const $toolChecks = $('#dnd-sk-tool-checks');
+        const $toolLabel = $('#dnd-sk-tool-label');
+        const existingTools = savedTools || [];
+        $toolLabel.text(`Tools (${existingTools.length}/${maxTools}):`);
+        let toolHtml = '';
+        for (const tool of DND_TOOLS) {
+            const checked = existingTools.includes(tool) ? ' checked' : '';
+            toolHtml += `<label class="dnd-sk-check"><input type="checkbox" data-tool="${escHtml(tool)}"${checked} /> ${escHtml(tool)}</label>`;
+        }
+        $toolChecks.html(toolHtml).show();
+        $toolChecks.off('change').on('change', 'input[type="checkbox"]', function () {
+            const checkedTools = $toolChecks.find('input:checked');
+            if (checkedTools.length > maxTools) {
+                $(this).prop('checked', false);
+                return;
+            }
+            $toolLabel.text(`Tools (${checkedTools.length}/${maxTools}):`);
+        });
+        $toolRow.show();
+    } else {
+        $('#dnd-sk-tool-row').hide();
+        $('#dnd-sk-tool-checks').hide().html('');
     }
 
     $checks.off('change').on('change', 'input[type="checkbox"]', function () {
@@ -1417,6 +1469,11 @@ function saveSidekickFromModal() {
         skillExpertise.push($(this).data('expertise'));
     });
 
+    const toolProficiencies = [];
+    $('#dnd-sk-tool-checks input:checked').each(function () {
+        toolProficiencies.push($(this).data('tool'));
+    });
+
     const asiChoices = {};
     $('#dnd-sk-asi-rows .dnd-sk-asi-row').each(function () {
         const lvl = parseInt($(this).data('asi-level'));
@@ -1478,6 +1535,8 @@ function saveSidekickFromModal() {
     const hireGoldPerDay = parseInt($('#dnd-sk-hire-gold').val()) || 0;
     const hirePayMode = /** @type {string} */ ($('#dnd-sk-hire-paymode').val()) || 'owed';
     const hirePaidAmount = parseInt($('#dnd-sk-hire-paid').val()) || 0;
+    const hireQuestAmount = parseInt($('#dnd-sk-hire-quest-amount').val()) || 0;
+    const hireQuestPaid = !!$('#dnd-sk-hire-quest-paid').prop('checked');
     const hireDate = /** @type {string} */ ($('#dnd-sk-hire-date').val()).trim() || null;
 
     // Equipment: armor + shield
@@ -1500,6 +1559,7 @@ function saveSidekickFromModal() {
         sk.saveProficiency = saveProficiency;
         sk.skillProficiencies = skillProficiencies;
         sk.skillExpertise = skillExpertise;
+        sk.toolProficiencies = toolProficiencies;
         sk.asiChoices = asiChoices;
         sk.featData = featData;
         sk.expertise15 = expertise15;
@@ -1510,6 +1570,8 @@ function saveSidekickFromModal() {
         sk.hireGoldPerDay = hireGoldPerDay;
         sk.hirePayMode = hirePayMode;
         sk.hirePaidAmount = hirePaidAmount;
+        sk.hireQuestAmount = hireQuestAmount;
+        sk.hireQuestPaid = hireQuestPaid;
         sk.hireDate = hireDate;
         sk.equippedArmor = equippedArmor;
         sk.hasShield = hasShield;
@@ -1538,8 +1600,9 @@ function saveSidekickFromModal() {
         if (!_skTempCreature) { $error.text('Select a base creature.').show(); return; }
         const newSk = createSidekickFromCreature(_skTempCreature, {
             name, race, type, subtype, saveProficiency,
-            skillProficiencies, skillExpertise, hireGoldPerDay, hirePayMode, hirePaidAmount, hireDate,
+            skillProficiencies, skillExpertise, hireGoldPerDay, hirePayMode, hirePaidAmount, hireQuestAmount, hireQuestPaid, hireDate,
         });
+        newSk.toolProficiencies = toolProficiencies;
         newSk.asiChoices = asiChoices;
         newSk.featData = featData;
         newSk.expertise15 = expertise15;
@@ -1690,6 +1753,7 @@ function onMessageReceived(messageIndex) {
         saveRandomEventState();
     }
     updateRandomEventDisplay();
+    updateNonCombatDiceDisplay();
 }
 
 // ─── Message swiped (refresh state from newly visible swipe) ─
@@ -1749,6 +1813,7 @@ function onChatChanged() {
 
     loadRandomEventState();
     updateRandomEventDisplay();
+    updateNonCombatDiceDisplay();
 
     // V1
     if (extensionSettings.v1Enabled) {
@@ -1813,6 +1878,44 @@ function updateRandomEventDisplay() {
 
     $panelTag.text(label).attr('title', tooltip).show();
     $panelTag.toggleClass('dnd-event-triggered', hasSeverity);
+}
+
+// ─── Non-combat dice display ────────────────────────────────
+
+function buildNonCombatDiceLabel(roll) {
+    return `<span class="dnd-noncombat-user">`
+        + `<span class="dnd-noncombat-val">${roll.user.roll1}</span>`
+        + `<span class="dnd-noncombat-sep">|</span>`
+        + `<span class="dnd-noncombat-val">${roll.user.roll2}</span>`
+        + `</span>`
+        + `<span class="dnd-noncombat-divider">·</span>`
+        + `<span class="dnd-noncombat-npc">`
+        + `<span class="dnd-noncombat-val">${roll.npc.roll1}</span>`
+        + `<span class="dnd-noncombat-sep">|</span>`
+        + `<span class="dnd-noncombat-val">${roll.npc.roll2}</span>`
+        + `</span>`;
+}
+
+function updateNonCombatDiceDisplay() {
+    const enabled = extensionSettings.nonCombatDiceEnabled;
+    const roll = lastNonCombatRoll;
+    const $stripTag = $('#dnd-strip-noncombat-tag');
+    const $panelTag = $('#dnd-panel-noncombat-tag');
+
+    if (!enabled || !roll) {
+        $stripTag.hide();
+        $panelTag.hide();
+        return;
+    }
+
+    const label = buildNonCombatDiceLabel(roll);
+    const tooltip = `Non-Combat d20s\nUser: ${roll.user.roll1}, ${roll.user.roll2}\nNPC: ${roll.npc.roll1}, ${roll.npc.roll2}\n(checks vs DC, not opposed)`;
+
+    $stripTag.html(label).attr('title', tooltip).show();
+    $stripTag.addClass('dnd-noncombat-active');
+
+    $panelTag.html(label).attr('title', tooltip).show();
+    $panelTag.addClass('dnd-noncombat-active');
 }
 
 // ─── Threshold modal ────────────────────────────────────────
@@ -2591,7 +2694,9 @@ async function initUI() {
     // Payment mode toggle
     $('#dnd-sk-hire-paymode').on('change', function () {
         const mode = $(this).val();
+        $('#dnd-sk-hire-gold-row').toggle(mode !== 'quest' && mode !== 'free');
         $('#dnd-sk-hire-paid-row').toggle(mode === 'owed');
+        $('#dnd-sk-hire-quest-row').toggle(mode === 'quest');
     });
 
     // Sidekick hire date "Set Current" button
@@ -2636,6 +2741,7 @@ async function initUI() {
         }
         $('#dnd-setting-spell-inject').prop('checked', spellInjectEnabled);
         $('#dnd-setting-auto-long-rest').prop('checked', autoLongRestEnabled);
+        $('#dnd-setting-noncombat-dice').prop('checked', extensionSettings.nonCombatDiceEnabled ?? false);
         $('#dnd-setting-random-events').prop('checked', extensionSettings.randomEventsEnabled ?? false);
         $('#dnd-setting-event-role').val(extensionSettings.randomEventRole || 'user');
         updateRandomEventDisplay();
@@ -2684,6 +2790,11 @@ async function initUI() {
             hardRefreshSpellLog();
             renderSpellLog();
         }
+    });
+    $('#dnd-setting-noncombat-dice').on('change', function () {
+        extensionSettings.nonCombatDiceEnabled = $(this).prop('checked');
+        saveSettings();
+        updateNonCombatDiceDisplay();
     });
     $('#dnd-setting-random-events').on('change', function () {
         extensionSettings.randomEventsEnabled = $(this).prop('checked');

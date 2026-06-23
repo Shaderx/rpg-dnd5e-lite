@@ -4,9 +4,9 @@
  */
 
 import { extension_prompt_types, extension_prompt_roles, setExtensionPrompt } from '../../../../../../script.js';
-import { extensionSettings, spellTrackerDisabled } from '../core/state.js';
+import { extensionSettings, spellTrackerDisabled, setLastNonCombatRoll, lastNonCombatRoll } from '../core/state.js';
 import { saveSettings } from '../core/persistence.js';
-import { buildQuestPrompt, buildInventoryPrompt, buildRollPrompt, buildSpellLogPrompt, buildSpellInjectPrompt, buildSidekickPrompt, buildRandomEventPrompt } from './promptBuilder.js';
+import { buildQuestPrompt, buildInventoryPrompt, buildRollPrompt, buildNonCombatDicePrompt, buildSpellLogPrompt, buildSpellInjectPrompt, buildSidekickPrompt, buildRandomEventPrompt } from './promptBuilder.js';
 import { refreshHeaderFromChat } from '../features/headerParser.js';
 import { refreshSpellLog } from '../features/spellTracker.js';
 import { rollRandomEvent, getLastEventRoll } from '../features/randomEvents.js';
@@ -16,6 +16,7 @@ export function clearExtensionPrompts() {
     setExtensionPrompt('dnd5e-quests', '', extension_prompt_types.IN_CHAT, 0, false);
     setExtensionPrompt('dnd5e-inventory', '', extension_prompt_types.IN_CHAT, 0, false);
     setExtensionPrompt('dnd5e-roll', '', extension_prompt_types.IN_CHAT, 0, false);
+    setExtensionPrompt('dnd5e-noncombat', '', extension_prompt_types.IN_CHAT, 0, false);
     setExtensionPrompt('dnd5e-spelllog', '', extension_prompt_types.IN_CHAT, 0, false);
     setExtensionPrompt('dnd5e-spellinfo', '', extension_prompt_types.IN_CHAT, 0, false);
     setExtensionPrompt('dnd5e-sidekicks', '', extension_prompt_types.IN_CHAT, 0, false);
@@ -80,6 +81,23 @@ export function onGenerationStarted(type) {
         saveSettings();
     } else {
         setExtensionPrompt('dnd5e-roll', '', extension_prompt_types.IN_CHAT, 0, false);
+    }
+
+    // Non-combat dice (auto-roll each generation when enabled, skip if combat roll is active)
+    if (extensionSettings.nonCombatDiceEnabled && !rollPrompt) {
+        const isReroll = type === 'swipe' || type === 'regenerate';
+        if (!isReroll) {
+            const roll1 = () => Math.floor(Math.random() * 20) + 1;
+            setLastNonCombatRoll({ user: { roll1: roll1(), roll2: roll1() }, npc: { roll1: roll1(), roll2: roll1() } });
+        }
+        const ncPrompt = buildNonCombatDicePrompt();
+        if (ncPrompt) {
+            setExtensionPrompt('dnd5e-noncombat', ncPrompt, extension_prompt_types.IN_CHAT, depth, false, extension_prompt_roles.USER);
+        } else {
+            setExtensionPrompt('dnd5e-noncombat', '', extension_prompt_types.IN_CHAT, 0, false);
+        }
+    } else {
+        setExtensionPrompt('dnd5e-noncombat', '', extension_prompt_types.IN_CHAT, 0, false);
     }
 
     // Spell info injection (when user message has [Spell, ...] brackets)

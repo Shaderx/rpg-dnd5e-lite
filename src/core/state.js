@@ -34,6 +34,9 @@ export const extensionSettings = {
     allyCount: 1,
     enemyCount: 1,
 
+    // Non-combat dice (auto-roll d20s for skill/ability checks each turn)
+    nonCombatDiceEnabled: false,
+
     // Random events
     randomEventsEnabled: false,
     randomEventRole: 'user',
@@ -160,6 +163,10 @@ export function setEventCooldown(val) { eventCooldown = val; }
 
 export let lastEventRoll = null;
 export function setLastEventRoll(val) { lastEventRoll = val; }
+
+// Non-combat dice: last rolled pair for user + NPC
+export let lastNonCombatRoll = null;
+export function setLastNonCombatRoll(val) { lastNonCombatRoll = val; }
 
 export let eventLog = [];
 export function setEventLog(val) { eventLog = val; }

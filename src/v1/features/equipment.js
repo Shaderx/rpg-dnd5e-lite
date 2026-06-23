@@ -336,6 +336,7 @@ export function computeWeaponStats(weapon, mods, proficiency, bonuses = {}) {
         isTwoHanded: weapon.isTwoHanded,
         isHeavy: weapon.isHeavy,
         isLight: weapon.isLight,
+        customNotes: weapon.customNotes || null,
     };
 }
 

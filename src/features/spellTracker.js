@@ -305,16 +305,6 @@ function scanChatForSpells({ skipLastAssistant = false } = {}) {
             break;
         }
 
-        if (SHORT_REST_REGEX.test(msg.mes)) {
-            parsed.push({
-                type: 'short-rest',
-                time: useTime,
-                date: useDate,
-                text: `${userName} has short rested here for 1 hour.`,
-                msgIndex: i,
-            });
-        }
-
         const casts = extractSpellCasts(msg.mes);
         for (const { spell, details, action } of casts) {
             parsed.push({
@@ -324,6 +314,16 @@ function scanChatForSpells({ skipLastAssistant = false } = {}) {
                 details: details || '',
                 time: useTime,
                 date: useDate,
+                msgIndex: i,
+            });
+        }
+
+        if (SHORT_REST_REGEX.test(msg.mes)) {
+            parsed.push({
+                type: 'short-rest',
+                time: useTime,
+                date: useDate,
+                text: `${userName} has short rested here for 1 hour.`,
                 msgIndex: i,
             });
         }

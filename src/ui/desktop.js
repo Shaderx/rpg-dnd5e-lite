@@ -428,12 +428,29 @@ export function getOmniWidgetSizes() {
     };
 }
 
-function omniTextWeight(len) {
+const EMOJI_WIDE_RE = /[\u2300-\u2BFF\u{1F000}-\u{1FFFF}]/u;
+const COL_VISUAL_CAPACITY = 14;
+
+function visualWidth(text, hasEmoji) {
+    let w = hasEmoji ? 4 : 0;
+    if (!text) return w;
+    for (const ch of text) {
+        const cp = ch.codePointAt(0);
+        if (cp === 0x200D || (cp >= 0xFE00 && cp <= 0xFE0F)) continue;
+        w += EMOJI_WIDE_RE.test(ch) ? 3 : 1;
+    }
+    return w;
+}
+
+function omniTextWeight(text, hasEmoji) {
+    const vw = visualWidth(text, hasEmoji);
     const { twoWide, threeWide, fullWide } = getOmniWidgetSizes();
-    if (fullWide > 0 && len >= fullWide) return GRID_COLS;
-    if (len >= threeWide) return 3;
-    if (len >= twoWide) return 2;
-    return 1;
+    let w = 1;
+    if (fullWide > 0 && vw >= fullWide) w = GRID_COLS;
+    else if (vw >= threeWide) w = 3;
+    else if (vw >= twoWide) w = 2;
+    const minSpan = Math.min(GRID_COLS, Math.ceil(vw / COL_VISUAL_CAPACITY));
+    return Math.max(w, minSpan);
 }
 
 function buildCurrencyItemHtml(currency) {
@@ -452,7 +469,7 @@ function buildCurrencyItemHtml(currency) {
     }
     return `<div class="dnd-sec-currency-inner">
         <span class="dnd-currency-wallet" aria-hidden="true">💰</span>
-        <div class="dnd-currency-stack">${chips.join('')}</div>
+        <div class="dnd-currency-row">${chips.join('')}</div>
     </div>`;
 }
 
@@ -469,55 +486,53 @@ function renderSecondaryGrid(container, currency, extras) {
     }
 
     for (const e of extras) {
-        const len = e.text?.length || 0;
         const emojiHtml = e.emoji ? `<span class="dnd-omni-emoji">${escapeAttr(e.emoji)}</span>` : '';
         items.push({
             html: `${emojiHtml}<span class="dnd-omni-text">${escapeAttr(e.text || '')}</span>`,
             title: e.text || '',
-            weight: omniTextWeight(len),
+            weight: omniTextWeight(e.text, !!e.emoji),
             cls: 'dnd-sec-item',
         });
     }
 
     if (items.length === 0) { container.innerHTML = ''; return; }
 
-    // Pack items into rows of GRID_COLS columns
+    // Sort by weight descending for first-fit-decreasing bin packing
+    items.sort((a, b) => b.weight - a.weight);
+
     const rows = [];
-    let row = [];
-    let rowCols = 0;
     for (const item of items) {
         const span = Math.min(item.weight, GRID_COLS);
-        if (rowCols + span > GRID_COLS) {
-            // Fill remaining space in current row by stretching last item
-            if (row.length > 0) {
-                row[row.length - 1].span += (GRID_COLS - rowCols);
-                rows.push(row);
+        let placed = false;
+        for (const r of rows) {
+            if (r.used + span <= GRID_COLS) {
+                r.items.push({ ...item, span });
+                r.used += span;
+                placed = true;
+                break;
             }
-            row = [];
-            rowCols = 0;
         }
-        row.push({ ...item, span });
-        rowCols += span;
+        if (!placed) {
+            rows.push({ items: [{ ...item, span }], used: span });
+        }
     }
-    // Fill remaining cols in last row
-    if (row.length > 0) {
-        const remaining = GRID_COLS - rowCols;
-        if (remaining > 0) {
-            // Distribute extra cols to items proportionally by weight (heaviest first)
-            const sorted = [...row].sort((a, b) => b.weight - a.weight);
-            let left = remaining;
+
+    // Fill remaining cols in each row — distribute to heaviest items first
+    for (const r of rows) {
+        let left = GRID_COLS - r.used;
+        if (left > 0) {
+            const sorted = [...r.items].sort((a, b) => b.weight - a.weight);
             for (const it of sorted) {
                 if (left <= 0) break;
                 it.span += 1;
                 left--;
             }
         }
-        rows.push(row);
     }
 
     let html = '';
     for (const r of rows) {
-        for (const it of r) {
+        for (const it of r.items) {
             html += `<div class="${it.cls}" style="grid-column:span ${it.span}" title="${escapeAttr(it.title)}">${it.html}</div>`;
         }
     }

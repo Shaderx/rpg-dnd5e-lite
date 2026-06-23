@@ -74,7 +74,8 @@ export function buildCharacterPrompt() {
     // Equipment
     const armorName = stats.equippedArmor?.name || 'None';
     const shieldStr = stats.hasShield ? ' + Shield' : '';
-    lines.push(`Armor: ${armorName}${shieldStr}`);
+    const armorNotes = stats.equippedArmor?.customNotes ? ` [${stats.equippedArmor.customNotes}]` : '';
+    lines.push(`Armor: ${armorName}${shieldStr}${armorNotes}`);
 
     // Weapons
     if (stats.computedWeapons?.length > 0) {
@@ -82,7 +83,8 @@ export function buildCharacterPrompt() {
             const hit = w.computedHit >= 0 ? `+${w.computedHit}` : `${w.computedHit}`;
             let dmgStr = `${w.computedDamage} ${w.damageType || ''}`.trim();
             if (w.computedVersatile) dmgStr += ` (versatile: ${w.computedVersatile})`;
-            return `${w.name} (${hit} to hit, ${dmgStr})`;
+            const notes = w.customNotes ? ` [${w.customNotes}]` : '';
+            return `${w.name} (${hit} to hit, ${dmgStr})${notes}`;
         });
         lines.push(`Weapons: ${wpnParts.join('; ')}`);
     }
