@@ -192,8 +192,19 @@ const ITEM_TYPE_LABELS = {
     G: 'Adventuring Gear', SCF: 'Spellcasting Focus', P: 'Potion', RG: 'Ring',
     RD: 'Rod', WD: 'Wand', SC: 'Scroll', W: 'Wondrous Item', A: 'Ammunition',
     EXP: 'Explosive', FD: 'Food/Drink', TG: 'Trade Good', MNT: 'Mount/Vehicle',
-    TAH: 'Tack & Harness', VEH: 'Vehicle',
+    TAH: 'Tack & Harness', VEH: 'Vehicle', OTH: 'Other', HA: 'Heavy Armor',
+    MA: 'Medium Armor', LA: 'Light Armor', S: 'Shield', R: 'Ranged Weapon',
+    M: 'Melee Weapon', '$': 'Treasure', AF: 'Arcane Focus', AIR: 'Airship',
+    SHP: 'Ship', MR: 'Master Rune',
 };
+
+function resolveTypeLabel(rawType) {
+    if (!rawType) return 'Gear';
+    if (ITEM_TYPE_LABELS[rawType]) return ITEM_TYPE_LABELS[rawType];
+    // Strip $ prefix (5e.tools uses $G, $I etc. for inherited/variant types)
+    const stripped = rawType.replace(/^\$/, '');
+    return ITEM_TYPE_LABELS[stripped] || stripped || 'Gear';
+}
 
 function buildEquipmentTooltip(item) {
     if (!item) return '<div class="dnd-tt-name">Item not found</div>';
@@ -233,7 +244,7 @@ function buildEquipmentTooltip(item) {
         if (item.weight) body += `<div class="dnd-tt-field"><strong>Weight:</strong> ${item.weight} lb.</div>`;
     } else {
         const rawType = (item.type || '').split('|')[0];
-        const typeStr = ITEM_TYPE_LABELS[rawType] || rawType || 'Gear';
+        const typeStr = resolveTypeLabel(rawType);
         body += `<div class="dnd-tt-field"><strong>Type:</strong> ${escHtml(typeStr)}</div>`;
         if (item.weight) body += `<div class="dnd-tt-field"><strong>Weight:</strong> ${item.weight} lb.</div>`;
         if (item.value != null) {
@@ -245,7 +256,7 @@ function buildEquipmentTooltip(item) {
     const rarity = item.rarity && item.rarity !== 'unknown' && item.rarity !== 'unknown (magic)' ? item.rarity : null;
     const subline = [rarity, item.source].filter(Boolean).join(' &mdash; ');
     const rawType = (item.type || '').split('|')[0];
-    const typeLabel = isWeapon ? 'Weapon' : isArmor ? 'Armor' : (ITEM_TYPE_LABELS[rawType] || item.type || 'Wondrous Item');
+    const typeLabel = isWeapon ? 'Weapon' : isArmor ? 'Armor' : resolveTypeLabel(rawType);
 
     let desc = '';
     if (item.entries?.length) {

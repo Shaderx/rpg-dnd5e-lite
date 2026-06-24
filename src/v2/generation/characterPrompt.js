@@ -1,20 +1,22 @@
 /**
- * V1 Character System - Prompt Builder
- * Builds the <character> section for LLM context injection.
+ * V2 Character System - Prompt Builder
+ * Builds the <character> section for V2 mode.
+ * Equipment is EXCLUDED here (shown in <inventory> with type tags instead).
  */
 
-import { characterV1 } from '../core/state.js';
-import { computeCharacterStats } from '../features/character.js';
-import { ABILITY_KEYS, ABILITY_LABELS, SKILL_LABELS } from '../core/constants.js';
+import { characterV2 } from '../core/characterState.js';
+import { computeV2CharacterStats } from '../features/character.js';
+import { ABILITY_KEYS, ABILITY_LABELS } from '../core/constants.js';
 
 /**
- * Build the <character> section for the consolidated game state injection.
+ * Build the V2 <character> section for the consolidated game state injection.
+ * Excludes equipment (armor/weapons/shield) since it's in the inventory section.
  * @returns {string} Formatted section with XML tags, or '' if no character / disabled
  */
-export function buildCharacterSection() {
-    if (!characterV1 || !characterV1.enabled) return '';
+export function buildV2CharacterSection() {
+    if (!characterV2 || !characterV2.enabled) return '';
 
-    const stats = computeCharacterStats(characterV1);
+    const stats = computeV2CharacterStats(characterV2);
     if (!stats) return '';
 
     const lines = [];
@@ -22,8 +24,8 @@ export function buildCharacterSection() {
     lines.push('<character>');
 
     const subLabel = stats.subclassName ? ` (${stats.subclassName})` : '';
-    lines.push(`[Player Character — ${stats.name || 'Unnamed'} (Lv ${stats.level})]`);
-    lines.push(`Species: ${stats.speciesName || 'Unknown'} | Background: ${stats.backgroundName || 'Unknown'} | Class: ${stats.className}${subLabel}`);
+    lines.push(`${stats.name || 'Unnamed'} — Lv${stats.level} ${stats.speciesName || ''} ${stats.className}${subLabel}`.trim());
+    if (stats.backgroundName) lines.push(`Background: ${stats.backgroundName}`);
 
     lines.push(`HP: ${stats.hp} | AC: ${stats.ac} | Speed: ${stats.speed}ft | Prof: +${stats.proficiency}`);
 
@@ -39,7 +41,7 @@ export function buildCharacterSection() {
         const mark = s.proficient ? '*' : '';
         return `${ABILITY_LABELS[ab]} ${s.mod >= 0 ? '+' : ''}${s.mod}${mark}`;
     });
-    lines.push(`Saves: ${saveParts.join(', ')}  (* = proficient)`);
+    lines.push(`Saves: ${saveParts.join(', ')}`);
 
     const skillParts = [];
     for (const [key, skill] of Object.entries(stats.skills)) {
@@ -49,7 +51,7 @@ export function buildCharacterSection() {
         }
     }
     if (skillParts.length > 0) {
-        lines.push(`Skills: ${skillParts.join(', ')}  (* = proficient, ** = expertise)`);
+        lines.push(`Skills: ${skillParts.join(', ')}`);
     }
 
     if (stats.senses?.length > 0) {
@@ -64,21 +66,7 @@ export function buildCharacterSection() {
         lines.push(`Resistances: ${stats.speciesResistances.join(', ')}`);
     }
 
-    const armorName = stats.equippedArmor?.name || 'None';
-    const shieldStr = stats.hasShield ? ' + Shield' : '';
-    const armorNotes = stats.equippedArmor?.customNotes ? ` [${stats.equippedArmor.customNotes}]` : '';
-    lines.push(`Armor: ${armorName}${shieldStr}${armorNotes}`);
-
-    if (stats.computedWeapons?.length > 0) {
-        const wpnParts = stats.computedWeapons.map(w => {
-            const hit = w.computedHit >= 0 ? `+${w.computedHit}` : `${w.computedHit}`;
-            let dmgStr = `${w.computedDamage} ${w.damageType || ''}`.trim();
-            if (w.computedVersatile) dmgStr += ` (versatile: ${w.computedVersatile})`;
-            const notes = w.customNotes ? ` [${w.customNotes}]` : '';
-            return `${w.name} (${hit} to hit, ${dmgStr})${notes}`;
-        });
-        lines.push(`Weapons: ${wpnParts.join('; ')}`);
-    }
+    // Equipment is deliberately excluded — it's in the <inventory> section with type tags
 
     if (stats.combatNotes?.length > 0) {
         lines.push('Combat Notes:');
@@ -196,7 +184,7 @@ export function buildCharacterSection() {
         }
     }
 
-    // Companion / Familiar as sub-block within character
+    // Companion / Familiar
     if (stats.companion) {
         const c = stats.companion;
         const displayName = c.customName || c.name;

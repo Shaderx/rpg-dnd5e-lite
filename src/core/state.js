@@ -83,8 +83,18 @@ export const extensionSettings = {
         blendMode: 'soft-light'
     },
 
-    // V1 character system toggle (false = legacy mode)
+    // System mode: 'legacy' | 'v1' | 'v2'
+    // legacy = legacy char + legacy inventory
+    // v1 = V1 charsheet + legacy inventory
+    // v2 = V2 charsheet + V2 inventory + game actions
+    mode: 'legacy',
+
+    // Derived flags (kept in sync with mode for backward compatibility)
     v1Enabled: false,
+    v2Enabled: false,
+
+    // Milestone XP: when true, XP rewards are hidden from quests and LLM instructions
+    milestoneXP: false,
 
     // Custom species stored globally (persist across chats)
     v1CustomSpecies: [],
@@ -185,3 +195,28 @@ export let headerInfo = {
     extras: []
 };
 export function setHeaderInfo(val) { headerInfo = val; }
+
+/**
+ * Sync v1Enabled/v2Enabled flags from the mode setting.
+ * Call after loading settings or changing mode.
+ */
+export function syncModeFlags() {
+    extensionSettings.v1Enabled = extensionSettings.mode === 'v1';
+    extensionSettings.v2Enabled = extensionSettings.mode === 'v2';
+}
+
+/**
+ * Migrate old v1Enabled/v2Enabled settings to the new mode field.
+ * Call once after loading extension settings.
+ */
+export function migrateSettingsToMode() {
+    if (extensionSettings.mode && extensionSettings.mode !== 'legacy') return;
+    if (extensionSettings.v2Enabled) {
+        extensionSettings.mode = 'v2';
+    } else if (extensionSettings.v1Enabled) {
+        extensionSettings.mode = 'v1';
+    } else {
+        extensionSettings.mode = 'legacy';
+    }
+    syncModeFlags();
+}

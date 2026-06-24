@@ -1,7 +1,10 @@
 /**
- * V1 Character System - Core Engine
- * createCharacter(): build a new character object from wizard selections.
- * computeCharacterStats(): derive all stats from a stored character object.
+ * V2 Character System - Core Engine
+ * Fork of V1 character.js. Equipment is derived from V2 inventory,
+ * NOT stored on the character object.
+ *
+ * createV2Character(): build a character without equipment fields.
+ * computeV2CharacterStats(): derive all stats, reading equipment from V2 inventory.
  */
 
 import {
@@ -18,13 +21,13 @@ import { getSubclassSpells } from './subclassSpells.js';
 import { getResolvedClassFeaturesSync } from './classData.js';
 import { computeAC, computeWeaponStats } from './equipment.js';
 import { getSpellDamageInfo, buildSpellAnnotation, getMaxSpellLevel, formatSlots } from './spells.js';
+import { v2Inventory } from '../core/state.js';
 
 /**
- * Create a new V1 character object from config modal selections.
- * @param {object} config - All wizard selections
- * @returns {object} Character object ready for persistence
+ * Create a new V2 character object from config modal selections.
+ * No equipment fields — equipment lives in V2 inventory.
  */
-export function createCharacter(config) {
+export function createV2Character(config) {
     return {
         id: config.editId || `pc_${Date.now()}`,
         name: config.name || '',
@@ -67,10 +70,9 @@ export function createCharacter(config) {
         asiChoices: config.asiChoices || {},
         featData: config.featData || {},
 
-        // Level-derived feature choices (fighting style, subclass options, etc.)
+        // Level-derived feature choices
         levelChoices: config.levelChoices || {},
 
-        // Legacy: kept for backward compat during migration
         chosenFeatures: config.chosenFeatures || [],
         draconicElement: config.draconicElement || null,
 
@@ -83,18 +85,13 @@ export function createCharacter(config) {
         weaponProficiencies: config.weaponProficiencies || [],
         languageChoices: config.languageChoices || [],
 
-        // Equipment
-        equippedArmor: config.equippedArmor || null,
-        hasShield: config.hasShield || false,
-        weapons: config.weapons || [],
-
         // Spells
         knownCantrips: config.knownCantrips || [],
         knownSpells: config.knownSpells || [],
         extraSpells: config.extraSpells || [],
         customSpells: config.customSpells || [],
 
-        // Companion (familiar / primal)
+        // Companion
         companionData: config.companionData || { type: null, form: null, name: '', creatureType: null },
 
         // Display/injection controls
@@ -104,12 +101,32 @@ export function createCharacter(config) {
 }
 
 /**
- * Compute all derived stats from a V1 character object.
- * @param {object} char - Stored character object
- * @returns {object} Full computed stats
+ * Get equipped equipment from V2 inventory.
  */
-export function computeCharacterStats(char) {
+function getEquipmentFromInventory() {
+    const equippedArmor = v2Inventory.find(
+        i => i.location === 'equipped' && i.type === 'armor' && i.equipmentData
+    );
+    const hasShield = v2Inventory.some(
+        i => i.location === 'equipped' && i.type === 'shield'
+    );
+    const weapons = v2Inventory.filter(
+        i => i.location === 'equipped' && i.type === 'weapon' && i.equipmentData
+    );
+    return { equippedArmor, hasShield, weapons };
+}
+
+/**
+ * Compute all derived stats from a V2 character object.
+ * Equipment is read from V2 inventory, not the character object.
+ */
+export function computeV2CharacterStats(char) {
     if (!char) return null;
+
+    const { equippedArmor: armorItem, hasShield, weapons: weaponItems } = getEquipmentFromInventory();
+
+    const armorData = armorItem?.equipmentData || null;
+    const weaponDataList = weaponItems.map(i => i.equipmentData);
 
     const classKey = char.className.toLowerCase();
     const level = char.level || 1;
@@ -118,7 +135,6 @@ export function computeCharacterStats(char) {
     // --- Ability Scores ---
     const finalAbilities = { ...char.baseAbilities };
 
-    // Apply background ability boosts
     if (char.backgroundAbilityBoosts) {
         for (const [ab, bonus] of Object.entries(char.backgroundAbilityBoosts)) {
             if (ABILITY_KEYS.includes(ab)) {
@@ -127,10 +143,8 @@ export function computeCharacterStats(char) {
         }
     }
 
-    // Apply ASI choices and feat ability bonuses
     for (const [lv, choice] of Object.entries(char.asiChoices || {})) {
         if (parseInt(lv) > level) continue;
-
         if (choice.type === 'asi' && Array.isArray(choice.abilities)) {
             for (const ab of choice.abilities) {
                 if (ABILITY_KEYS.includes(ab)) finalAbilities[ab] += 1;
@@ -143,12 +157,10 @@ export function computeCharacterStats(char) {
         }
     }
 
-    // Cap at 20
     for (const ab of ABILITY_KEYS) {
         finalAbilities[ab] = Math.min(finalAbilities[ab], 20);
     }
 
-    // Modifiers
     const mods = {};
     for (const ab of ABILITY_KEYS) {
         mods[ab] = getModifier(finalAbilities[ab]);
@@ -156,28 +168,19 @@ export function computeCharacterStats(char) {
 
     // --- Collect Effects ---
     const featEffects = collectFeatEffects(char.asiChoices, char.originFeat, char.originFeatConfig, char.featData);
-
-    // Gather level-choice effects (fighting styles, subclass selections, etc.)
     const levelChoiceEffects = collectLevelChoiceEffects(char.levelChoices, classKey, char.subclassName, level);
     const allChosenFeatures = [
         ...(char.chosenFeatures || []),
         ...levelChoiceEffects.chosenFeatures,
     ];
 
-    // Subclass spells (always-prepared or bonus-known)
     const subclassSpellData = char.subclassName
         ? getSubclassSpells(classKey, char.subclassName, level)
         : { spells: [], isKnown: false, bonusCantrips: [] };
 
-    // Companion (Beast Master primal + Find Familiar + Pact of the Chain)
     let companion = null;
     if (levelChoiceEffects.companion && classKey === 'ranger') {
-        companion = computeCompanionStats(
-            levelChoiceEffects.companion,
-            level,
-            proficiency,
-            mods.wis || 0
-        );
+        companion = computeCompanionStats(levelChoiceEffects.companion, level, proficiency, mods.wis || 0);
     }
 
     const extraSpellNames = (char.extraSpells || []).map(e => typeof e === 'string' ? e : e.name);
@@ -204,21 +207,17 @@ export function computeCharacterStats(char) {
         }
     }
 
-    const classEffects = collectClassEffects(
-        classKey, char.subclassName, level, allChosenFeatures
-    );
+    const classEffects = collectClassEffects(classKey, char.subclassName, level, allChosenFeatures);
 
-    // Override draconic element from level choices if set
     const effectiveDraconicElement = levelChoiceEffects.draconicElement || char.draconicElement;
 
-    // Stats context for effect functions
     const statsCtx = {
         level,
         proficiency,
         mods,
         abilities: finalAbilities,
-        hasArmor: !!char.equippedArmor,
-        equippedWeaponCount: (char.weapons || []).length,
+        hasArmor: !!armorData,
+        equippedWeaponCount: weaponDataList.length,
         draconicElement: effectiveDraconicElement,
         levelChoiceEffects,
     };
@@ -226,16 +225,14 @@ export function computeCharacterStats(char) {
     // --- HP ---
     const hitDie = HIT_DICE[classKey] || 8;
     const conMod = mods.con || 0;
-    const avgHpPerLevel = Math.ceil(hitDie / 2) + 1; // average rounded up
-    let hp = hitDie + conMod; // level 1: max die + CON
+    const avgHpPerLevel = Math.ceil(hitDie / 2) + 1;
+    let hp = hitDie + conMod;
     for (let lv = 2; lv <= level; lv++) {
         hp += avgHpPerLevel + conMod;
     }
-    // Feat HP bonuses (e.g. Tough)
     for (const fn of featEffects.hpBonus) {
         hp += fn(level, statsCtx);
     }
-    // Class HP bonuses (e.g. Draconic Resilience)
     for (const fn of classEffects.hpBonus) {
         hp += fn(level, statsCtx);
     }
@@ -249,12 +246,12 @@ export function computeCharacterStats(char) {
         speed += fn(level, statsCtx);
     }
 
-    // --- AC ---
+    // --- AC (from inventory equipment) ---
     let unarmoredFormula = null;
     for (const fn of classEffects.acOverrides) {
         const override = fn(statsCtx);
-        if (!char.equippedArmor && override.requiresNoArmor) {
-            if (override.allowsShield || !char.hasShield) {
+        if (!armorData && override.requiresNoArmor) {
+            if (override.allowsShield || !hasShield) {
                 unarmoredFormula = unarmoredFormula
                     ? Math.max(unarmoredFormula, override.formula)
                     : override.formula;
@@ -271,8 +268,8 @@ export function computeCharacterStats(char) {
     }
 
     const ac = computeAC(
-        char.equippedArmor,
-        char.hasShield,
+        armorData,
+        hasShield,
         mods.dex,
         {
             unarmoredFormula,
@@ -298,7 +295,6 @@ export function computeCharacterStats(char) {
         ...(char.skillChoices || []),
         ...(char.backgroundSkills || []),
     ]);
-    // Add feat-granted skills
     for (const fn of featEffects.extraSkills) {
         const extra = fn(statsCtx);
         if (Array.isArray(extra)) extra.forEach(s => allSkillProfs.add(s));
@@ -332,12 +328,9 @@ export function computeCharacterStats(char) {
     const casterType = CASTER_TYPE[classKey];
 
     if (spellAbKey && casterType) {
-        // Third-casters need the right subclass
         if (casterType === 'third') {
             const validSubs = SPELLCASTING_SUBCLASSES[classKey] || [];
-            if (!char.subclassName || !validSubs.some(s => char.subclassName.includes(s))) {
-                // Not a spellcasting subclass
-            } else {
+            if (char.subclassName && validSubs.some(s => char.subclassName.includes(s))) {
                 spellcasting = buildSpellcasting(classKey, level, spellAbKey, mods, char);
             }
         } else {
@@ -359,7 +352,6 @@ export function computeCharacterStats(char) {
             empoweredSchool = bonus.filter.school;
             empoweredMod = bonus.flatBonus;
         } else if (bonus.filter?.damageType) {
-            // Element-specific (Draconic Sorcerer) — stored for annotation
             empoweredSchool = null;
             empoweredMod = bonus.flatBonus;
         }
@@ -369,7 +361,7 @@ export function computeCharacterStats(char) {
         healingBonusFn = classEffects.healingBonus;
     }
 
-    // --- Weapons ---
+    // --- Weapons (from inventory) ---
     const overrideAbility = classEffects.overrideWeaponAbility
         ? classEffects.overrideWeaponAbility(statsCtx)
         : null;
@@ -377,7 +369,7 @@ export function computeCharacterStats(char) {
         ? MARTIAL_ARTS_DIE[level - 1] || 6
         : null;
 
-    const computedWeapons = (char.weapons || []).map(wpn => {
+    const computedWeapons = weaponDataList.map(wpn => {
         let atkBonus = 0;
         let dmgBonus = 0;
         for (const fn of classEffects.weaponAttackBonus) {
@@ -422,15 +414,10 @@ export function computeCharacterStats(char) {
     }
 
     const classFeatures = getResolvedClassFeaturesSync(
-        char.classFile,
-        char.className,
-        char.classSource,
-        char.subclassName,
-        level,
+        char.classFile, char.className, char.classSource, char.subclassName, level,
     );
     const cdnFeatureNames = new Set(classFeatures.map(f => f.name.toLowerCase()));
 
-    // Build compact note lookup from class effects for CDN feature annotation
     const compactNoteMap = new Map();
     for (const entry of classEffects.promptNotes) {
         if (entry.name) {
@@ -439,13 +426,11 @@ export function computeCharacterStats(char) {
         }
     }
 
-    // Annotate CDN features with compact notes where available
     const annotatedClassFeatures = classFeatures.map(f => ({
         ...f,
         compactNote: compactNoteMap.get(f.name.toLowerCase()) || null,
     }));
 
-    // Combat Notes: class notes without CDN match + all feat notes
     const combatNotes = [];
     for (const entry of classEffects.promptNotes) {
         if (entry.name && cdnFeatureNames.has(entry.name.toLowerCase())) continue;
@@ -470,7 +455,7 @@ export function computeCharacterStats(char) {
     // --- Class Resources ---
     const classResources = getClassResources(classKey, level, mods);
 
-    // --- Level Choice Details (for prompt output + character sheet) ---
+    // --- Level Choice Details ---
     const resolveOptions = (ids, options) =>
         ids.map(id => options.find(o => o.id === id)).filter(Boolean);
 
@@ -537,9 +522,9 @@ export function computeCharacterStats(char) {
         senses,
         languages,
 
-        // Equipment
-        equippedArmor: char.equippedArmor,
-        hasShield: char.hasShield,
+        // Equipment (from inventory)
+        equippedArmor: armorData,
+        hasShield,
 
         // Feats
         chosenFeats: getChosenFeatNames(char),
@@ -558,7 +543,7 @@ export function computeCharacterStats(char) {
         subclassSpells: subclassSpellData.spells,
         subclassSpellsAreKnown: subclassSpellData.isKnown,
 
-        // Class resources (Ki, Sorcery Points, Rage, etc.)
+        // Class resources
         classResources,
 
         // Companion
@@ -569,7 +554,7 @@ export function computeCharacterStats(char) {
         companionData: cd,
         isPactChain,
 
-        // Level choice details (metamagic, invocations, maneuvers, etc.)
+        // Level choice details
         levelChoiceDetails,
 
         // Feature toggles

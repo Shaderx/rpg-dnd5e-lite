@@ -225,7 +225,8 @@ function renderSpellLevels(container, spellSlots, sorceryPoints, secondaryResour
         let circles = '';
         for (let i = 0; i < filled; i++) circles += '<div class="dnd-spell-circle dnd-spell-filled"></div>';
         for (let i = 0; i < empty; i++) circles += '<div class="dnd-spell-circle dnd-spell-empty"></div>';
-        html += `<div class="dnd-spell-level-row dnd-spell-sorcery-row" data-spell-level="sp">
+        const wideClass = sp.max > 8 ? ' dnd-spell-row-wide' : '';
+        html += `<div class="dnd-spell-level-row dnd-spell-sorcery-row${wideClass}" data-spell-level="sp">
             <span class="dnd-spell-level-label">⚡</span>
             <div class="dnd-spell-level-cubes">${circles}</div>
             <span class="dnd-spell-level-count">${sp.current}/${sp.max}</span>
@@ -238,7 +239,8 @@ function renderSpellLevels(container, spellSlots, sorceryPoints, secondaryResour
         let circles = '';
         for (let i = 0; i < filled; i++) circles += '<div class="dnd-spell-circle dnd-spell-filled"></div>';
         for (let i = 0; i < empty; i++) circles += '<div class="dnd-spell-circle dnd-spell-empty"></div>';
-        html += `<div class="dnd-spell-level-row dnd-spell-secondary-row" data-spell-level="sr">
+        const wideClass = sr.max > 8 ? ' dnd-spell-row-wide' : '';
+        html += `<div class="dnd-spell-level-row dnd-spell-secondary-row${wideClass}" data-spell-level="sr">
             <span class="dnd-spell-level-label">🔥</span>
             <div class="dnd-spell-level-cubes">${circles}</div>
             <span class="dnd-spell-level-count">${sr.current}/${sr.max}</span>
@@ -497,8 +499,13 @@ function renderSecondaryGrid(container, currency, extras) {
 
     if (items.length === 0) { container.innerHTML = ''; return; }
 
-    // Sort by weight descending for first-fit-decreasing bin packing
-    items.sort((a, b) => b.weight - a.weight);
+    // Sort by weight descending for first-fit-decreasing bin packing, but keep currency first
+    items.sort((a, b) => {
+        const aCur = a.cls.includes('dnd-sec-currency') ? 1 : 0;
+        const bCur = b.cls.includes('dnd-sec-currency') ? 1 : 0;
+        if (aCur !== bCur) return bCur - aCur;
+        return b.weight - a.weight;
+    });
 
     const rows = [];
     for (const item of items) {

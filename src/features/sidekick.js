@@ -7,6 +7,7 @@
 import { character, bestiaryCache, equipmentItemCache, setEquipmentItemCache, extensionSettings } from '../core/state.js';
 import { collectFeatEffects } from './featEffects.js';
 import { characterV1 } from '../v1/core/state.js';
+import { characterV2 } from '../v2/core/characterState.js';
 import {
     buildUpcastTable,
     parseUpcastInfo,
@@ -423,6 +424,72 @@ export function lookupItemByName(name) {
         const mundane = _mundaneItemCache.get(key);
         if (mundane) return mundane;
     }
+    return null;
+}
+
+/**
+ * Fuzzy item lookup for inventory entries.
+ * Rules:
+ *   - Magic items require EXACT name match (ignoring case and trailing parenthetical).
+ *   - Mundane/base items allow fuzzy: strips parenthetical, normalizes "+N" prefixes.
+ * Search priority: magic items (exact) > mundane gear > base equipment
+ * "shortsword +1" resolves to "+1 Shortsword" in magic weapons.
+ * "sword" does NOT match "Sword of Answering" — no partial matching for magic.
+ */
+export function fuzzyLookupItem(text) {
+    if (!text) return null;
+    // Strip trailing parenthetical (e.g. "Diamond (300gp)" → "Diamond")
+    const cleaned = text.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    if (!cleaned) return null;
+    const key = cleaned.toLowerCase();
+
+    // --- Phase 1: Exact match in magic caches (name must match exactly) ---
+    const magicCaches = [_magicItemCache, _magicArmorCache, _magicWeaponCache];
+    for (const cache of magicCaches) {
+        if (!cache) continue;
+        for (const [k, item] of cache) {
+            const namePart = k.includes('|') ? k.split('|')[0] : k;
+            if (namePart === key) return item;
+        }
+    }
+
+    // --- Phase 2: Try "+N item" rewrite for magic weapon/armor variants ---
+    // "shortsword +1" or "shortsword+1" → try "+1 shortsword"
+    const bonusMatch = key.match(/^(.+?)\s*\+(\d)$/);
+    if (bonusMatch) {
+        const rewritten = `+${bonusMatch[2]} ${bonusMatch[1]}`.toLowerCase();
+        for (const cache of [_magicWeaponCache, _magicArmorCache]) {
+            if (!cache) continue;
+            for (const [k, item] of cache) {
+                const namePart = k.includes('|') ? k.split('|')[0] : k;
+                if (namePart === rewritten) return item;
+            }
+        }
+    }
+
+    // --- Phase 3: Mundane/base items (exact match on name) ---
+    if (_mundaneItemCache) {
+        const mundane = _mundaneItemCache.get(key);
+        if (mundane) return mundane;
+    }
+    if (equipmentItemCache) {
+        const base = equipmentItemCache.get(key);
+        if (base) return base;
+    }
+
+    // --- Phase 4: Mundane with bonus stripped (e.g. "shortsword +1" → base "shortsword") ---
+    if (bonusMatch) {
+        const baseName = bonusMatch[1].trim();
+        if (equipmentItemCache) {
+            const base = equipmentItemCache.get(baseName);
+            if (base) return base;
+        }
+        if (_mundaneItemCache) {
+            const mundane = _mundaneItemCache.get(baseName);
+            if (mundane) return mundane;
+        }
+    }
+
     return null;
 }
 
@@ -1537,6 +1604,9 @@ export function createSidekickFromCreature(creature, config) {
 }
 
 export function getSidekickLevel() {
+    if (extensionSettings.v2Enabled && characterV2?.level) {
+        return characterV2.level;
+    }
     if (extensionSettings.v1Enabled && characterV1?.level) {
         return characterV1.level;
     }

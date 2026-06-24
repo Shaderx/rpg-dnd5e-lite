@@ -4,8 +4,8 @@
  */
 
 import { getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
-import { eventSource, event_types } from '../../../../script.js';
-import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, autoLongRestEnabled, setAutoLongRestEnabled, character, sidekicks, headerInfo, lastEventRoll, lastNonCombatRoll } from './src/core/state.js';
+import { eventSource, event_types, saveSettingsDebounced } from '../../../../script.js';
+import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, autoLongRestEnabled, setAutoLongRestEnabled, character, sidekicks, headerInfo, lastEventRoll, lastNonCombatRoll, migrateSettingsToMode, syncModeFlags } from './src/core/state.js';
 import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled, saveSendAttributesOnRoll, loadSendAttributesOnRoll, saveSpellInjectEnabled, loadSpellInjectEnabled, saveAutoLongRest, loadAutoLongRest, loadSpellbook, loadCharacter, saveSidekicks, loadSidekicks, loadRandomEventState, saveRandomEventState } from './src/core/persistence.js';
 import { importSpellbook, clearSpellbook, ensureSpellData } from './src/features/spellbook.js';
 import { renderSpellbook, hideSpellTooltip } from './src/rendering/spellbook.js';
@@ -38,6 +38,22 @@ import { fetchClassFile } from './src/v1/data/sources.js';
 import { renderV1CompanionPanel, initCompanionPanel } from './src/v1/rendering/companion.js';
 import { listCustomSpecies, createCustomSpecies, updateCustomSpecies, deleteCustomSpecies, blankCustomSpecies } from './src/v1/features/customSpecies.js';
 import { CREATURE_TYPES as V1_CREATURE_TYPES, DAMAGE_TYPES, ABILITY_KEYS as V1_ABILITY_KEYS, ABILITY_LABELS as V1_ABILITY_LABELS } from './src/v1/core/constants.js';
+
+// V2 Inline Game Actions
+import { v2Quests, v2Inventory } from './src/v2/core/state.js';
+import { loadV2Quests, loadV2Inventory, saveV2Quests, saveV2Inventory, getChatDataVersion } from './src/v2/core/persistence.js';
+import { hasV1DataToMigrate, isChatV2, executeV2Migration } from './src/v2/core/migration.js';
+import { parseAndApplyGameActions, hasGameActionBackup, revertGameActions } from './src/v2/tools/inlineParser.js';
+import { renderV2Quests, addV2QuestFromInput } from './src/v2/rendering/quests.js';
+import { renderV2Inventory, addV2InventoryItemFromInput } from './src/v2/rendering/inventory.js';
+import { showV2MigrationModal } from './src/v2/rendering/migration.js';
+import { characterV2, setCharacterV2 } from './src/v2/core/characterState.js';
+import { loadCharacterV2, saveCharacterV2 } from './src/v2/core/characterPersist.js';
+import { renderV2CharacterPanel } from './src/v2/rendering/character.js';
+import { renderV2DetailModal } from './src/v2/rendering/detail.js';
+import { openV2ConfigModal } from './src/v2/rendering/configModal.js';
+import { renderV2Spellbook, initV2Spellbook } from './src/v2/rendering/spellbook.js';
+import { renderV2CompanionPanel, initV2CompanionPanel } from './src/v2/rendering/companion.js';
 
 // ─── Power toggle ───────────────────────────────────────────
 
@@ -82,6 +98,15 @@ function togglePower() {
         updateDamageDisplay();
         updateModifierDisplay();
         updateSpellTrackerToggleUI();
+
+        if (extensionSettings.v2Enabled) {
+            loadCharacterV2();
+            loadV2Quests();
+            loadV2Inventory();
+            renderV2Quests();
+            renderV2Inventory();
+        }
+
         loadSidekicks();
         renderSidekickCards();
     }
@@ -1702,13 +1727,25 @@ function migrateSidekickData() {
 function handleRefreshFromChat() {
     if (!extensionSettings.enabled || extensionSettings.softDisabled) return;
 
-    loadQuests();
-    loadInventory();
+    if (extensionSettings.v2Enabled) {
+        loadV2Quests();
+        loadV2Inventory();
+    } else {
+        loadQuests();
+        loadInventory();
+    }
+
     const headerResult = refreshHeaderFromChat();
     if (!spellTrackerDisabled) refreshSpellLog();
 
-    renderQuests();
-    renderInventory();
+    if (extensionSettings.v2Enabled) {
+        renderV2Quests();
+        renderV2Inventory();
+    } else {
+        renderQuests();
+        renderInventory();
+    }
+
     if (!spellTrackerDisabled) renderSpellLog();
     updateHeaderWidgets();
     updateStripWidgets();
@@ -1719,7 +1756,7 @@ function handleRefreshFromChat() {
     if (headerResult) {
         toastr.success('Refreshed from chat');
     } else {
-        toastr.info('Quests refreshed (no header found)');
+        toastr.info('Refreshed (no header found)');
     }
 }
 
@@ -1748,6 +1785,12 @@ function onMessageReceived(messageIndex) {
         renderSpellLog();
     }
 
+    // V2: parse inline game_actions JSON block from LLM response
+    if (extensionSettings.v2Enabled) {
+        parseAndApplyGameActions(message.mes);
+        updateV2RevertButton();
+    }
+
     // Re-save event state so it survives SillyTavern's own chat_metadata save
     if (extensionSettings.randomEventsEnabled && lastEventRoll) {
         saveRandomEventState();
@@ -1772,6 +1815,12 @@ function onMessageSwiped(messageIndex) {
     updateStripWidgets();
     if (!spellTrackerDisabled) renderSpellLog();
     applyWeatherVisuals();
+
+    // V2: re-parse inline game_actions from the new swipe
+    if (extensionSettings.v2Enabled) {
+        parseAndApplyGameActions(message.mes);
+        updateV2RevertButton();
+    }
 }
 
 // ─── Chat changed ───────────────────────────────────────────
@@ -1807,6 +1856,20 @@ function onChatChanged() {
     loadCharacter();
     ensureCharacterData().then(() => renderCharacter());
 
+    // Character must load before sidekicks so getSidekickLevel() sees the level
+    if (extensionSettings.v1Enabled) {
+        loadCharacterV1();
+        renderV1CharacterPanel();
+        renderV1Spellbook();
+        renderV1CompanionPanel();
+        preloadV1Assets();
+        renderInventory();
+    }
+    if (extensionSettings.v2Enabled) {
+        loadCharacterV2();
+        renderV2CharacterPanel();
+    }
+
     loadSidekicks();
     renderSidekickCards();
     fetchEquipmentItems().then(() => fetchMagicItems());
@@ -1815,14 +1878,9 @@ function onChatChanged() {
     updateRandomEventDisplay();
     updateNonCombatDiceDisplay();
 
-    // V1
-    if (extensionSettings.v1Enabled) {
-        loadCharacterV1();
-        renderV1CharacterPanel();
-        renderV1Spellbook();
-        renderV1CompanionPanel();
-        preloadV1Assets();
-    }
+    // V2 tool calling
+    handleV2ChatChanged();
+    checkCrossVersionWarning();
 }
 
 function preloadV1Assets() {
@@ -1836,6 +1894,19 @@ function preloadV1Assets() {
     return Promise.all(tasks).then(() => {
         renderV1Spellbook();
         renderV1CharacterPanel();
+    });
+}
+
+function preloadV2Assets() {
+    const tasks = [
+        preloadSpellData(),
+        fetchFeats(),
+        fetchEquipmentItems().then(() => fetchMagicItems()),
+    ];
+    if (characterV2?.classFile) tasks.push(fetchClassFile(characterV2.classFile));
+    return Promise.all(tasks).then(() => {
+        renderV2Spellbook();
+        renderV2CharacterPanel();
     });
 }
 
@@ -2193,28 +2264,181 @@ function saveSpeciesForm() {
 // ─── V1 panel visibility ─────────────────────────────────────
 
 function applyV1PanelVisibility() {
-    const v1 = extensionSettings.v1Enabled;
-    // V1 panels
+    const mode = extensionSettings.mode || 'legacy';
+    const charActive = mode === 'v1' || mode === 'v2';
+
+    // V1/V2 share the character container
     const v1Container = document.getElementById('dnd-v1-character-container');
-    if (v1Container) v1Container.style.display = v1 ? '' : 'none';
+    if (v1Container) v1Container.style.display = charActive ? '' : 'none';
 
     const v1Spellbook = document.getElementById('dnd-v1-spellbook-container');
-    if (v1Spellbook) v1Spellbook.style.display = v1 ? '' : 'none';
+    if (v1Spellbook) v1Spellbook.style.display = charActive ? '' : 'none';
 
-    // Legacy panels — hide when V1 is active
+    // Legacy panels — hide when V1 or V2 is active
     const legacyChar = document.getElementById('dnd-character-container');
-    if (legacyChar) legacyChar.style.display = v1 ? 'none' : '';
+    if (legacyChar) legacyChar.style.display = charActive ? 'none' : '';
 
     const legacySpellbook = document.getElementById('dnd-spellbook-container');
-    if (legacySpellbook) legacySpellbook.style.display = v1 ? 'none' : '';
+    if (legacySpellbook) legacySpellbook.style.display = charActive ? 'none' : '';
 
-    // V1 has attributes on the char sheet — hide attr editor button and force-disable attr injection
+    // V1/V2 has attributes on the char sheet — hide attr editor button and force-disable attr injection
     const attrBtn = document.getElementById('dnd-open-attr-editor');
-    if (attrBtn) attrBtn.style.display = v1 ? 'none' : '';
+    if (attrBtn) attrBtn.style.display = charActive ? 'none' : '';
 
-    if (v1) {
+    if (charActive) {
         setSendAttributesOnRoll(false);
         saveSendAttributesOnRoll(false);
+    }
+}
+
+// ─── V2 mode ─────────────────────────────────────────────────
+
+function updatePanelTitle() {
+    const el = document.getElementById('dnd-panel-title');
+    if (!el) return;
+    const mode = extensionSettings.mode || 'legacy';
+    const suffix = mode === 'v2' ? ' V2' : mode === 'v1' ? ' V1' : '';
+    el.textContent = `D&D 5e Lite${suffix}`;
+}
+
+function applyV2Mode() {
+    const v2 = extensionSettings.v2Enabled;
+    if (v2) {
+        loadV2Quests();
+        loadV2Inventory();
+        renderV2Quests();
+        renderV2Inventory();
+        loadCharacterV2();
+        renderV2CharacterPanel();
+        initV2Spellbook();
+        renderV2Spellbook();
+        initV2CompanionPanel();
+        renderV2CompanionPanel();
+        preloadV2Assets();
+    } else {
+        renderQuests();
+        renderInventory();
+    }
+}
+
+function handleV2ChatChanged() {
+    if (!extensionSettings.v2Enabled) return;
+
+    const chatVersion = getChatDataVersion();
+
+    if (chatVersion >= 2) {
+        loadV2Quests();
+        loadV2Inventory();
+        renderV2Quests();
+        renderV2Inventory();
+    } else if (hasV1DataToMigrate()) {
+        showV2MigrationModal(() => {
+            executeV2Migration(characterV1);
+            renderV2Quests();
+            renderV2Inventory();
+        });
+    } else {
+        loadV2Quests();
+        loadV2Inventory();
+        renderV2Quests();
+        renderV2Inventory();
+    }
+
+    loadCharacterV2();
+    renderV2CharacterPanel();
+    renderV2Spellbook();
+    renderV2CompanionPanel();
+}
+
+function checkCrossVersionWarning() {
+    const chatVersion = getChatDataVersion();
+    if (!extensionSettings.v2Enabled && chatVersion >= 2) {
+        toastr.warning(
+            'This chat uses V2 data. Quest/inventory may not display correctly. Enable V2 mode in extension settings.',
+            'D&D 5e Lite',
+            { timeOut: 8000, preventDuplicates: true },
+        );
+    }
+}
+
+// ─── V2 revert button visibility ─────────────────────────────
+
+function updateV2RevertButton() {
+    const show = extensionSettings.v2Enabled && hasGameActionBackup();
+    $('#dnd-v2-revert-btn').toggle(show);
+}
+
+// ─── V2 context-stripping regex management ──────────────────
+
+const V2_REGEX_SCRIPT_NAME = 'D&D 5e - Strip game_actions';
+
+function getGlobalRegexScripts() {
+    const context = getContext();
+    const ext = context.extension_settings || context.extensionSettings;
+    if (!ext) return null;
+    if (!Array.isArray(ext.regex)) ext.regex = [];
+    return ext.regex;
+}
+
+function findV2RegexScript() {
+    const scripts = getGlobalRegexScripts();
+    if (!scripts) return null;
+    return scripts.find(s => s.scriptName === V2_REGEX_SCRIPT_NAME) || null;
+}
+
+function createV2RegexScript() {
+    return {
+        id: crypto.randomUUID(),
+        scriptName: V2_REGEX_SCRIPT_NAME,
+        findRegex: '<details>\\s*<summary>game_actions</summary>[\\s\\S]*?</details>',
+        replaceString: '',
+        trimStrings: [],
+        substituteRegex: 0,
+        disabled: false,
+        markdownOnly: false,
+        promptOnly: true,
+        runOnEdit: false,
+        placement: [2],
+        minDepth: null,
+        maxDepth: null,
+    };
+}
+
+function installV2Regex() {
+    const scripts = getGlobalRegexScripts();
+    if (!scripts) return false;
+
+    const existing = scripts.findIndex(s => s.scriptName === V2_REGEX_SCRIPT_NAME);
+    if (existing >= 0) scripts.splice(existing, 1);
+
+    scripts.push(createV2RegexScript());
+    saveSettingsDebounced();
+    console.log('[D&D 5e V2] Context-stripping regex installed');
+    return true;
+}
+
+function ensureV2Regex() {
+    if (findV2RegexScript()) return;
+    installV2Regex();
+}
+
+function updateV2RegexStatus() {
+    const $section = $('#dnd-v2-regex-section');
+    const $status = $('#dnd-v2-regex-status');
+
+    if (!extensionSettings.v2Enabled) {
+        $section.hide();
+        return;
+    }
+
+    $section.show();
+    const found = findV2RegexScript();
+    if (found && !found.disabled) {
+        $status.text('Installed').css('color', 'var(--SmartThemeQuoteColor, #4caf50)');
+    } else if (found && found.disabled) {
+        $status.text('Disabled').css('color', 'var(--warning-color, #ff9800)');
+    } else {
+        $status.text('Not Found').css('color', 'var(--error-color, #f44336)');
     }
 }
 
@@ -2263,16 +2487,8 @@ async function initUI() {
     loadCharacter();
     ensureCharacterData().then(() => renderCharacter());
 
-    // Sidekicks
-    loadSidekicks();
-    migrateSidekickData();
-    renderSidekickCards();
-
-    if (sidekicks && sidekicks.length > 0) {
-        fetchEquipmentItems().then(() => fetchMagicItems());
-    }
-
-    // V1 Character System
+    // Character System (V1 or V2 based on mode)
+    updatePanelTitle();
     applyV1PanelVisibility();
     if (extensionSettings.v1Enabled) {
         loadCharacterV1();
@@ -2282,6 +2498,31 @@ async function initUI() {
         initCompanionPanel();
         renderV1CompanionPanel();
         preloadV1Assets();
+        renderInventory();
+    }
+
+    // V2 Inline Game Actions + Character
+    if (extensionSettings.v2Enabled) {
+        loadV2Quests();
+        loadV2Inventory();
+        renderV2Quests();
+        renderV2Inventory();
+        loadCharacterV2();
+        renderV2CharacterPanel();
+        initV2Spellbook();
+        renderV2Spellbook();
+        initV2CompanionPanel();
+        renderV2CompanionPanel();
+        preloadV2Assets();
+    }
+
+    // Sidekicks (after V1 so getSidekickLevel() has the correct level)
+    loadSidekicks();
+    migrateSidekickData();
+    renderSidekickCards();
+
+    if (sidekicks && sidekicks.length > 0) {
+        fetchEquipmentItems().then(() => fetchMagicItems());
     }
 
     // ─── Event bindings ─────────────────────────────────
@@ -2291,6 +2532,14 @@ async function initUI() {
 
     // Refresh buttons (both strip and expanded)
     $('#dnd-strip-reload, #dnd-refresh-btn').on('click', handleRefreshFromChat);
+
+    // V2 revert button
+    $('#dnd-v2-revert-btn').on('click', () => {
+        if (revertGameActions()) {
+            updateV2RevertButton();
+            toastr.success('Reverted quests & inventory to pre-parse state.', 'D&D 5e Lite');
+        }
+    });
 
     // Dice — expanded panel roll button
     $('#dnd-roll-btn').on('click', () => {
@@ -2365,25 +2614,41 @@ async function initUI() {
 
     // Quest — inline add
     $('#dnd-add-quest-btn').on('click', () => {
-        addQuestFromInput();
+        if (extensionSettings.v2Enabled) {
+            addV2QuestFromInput();
+        } else {
+            addQuestFromInput();
+        }
         updateStripWidgets();
     });
     $('#dnd-add-quest-input').on('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            addQuestFromInput();
+            if (extensionSettings.v2Enabled) {
+                addV2QuestFromInput();
+            } else {
+                addQuestFromInput();
+            }
             updateStripWidgets();
         }
     });
 
     // Inventory — inline add
     $('#dnd-add-inventory-btn').on('click', () => {
-        addInventoryItemFromInput();
+        if (extensionSettings.v2Enabled) {
+            addV2InventoryItemFromInput();
+        } else {
+            addInventoryItemFromInput();
+        }
     });
     $('#dnd-add-inventory-input').on('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            addInventoryItemFromInput();
+            if (extensionSettings.v2Enabled) {
+                addV2InventoryItemFromInput();
+            } else {
+                addInventoryItemFromInput();
+            }
         }
     });
 
@@ -2476,46 +2741,76 @@ async function initUI() {
     $('#dnd-char-source-select').on('change', onCharSourceChanged);
     $('#dnd-character-config-save').on('click', saveCharacterFromModal);
 
-    // V1 Character panel events
-    $(document).on('click', '#dnd-v1-character-create', () => openV1ConfigModal(null));
+    // V1/V2 Character panel events (routes to correct modal based on mode)
+    $(document).on('click', '#dnd-v1-character-create', () => {
+        if (extensionSettings.mode === 'v2') openV2ConfigModal(null);
+        else openV1ConfigModal(null);
+    });
     $('#dnd-v1-character-edit').on('click', (e) => {
         e.stopPropagation();
-        if (characterV1) openV1ConfigModal(characterV1.id);
-        else openV1ConfigModal(null);
+        if (extensionSettings.mode === 'v2') {
+            openV2ConfigModal(characterV2?.id || null);
+        } else {
+            if (characterV1) openV1ConfigModal(characterV1.id);
+            else openV1ConfigModal(null);
+        }
     });
     $('#dnd-v1-character-levelup').on('click', (e) => {
         e.stopPropagation();
-        if (characterV1 && (characterV1.level || 1) < 20) {
-            openV1ConfigModal(characterV1.id, true);
+        if (extensionSettings.mode === 'v2') {
+            if (characterV2 && (characterV2.level || 1) < 20) openV2ConfigModal(characterV2.id, true);
+        } else {
+            if (characterV1 && (characterV1.level || 1) < 20) openV1ConfigModal(characterV1.id, true);
         }
     });
     $('#dnd-v1-character-clear').on('click', (e) => {
         e.stopPropagation();
-        setCharacterV1(null);
-        saveCharacterV1(null);
-        renderV1CharacterPanel();
-        renderV1Spellbook();
-        renderV1CompanionPanel();
-        toastr.info('V1 Character removed');
+        if (extensionSettings.mode === 'v2') {
+            setCharacterV2(null);
+            saveCharacterV2(null);
+            renderV2CharacterPanel();
+            toastr.info('V2 Character removed');
+        } else {
+            setCharacterV1(null);
+            saveCharacterV1(null);
+            renderV1CharacterPanel();
+            renderV1Spellbook();
+            renderV1CompanionPanel();
+            toastr.info('V1 Character removed');
+        }
     });
-    // V1 Detail modal
+    // V1/V2 Detail modal
     $(document).on('click', '#dnd-v1-character-content .dnd-v1-stat-card', () => {
-        if (!characterV1) return;
-        renderV1DetailModal();
-        $('#dnd-v1-detail-popup').show();
+        if (extensionSettings.mode === 'v2') {
+            if (!characterV2) return;
+            renderV2DetailModal();
+            $('#dnd-v1-detail-popup').show();
+        } else {
+            if (!characterV1) return;
+            renderV1DetailModal();
+            $('#dnd-v1-detail-popup').show();
+        }
     });
     $('#dnd-v1-detail-close').on('click', () => $('#dnd-v1-detail-popup').hide());
     $('#dnd-v1-detail-edit').on('click', () => {
         $('#dnd-v1-detail-popup').hide();
-        if (characterV1) openV1ConfigModal(characterV1.id);
+        if (extensionSettings.mode === 'v2') {
+            openV2ConfigModal(characterV2?.id || null);
+        } else {
+            if (characterV1) openV1ConfigModal(characterV1.id);
+        }
     });
-    // V1 Collapsible header shift+click to configure
+    // V1/V2 Collapsible header shift+click to configure
     $(document).on('click', '[data-section="v1-character"]', function (e) {
         if (e.shiftKey) {
             e.preventDefault();
             e.stopPropagation();
-            if (characterV1) openV1ConfigModal(characterV1.id);
-            else openV1ConfigModal(null);
+            if (extensionSettings.mode === 'v2') {
+                openV2ConfigModal(characterV2?.id || null);
+            } else {
+                if (characterV1) openV1ConfigModal(characterV1.id);
+                else openV1ConfigModal(null);
+            }
         }
     });
 
@@ -2881,6 +3176,75 @@ async function initUI() {
         });
 }
 
+function populateDebugModules() {
+    const container = document.getElementById('dnd-debug-modules');
+    if (!container) return;
+
+    const summary = container.closest('details')?.querySelector('summary');
+    if (summary) {
+        summary.addEventListener('click', () => setTimeout(renderDebugList, 50), { once: true });
+    }
+
+    function renderDebugList() {
+        const extBase = 'scripts/extensions/third-party/rpg-dnd5e-lite/';
+        const collected = new Set();
+
+        // Performance API entries (works for non-cached loads)
+        for (const r of performance.getEntriesByType('resource')) {
+            if (r.name.includes('rpg-dnd5e-lite') && r.name.endsWith('.js')) {
+                const idx = r.name.indexOf(extBase);
+                collected.add(idx >= 0 ? r.name.substring(idx + extBase.length) : r.name);
+            }
+        }
+
+        // Statically known module tree (always accurate)
+        const knownModules = [
+            'index.js',
+            'src/core/state.js', 'src/core/persistence.js',
+            'src/features/sidekick.js', 'src/features/spellbook.js',
+            'src/features/character.js', 'src/features/inventoryRarity.js',
+            'src/features/spellScaling.js', 'src/features/featEffects.js',
+            'src/rendering/character.js', 'src/rendering/spellbook.js',
+            'src/rendering/sidekick.js', 'src/rendering/tooltip.js',
+            'src/rendering/spellbookLevelFilter.js',
+            'src/generation/injector.js', 'src/generation/promptBuilder.js',
+            'src/v1/core/state.js', 'src/v1/core/persistence.js', 'src/v1/core/constants.js',
+            'src/v1/features/character.js', 'src/v1/features/species.js',
+            'src/v1/features/background.js', 'src/v1/features/classData.js',
+            'src/v1/features/spells.js', 'src/v1/features/feats.js',
+            'src/v1/features/featEffects.js', 'src/v1/features/classEffects.js',
+            'src/v1/features/subclassEffects.js', 'src/v1/features/levelFeatures.js',
+            'src/v1/features/subclassSpells.js', 'src/v1/features/equipment.js',
+            'src/v1/features/customSpecies.js',
+            'src/v1/rendering/character.js', 'src/v1/rendering/detail.js',
+            'src/v1/rendering/configModal.js', 'src/v1/rendering/spellbook.js',
+            'src/v1/rendering/companion.js', 'src/v1/data/sources.js',
+            'src/v2/core/state.js', 'src/v2/core/persistence.js',
+            'src/v2/core/characterState.js', 'src/v2/core/characterPersist.js',
+            'src/v2/core/migration.js', 'src/v2/core/constants.js',
+            'src/v2/features/character.js', 'src/v2/features/species.js',
+            'src/v2/features/background.js', 'src/v2/features/classData.js',
+            'src/v2/features/spells.js', 'src/v2/features/feats.js',
+            'src/v2/features/featEffects.js', 'src/v2/features/classEffects.js',
+            'src/v2/features/subclassEffects.js', 'src/v2/features/levelFeatures.js',
+            'src/v2/features/subclassSpells.js', 'src/v2/features/equipment.js',
+            'src/v2/rendering/character.js', 'src/v2/rendering/detail.js',
+            'src/v2/rendering/configModal.js', 'src/v2/rendering/spellbook.js',
+            'src/v2/rendering/companion.js', 'src/v2/rendering/inventory.js',
+            'src/v2/rendering/quests.js', 'src/v2/rendering/questModal.js',
+            'src/v2/rendering/migration.js',
+            'src/v2/generation/promptBuilder.js', 'src/v2/generation/characterPrompt.js',
+            'src/v2/tools/inlineParser.js', 'src/v2/tools/inventoryTool.js',
+            'src/v2/tools/questTool.js', 'src/v2/data/sources.js',
+        ];
+        for (const m of knownModules) collected.add(m);
+
+        const sorted = [...collected].sort();
+        container.innerHTML = `<div style="margin-bottom:4px;color:rgba(255,255,255,0.4);">${sorted.length} modules loaded</div>`
+            + sorted.map(p => `<div>${p}</div>`).join('');
+    }
+}
+
 function destroyUI() {
     clearExtensionPrompts();
     destroyWeatherVisuals();
@@ -2899,10 +3263,14 @@ function destroyUI() {
 
 jQuery(async () => {
     loadSettings();
+    migrateSettingsToMode();
 
     // Settings panel in Extensions tab
     const settingsHtml = await renderExtensionTemplateAsync(extensionName, 'settings');
     $('#extensions_settings2').append(settingsHtml);
+
+    // Debug: list loaded modules
+    populateDebugModules();
 
     $('#dnd-extension-enabled').prop('checked', extensionSettings.enabled).on('change', async function () {
         const wasEnabled = extensionSettings.enabled;
@@ -2916,10 +3284,16 @@ jQuery(async () => {
         }
     });
 
-    // V1 toggle handler
-    $('#dnd-v1-enabled').prop('checked', extensionSettings.v1Enabled).on('change', function () {
-        extensionSettings.v1Enabled = $(this).prop('checked');
+    // Mode selector handler (replaces V1/V2 toggle checkboxes)
+    $(`input[name="dnd-mode"][value="${extensionSettings.mode}"]`).prop('checked', true);
+    $('input[name="dnd-mode"]').on('change', function () {
+        const newMode = $(this).val();
+        extensionSettings.mode = newMode;
+        extensionSettings.v1Enabled = newMode === 'v1';
+        extensionSettings.v2Enabled = newMode === 'v2';
         saveSettings();
+
+        updatePanelTitle();
         applyV1PanelVisibility();
         if (extensionSettings.v1Enabled) {
             loadCharacterV1();
@@ -2930,7 +3304,31 @@ jQuery(async () => {
             renderV1CompanionPanel();
             preloadV1Assets();
         }
+
+        applyV2Mode();
+        if (extensionSettings.v2Enabled) ensureV2Regex();
+        updateV2RegexStatus();
     });
+
+    // Milestone XP toggle
+    $('#dnd-milestone-xp').prop('checked', extensionSettings.milestoneXP).on('change', function () {
+        extensionSettings.milestoneXP = $(this).prop('checked');
+        saveSettings();
+    });
+
+    // V2 regex management UI
+    $('#dnd-v2-regex-reinstall').on('click', function () {
+        installV2Regex();
+        updateV2RegexStatus();
+        toastr.success('Context-stripping regex reinstalled.', 'D&D 5e Lite');
+    });
+    $('#dnd-v2-regex-manual-toggle').on('click', function () {
+        $('#dnd-v2-regex-manual').toggle();
+    });
+    if (extensionSettings.v2Enabled) {
+        ensureV2Regex();
+    }
+    updateV2RegexStatus();
 
     // Initial UI load if enabled
     if (extensionSettings.enabled) {

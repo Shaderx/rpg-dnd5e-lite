@@ -98,6 +98,9 @@
             <div class="dnd-header-actions">
                 <span id="dnd-panel-noncombat-tag" class="dnd-panel-noncombat-tag" style="display:none;" title="Non-Combat d20s">--</span>
                 <span id="dnd-panel-event-tag" class="dnd-panel-event-tag" style="display:none;" title="Random Event">--</span>
+                <button id="dnd-v2-revert-btn" class="dnd-header-btn dnd-v2-revert-btn" title="Revert last game action parse" style="display:none;">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
                 <button id="dnd-refresh-btn" class="dnd-header-btn" title="Refresh from chat">
                     <i class="fa-solid fa-rotate"></i>
                 </button>
@@ -252,7 +255,7 @@
                 <div class="dnd-collapsible-header" data-section="v1-character" title="Click to toggle, Shift+click to configure">
                     <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
                     <i class="fa-solid fa-id-card"></i>
-                    <span id="dnd-v1-character-title">Character (V1)</span>
+                    <span id="dnd-v1-character-title">Character</span>
                     <button id="dnd-v1-character-levelup" class="dnd-section-action-btn" title="Level up" style="display:none;">
                         <i class="fa-solid fa-arrow-up"></i>
                     </button>
@@ -1147,6 +1150,116 @@
             <button id="dnd-v1-config-next" class="dnd-btn dnd-btn-primary">Next →</button>
             <button id="dnd-v1-config-save" class="dnd-btn dnd-btn-primary" style="display:none;">Save</button>
             <button id="dnd-v1-config-cancel" class="dnd-btn">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- V2 Migration Modal -->
+<div id="dnd-v2-migration-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-v2-migration">
+        <div class="dnd-modal-header">
+            <span>Migrate to V2</span>
+            <button class="dnd-modal-close" id="dnd-v2-migration-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body">
+            <p>This chat has V1 quest/inventory data. V2 mode uses an enhanced data format with objectives, rewards, NPC tracking, and LLM tool calling.</p>
+            <p><strong>Migration is non-destructive</strong> &mdash; your V1 data will be preserved. V2 data is stored separately.</p>
+            <p>Would you like to migrate now?</p>
+        </div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-v2-migration-confirm" class="dnd-btn dnd-btn-primary">Migrate</button>
+            <button id="dnd-v2-migration-cancel" class="dnd-btn">Skip</button>
+        </div>
+    </div>
+</div>
+
+<!-- V2 Quest Detail Modal -->
+<div id="dnd-v2-quest-detail-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-v2-quest-detail">
+        <div class="dnd-modal-header">
+            <span id="dnd-v2-quest-detail-title">Quest Details</span>
+            <button class="dnd-modal-close" id="dnd-v2-quest-detail-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body" id="dnd-v2-quest-detail-body"></div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-v2-quest-detail-edit" class="dnd-btn dnd-btn-primary"><i class="fa-solid fa-pen"></i> Edit</button>
+            <button id="dnd-v2-quest-detail-delete" class="dnd-btn dnd-btn-danger"><i class="fa-solid fa-trash-can"></i> Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- V2 Quest Edit Modal -->
+<div id="dnd-v2-quest-edit-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-v2-quest-edit">
+        <div class="dnd-modal-header">
+            <span id="dnd-v2-quest-edit-title">Edit Quest</span>
+            <button class="dnd-modal-close" id="dnd-v2-quest-edit-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body">
+            <input type="hidden" id="dnd-v2-quest-edit-id" value="" />
+
+            <div class="dnd-v2-config-section">
+                <div class="dnd-v2-config-section-title">Details</div>
+                <div class="dnd-setting-row">
+                    <span>Title:</span>
+                    <input type="text" id="dnd-v2-quest-title" placeholder="Quest title" />
+                </div>
+                <div class="dnd-setting-row dnd-v2-row-stacked">
+                    <span>Description:</span>
+                    <textarea id="dnd-v2-quest-description" rows="3" placeholder="Quest description..."></textarea>
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Status:</span>
+                    <select id="dnd-v2-quest-status">
+                        <option value="not_started">Active</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Priority:</span>
+                    <select id="dnd-v2-quest-priority">
+                        <option value="1">Reminder</option>
+                        <option value="2">Side Quest</option>
+                        <option value="3">Main Quest</option>
+                    </select>
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Quest Giver:</span>
+                    <input type="text" id="dnd-v2-quest-giver" placeholder="NPC name" />
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Location:</span>
+                    <input type="text" id="dnd-v2-quest-location" placeholder="Quest location" />
+                </div>
+            </div>
+
+            <div class="dnd-v2-config-section">
+                <div class="dnd-v2-config-section-title">Objectives</div>
+                <div id="dnd-v2-quest-objectives" class="dnd-v2-quest-objectives"></div>
+                <button id="dnd-v2-quest-add-objective" class="dnd-btn-small" title="Add objective">
+                    <i class="fa-solid fa-plus"></i> Add Objective
+                </button>
+            </div>
+
+            <div class="dnd-v2-config-section">
+                <div class="dnd-v2-config-section-title">Rewards</div>
+                <div class="dnd-setting-row">
+                    <span id="dnd-v2-reward-xp-label">XP:</span>
+                    <input type="number" id="dnd-v2-quest-reward-xp" min="0" value="0" style="width:5em;" />
+                    <span>Gold:</span>
+                    <input type="number" id="dnd-v2-quest-reward-gold" min="0" value="0" style="width:5em;" />
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Items:</span>
+                    <input type="text" id="dnd-v2-quest-reward-items" placeholder="Comma-separated item names" />
+                </div>
+            </div>
+        </div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-v2-quest-edit-save" class="dnd-btn dnd-btn-primary">Save</button>
+            <button id="dnd-v2-quest-edit-delete" class="dnd-btn dnd-btn-danger"><i class="fa-solid fa-trash-can"></i> Delete</button>
+            <button id="dnd-v2-quest-edit-cancel" class="dnd-btn">Cancel</button>
         </div>
     </div>
 </div>

@@ -1,17 +1,16 @@
 // @ts-nocheck
 /**
- * V1 Character System - Config Modal (Multi-step Wizard)
+ * V2 Character System - Config Modal (Multi-step Wizard)
  * Handles the character creation/edit wizard UI logic.
  */
 
-import { characterV1, setCharacterV1 } from '../core/state.js';
-import { saveCharacterV1 } from '../core/persistence.js';
-import { createCharacter, computeCharacterStats } from '../features/character.js';
+import { characterV2, setCharacterV2 } from '../core/characterState.js';
+import { saveCharacterV2 } from '../core/characterPersist.js';
+import { createV2Character, computeV2CharacterStats } from '../features/character.js';
 import { getAvailableSpecies } from '../features/species.js';
 import { getAvailableBackgrounds } from '../features/background.js';
 import { listAvailableClasses, getClassData, getResolvedClassFeaturesSync } from '../features/classData.js';
 import { getClassSpells, getClassCantrips, preloadSpellData, lookupSpell } from '../features/spells.js';
-import { getAvailableArmor, getAvailableWeapons, computeAC, searchEquipment } from '../features/equipment.js';
 import { getFeatsForLevel, findFeat } from '../features/feats.js';
 import {
     ABILITY_KEYS, ABILITY_LABELS, STANDARD_ARRAY, POINT_BUY_COSTS, POINT_BUY_TOTAL,
@@ -22,12 +21,11 @@ import {
 } from '../core/constants.js';
 import { getLevelFeatures, getMultiSelectCount, filterByPrereqs, computeCompanionStats, collectLevelChoiceEffects } from '../features/levelFeatures.js';
 import { getSubclassSpells } from '../features/subclassSpells.js';
-import { renderV1CharacterPanel } from './character.js';
-import { renderV1Spellbook } from './spellbook.js';
-import { renderV1CompanionPanel } from './companion.js';
+import { renderV2Spellbook } from './spellbook.js';
+import { renderV2CompanionPanel } from './companion.js';
 import { bindTooltipEvents } from '../../rendering/tooltip.js';
 
-const STEPS = ['identity', 'species', 'background', 'class', 'abilities', 'asi', 'proficiencies', 'equipment', 'spells'];
+const STEPS = ['identity', 'species', 'background', 'class', 'abilities', 'asi', 'proficiencies', 'spells'];
 const LOCKED_STEPS_ON_EDIT = new Set(['identity', 'species', 'background', 'class', 'abilities']);
 let currentStep = 0;
 let isEditMode = false;
@@ -43,17 +41,17 @@ let classList = [];
  * Open the character config modal for creating or editing.
  * @param {string|null} editId - If set, load existing character for editing
  */
-export async function openV1ConfigModal(editId, levelUp = false) {
+export async function openV2ConfigModal(editId, levelUp = false) {
     const popup = document.getElementById('dnd-v1-config-popup');
     if (!popup) return;
 
     currentStep = 0;
     wizState = {};
     classDataCache = null;
-    isEditMode = !!(editId && characterV1 && characterV1.id === editId);
+    isEditMode = !!(editId && characterV2 && characterV2.id === editId);
 
     if (isEditMode) {
-        wizState = { ...characterV1 };
+        wizState = { ...characterV2 };
         if (!wizState.featData) wizState.featData = {};
         for (const choice of Object.values(wizState.asiChoices || {})) {
             if (choice?.type === 'feat' && choice.feat && choice.featConfig) {
@@ -93,7 +91,7 @@ export async function openV1ConfigModal(editId, levelUp = false) {
 /**
  * Close the config modal.
  */
-export function closeV1ConfigModal() {
+export function closeV2ConfigModal() {
     const popup = document.getElementById('dnd-v1-config-popup');
     if (popup) popup.style.display = 'none';
 }
@@ -103,17 +101,24 @@ export function closeV1ConfigModal() {
  */
 function showStep(idx) {
     currentStep = idx;
-    const panels = document.querySelectorAll('.dnd-v1-step-panel');
-    panels.forEach((p, i) => {
-        p.style.display = STEPS[i] === STEPS[idx] ? '' : 'none';
+    const stepName = STEPS[idx];
+    document.querySelectorAll('.dnd-v1-step-panel').forEach((p) => {
+        p.style.display = p.dataset.step === stepName ? '' : 'none';
     });
 
-    // Update step buttons
+    // Update step buttons (match by data-step; equipment is not in STEPS)
     const firstUnlocked = isEditMode ? STEPS.findIndex(s => !LOCKED_STEPS_ON_EDIT.has(s)) : 0;
-    document.querySelectorAll('.dnd-v1-step-btn').forEach((btn, i) => {
-        const locked = isEditMode && LOCKED_STEPS_ON_EDIT.has(STEPS[i]);
-        btn.classList.toggle('active', i === idx);
-        btn.classList.toggle('completed', i < idx && !locked);
+    document.querySelectorAll('.dnd-v1-step-btn').forEach((btn) => {
+        const btnStep = btn.dataset.step;
+        const stepIdx = STEPS.indexOf(btnStep);
+        if (stepIdx === -1) {
+            btn.style.display = 'none';
+            return;
+        }
+        btn.style.display = '';
+        const locked = isEditMode && LOCKED_STEPS_ON_EDIT.has(btnStep);
+        btn.classList.toggle('active', stepIdx === idx);
+        btn.classList.toggle('completed', stepIdx < idx && !locked);
         btn.classList.toggle('disabled', locked);
         btn.style.opacity = locked ? '0.4' : '';
         btn.style.pointerEvents = locked ? 'none' : '';
@@ -128,7 +133,7 @@ function showStep(idx) {
     if (nextBtn) nextBtn.style.display = idx < STEPS.length - 1 ? '' : 'none';
     if (saveBtn) saveBtn.style.display = idx === STEPS.length - 1 ? '' : 'none';
 
-    populateStep(STEPS[idx]);
+    populateStep(stepName);
     updateStatsPreview();
 }
 
@@ -144,7 +149,6 @@ function populateStep(step) {
         case 'abilities': populateAbilities(); break;
         case 'asi': populateASI(); break;
         case 'proficiencies': populateProficiencies(); break;
-        case 'equipment': populateEquipment(); break;
         case 'spells': populateSpells(); break;
     }
 }
@@ -2204,75 +2208,6 @@ function getOriginFeatGrantedProfs() {
     return result;
 }
 
-async function populateEquipment() {
-    // Armor
-    const armorCurrent = document.getElementById('dnd-v1-armor-current');
-    if (armorCurrent) {
-        const armor = wizState.equippedArmor;
-        if (armor) {
-            armorCurrent.innerHTML = `<span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(armor.name)}">${esc(armor.name)}</span>`;
-        } else {
-            armorCurrent.textContent = 'None';
-        }
-    }
-
-    // Armor custom notes
-    const armorNotesWrap = document.getElementById('dnd-v1-armor-notes-wrap');
-    if (armorNotesWrap) {
-        if (wizState.equippedArmor?._magic) {
-            armorNotesWrap.style.display = '';
-            const input = armorNotesWrap.querySelector('input');
-            if (input) input.value = wizState.equippedArmor.customNotes || '';
-        } else {
-            armorNotesWrap.style.display = 'none';
-        }
-    }
-
-    const shieldCheck = document.getElementById('dnd-v1-shield-check');
-    if (shieldCheck) shieldCheck.checked = !!wizState.hasShield;
-
-    // Weapons list
-    const weaponsList = document.getElementById('dnd-v1-weapons-list');
-    if (weaponsList) {
-        weaponsList.innerHTML = '';
-        for (let i = 0; i < (wizState.weapons || []).length; i++) {
-            const wpn = wizState.weapons[i];
-            const div = document.createElement('div');
-            div.className = 'dnd-v1-equip-item';
-            const notesHtml = wpn._magic
-                ? `<input type="text" class="dnd-v1-equip-notes" data-weapon-idx="${i}" placeholder="Notes (e.g. bound spell: Shield)" value="${esc(wpn.customNotes || '')}" />`
-                : '';
-            const notesDisplay = wpn.customNotes ? ` <span class="dnd-v1-equip-note-text">[${esc(wpn.customNotes)}]</span>` : '';
-            div.innerHTML = `<span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(wpn.name)}">${esc(wpn.name)} (${wpn.damageDice} ${wpn.damageType || ''})</span>${notesDisplay}
-                <span class="item-remove" data-weapon-idx="${i}">✕</span>${notesHtml}`;
-            div.querySelector('.item-remove').onclick = (e) => {
-                e.stopPropagation();
-                const idx = parseInt(e.currentTarget.dataset.weaponIdx);
-                wizState.weapons.splice(idx, 1);
-                populateEquipment();
-            };
-            const notesInput = div.querySelector('.dnd-v1-equip-notes');
-            if (notesInput) {
-                notesInput.onchange = (e) => {
-                    const idx = parseInt(e.currentTarget.dataset.weaponIdx);
-                    wizState.weapons[idx].customNotes = e.currentTarget.value.trim();
-                };
-            }
-            weaponsList.appendChild(div);
-        }
-    }
-
-    updateACPreview();
-}
-
-function updateACPreview() {
-    const preview = document.getElementById('dnd-v1-ac-preview');
-    if (!preview) return;
-
-    const dexMod = getModifier(wizState.baseAbilities?.dex || 10);
-    const ac = computeAC(wizState.equippedArmor || null, !!wizState.hasShield, dexMod);
-    preview.textContent = `AC: ${ac}`;
-}
 
 async function populateSpells() {
     const classKey = wizState.className?.toLowerCase();
@@ -2630,8 +2565,8 @@ function updateStatsPreview() {
     }
 
     try {
-        const tempChar = createCharacter(wizState);
-        const stats = computeCharacterStats(tempChar);
+        const tempChar = createV2Character(wizState);
+        const stats = computeV2CharacterStats(tempChar);
         if (!stats) { preview.textContent = '—'; return; }
 
         const lines = [
@@ -2674,13 +2609,13 @@ function saveFromWizard() {
     const editId = document.getElementById('dnd-v1-config-id')?.value || null;
     if (editId) wizState.editId = editId;
 
-    const char = createCharacter(wizState);
-    setCharacterV1(char);
-    saveCharacterV1(char);
-    renderV1CharacterPanel();
-    renderV1Spellbook();
-    renderV1CompanionPanel();
-    closeV1ConfigModal();
+    const char = createV2Character(wizState);
+    setCharacterV2(char);
+    saveCharacterV2(char);
+    // TODO: renderV2CharacterPanel()
+    renderV2Spellbook();
+    renderV2CompanionPanel();
+    closeV2ConfigModal();
 }
 
 function showError(msg) {
@@ -2698,11 +2633,13 @@ function bindWizardEvents() {
     const firstUnlocked = isEditMode ? STEPS.findIndex(s => !LOCKED_STEPS_ON_EDIT.has(s)) : 0;
 
     // Step navigation buttons
-    document.querySelectorAll('.dnd-v1-step-btn').forEach((btn, i) => {
+    document.querySelectorAll('.dnd-v1-step-btn').forEach((btn) => {
         btn.onclick = () => {
-            if (isEditMode && LOCKED_STEPS_ON_EDIT.has(STEPS[i])) return;
+            const stepIdx = STEPS.indexOf(btn.dataset.step);
+            if (stepIdx === -1) return;
+            if (isEditMode && LOCKED_STEPS_ON_EDIT.has(STEPS[stepIdx])) return;
             collectFromStep(STEPS[currentStep]);
-            showStep(i);
+            showStep(stepIdx);
         };
     });
 
@@ -2723,10 +2660,10 @@ function bindWizardEvents() {
     if (saveBtn) saveBtn.onclick = saveFromWizard;
 
     const cancelBtn = document.getElementById('dnd-v1-config-cancel');
-    if (cancelBtn) cancelBtn.onclick = closeV1ConfigModal;
+    if (cancelBtn) cancelBtn.onclick = closeV2ConfigModal;
 
     const closeBtn = document.getElementById('dnd-v1-config-close');
-    if (closeBtn) closeBtn.onclick = closeV1ConfigModal;
+    if (closeBtn) closeBtn.onclick = closeV2ConfigModal;
 
     // Species change
     const speciesSelect = document.getElementById('dnd-v1-species');
@@ -2747,86 +2684,6 @@ function bindWizardEvents() {
         // Reset base abilities when switching methods
         wizState.baseAbilities = null;
         populateAbilities();
-    };
-
-    // Shield checkbox
-    const shieldCheck = document.getElementById('dnd-v1-shield-check');
-    if (shieldCheck) shieldCheck.onchange = () => {
-        wizState.hasShield = shieldCheck.checked;
-        updateACPreview();
-    };
-
-    // Armor notes binding
-    const armorNotesInput = document.getElementById('dnd-v1-armor-notes');
-    if (armorNotesInput) armorNotesInput.onchange = () => {
-        if (wizState.equippedArmor) {
-            wizState.equippedArmor.customNotes = armorNotesInput.value.trim();
-        }
-    };
-
-    // Armor search (with magic toggle)
-    const armorSearch = document.getElementById('dnd-v1-armor-search');
-    const magicArmorCheck = document.getElementById('dnd-v1-magic-armor-check');
-    if (armorSearch) armorSearch.oninput = async () => {
-        const results = document.getElementById('dnd-v1-armor-results');
-        const query = armorSearch.value.toLowerCase().trim();
-        if (!query || query.length < 2) { results.classList.remove('open'); return; }
-
-        const useMagic = magicArmorCheck?.checked || false;
-        const matches = await searchEquipment(query, 'armor', useMagic);
-
-        results.innerHTML = matches.map(a => {
-            const magicTag = a._magic ? ' <span class="v1-magic-tag">\u2726</span>' : '';
-            const totalAc = a.ac + (a.bonusAc || 0);
-            return `<div class="dropdown-item dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(a.name)}" data-armor='${JSON.stringify(a).replace(/'/g, '&#39;')}'>${esc(a.name)}${magicTag} (AC ${totalAc}, ${a.type})</div>`;
-        }).join('');
-        results.classList.add('open');
-
-        results.querySelectorAll('.dropdown-item').forEach(item => {
-            item.onclick = () => {
-                wizState.equippedArmor = JSON.parse(item.dataset.armor);
-                results.classList.remove('open');
-                armorSearch.value = '';
-                populateEquipment();
-            };
-        });
-    };
-
-    // Armor clear
-    const armorClear = document.getElementById('dnd-v1-armor-clear');
-    if (armorClear) armorClear.onclick = () => {
-        wizState.equippedArmor = null;
-        populateEquipment();
-    };
-
-    // Weapon search (with magic toggle)
-    const weaponSearch = document.getElementById('dnd-v1-weapon-search');
-    const magicWeaponCheck = document.getElementById('dnd-v1-magic-weapon-check');
-    if (weaponSearch) weaponSearch.oninput = async () => {
-        const results = document.getElementById('dnd-v1-weapon-results');
-        const query = weaponSearch.value.toLowerCase().trim();
-        if (!query || query.length < 2) { results.classList.remove('open'); return; }
-
-        const useMagic = magicWeaponCheck?.checked || false;
-        const matches = await searchEquipment(query, 'weapon', useMagic);
-
-        results.innerHTML = matches.map(w => {
-            const magicTag = w._magic ? ' <span class="v1-magic-tag">\u2726</span>' : '';
-            const bonusStr = w.bonus ? ` (+${w.bonus})` : '';
-            return `<div class="dropdown-item dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(w.name)}" data-weapon='${JSON.stringify(w).replace(/'/g, '&#39;')}'>${esc(w.name)}${magicTag} (${w.damageDice}${bonusStr} ${w.damageType || ''})</div>`;
-        }).join('');
-        results.classList.add('open');
-
-        results.querySelectorAll('.dropdown-item').forEach(item => {
-            item.onclick = () => {
-                const wpn = JSON.parse(item.dataset.weapon);
-                if (!wizState.weapons) wizState.weapons = [];
-                wizState.weapons.push(wpn);
-                results.classList.remove('open');
-                weaponSearch.value = '';
-                populateEquipment();
-            };
-        });
     };
 
 

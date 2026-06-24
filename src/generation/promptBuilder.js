@@ -1,6 +1,6 @@
 /**
  * D&D 5e Lite - Prompt Builder
- * Builds the quest injection prompt and the roll+attributes prompt
+ * Builds XML-sectioned game state blocks for consolidated LLM injection.
  */
 
 import { getContext } from '../../../../../extensions.js';
@@ -33,11 +33,10 @@ function questTypeEmoji(priority) {
 }
 
 /**
- * Build the quest injection prompt (sent every generation at AN depth).
- * Types: 3=Main Quest(👑), 2=Side Errand(🛡️), 1=Reminder(📌).
- * Returns empty string if no quests.
+ * Build the <quests> section.
+ * Returns empty string if no quests exist.
  */
-export function buildQuestPrompt() {
+export function buildQuestSection() {
     if (!quests || quests.length === 0) return '';
 
     const active = quests.filter(q => !q.completed);
@@ -49,35 +48,34 @@ export function buildQuestPrompt() {
     const side = active.filter(q => q.priority === 2);
     const reminders = active.filter(q => (q.priority || 1) === 1);
 
-    const userName = getContext().name1 || '{{User}}';
-    const lines = [`[${userName}'s Quest Log — 👑Main 🛡️Side 📌Reminder:]`];
+    const lines = ['<quests>'];
 
     if (active.length > 0) {
-        lines.push('[Active Quests:]');
+        lines.push('[Active]');
         for (const q of main)      lines.push(`  👑 ${q.text}`);
         for (const q of side)      lines.push(`  🛡️ ${q.text}`);
         for (const q of reminders)  lines.push(`  📌 ${q.text}`);
     }
 
     if (done.length > 0) {
-        lines.push('[Completed:]');
+        lines.push('[Completed]');
         for (const q of done) {
             const emoji = questTypeEmoji(q.priority);
             lines.push(`  ✓ ${emoji} ${q.text}`);
         }
     }
 
+    lines.push('</quests>');
     return lines.join('\n');
 }
 
 const RARITY_TAGS = RARITY_LABELS;
 
 /**
- * Build the inventory injection prompt (sent every generation at AN depth).
- * Lists equipped and stored items with quantity and rarity.
- * Returns empty string if no items.
+ * Build the <inventory> section.
+ * Returns empty string if no items exist.
  */
-export function buildInventoryPrompt() {
+export function buildInventorySection() {
     if (!inventory || inventory.length === 0) return '';
 
     const equipped = inventory.filter(item => item.location === 'equipped');
@@ -85,12 +83,10 @@ export function buildInventoryPrompt() {
 
     if (equipped.length === 0 && stored.length === 0) return '';
 
-    const userName = getContext().name1 || '{{User}}';
-    const lines = [`[${userName}'s inventory:]`];
+    const lines = ['<inventory>'];
 
     if (equipped.length > 0) {
-        lines.push('');
-        lines.push('[Equipped:]');
+        lines.push('[Equipped]');
         for (const item of equipped) {
             const qty = item.quantity > 1 ? ` x${item.quantity}` : '';
             const rarity = normalizeRarity(item.rarity) >= 1 ? ` (${RARITY_TAGS[normalizeRarity(item.rarity)]})` : '';
@@ -99,8 +95,7 @@ export function buildInventoryPrompt() {
     }
 
     if (stored.length > 0) {
-        lines.push('');
-        lines.push('[Stored:]');
+        lines.push('[Stored]');
         for (const item of stored) {
             const qty = item.quantity > 1 ? ` x${item.quantity}` : '';
             const rarity = normalizeRarity(item.rarity) >= 1 ? ` (${RARITY_TAGS[normalizeRarity(item.rarity)]})` : '';
@@ -108,6 +103,7 @@ export function buildInventoryPrompt() {
         }
     }
 
+    lines.push('</inventory>');
     return lines.join('\n');
 }
 
@@ -124,18 +120,15 @@ function getLastUserMsgIndex() {
 }
 
 /**
- * Build the spell log injection prompt (chronological list of already-cast spells).
- * Excludes spells from the last user message — the LLM is about to process those,
- * and the spell slots don't yet reflect their cost.
- * Appends current spell slot state so the LLM knows remaining resources.
+ * Build the <spell_log> section (chronological cast history).
+ * Excludes spells from the last user message.
  * Returns empty string if no spells logged.
  */
-export function buildSpellLogPrompt() {
+export function buildSpellLogSection() {
     if (!spellLog || spellLog.length === 0) return '';
 
     const lastUserIdx = getLastUserMsgIndex();
 
-    // Filter out entries from the current (last) user message
     const prior = spellLog.filter(e =>
         e.type === 'rest' || e.type === 'short-rest' || e.type === 'dispel' || e.msgIndex === null || e.msgIndex !== lastUserIdx
     );
@@ -144,7 +137,8 @@ export function buildSpellLogPrompt() {
 
     const userName = getContext().name1 || 'User';
     const lines = [
-        `[${userName}'s Spell Log (authoritative, chronological — does not include next message):]`,
+        '<spell_log>',
+        '[Chronological — does not include current message]',
     ];
 
     for (const entry of prior) {
@@ -164,6 +158,7 @@ export function buildSpellLogPrompt() {
         }
     }
 
+    lines.push('</spell_log>');
     return lines.join('\n');
 }
 
@@ -176,12 +171,10 @@ function fmtDmgDice(dmg) {
 }
 
 /**
- * Build the roll+attributes prompt (sent only when a roll is active).
- * These rolls are for COMBAT ONLY. The LLM generates its own rolls for
- * non-combat skill checks, social encounters, exploration, etc.
- * Returns empty string if no roll.
+ * Build the <dice> section for combat rolls.
+ * Returns empty string if no roll is active.
  */
-export function buildRollPrompt() {
+export function buildCombatDiceSection() {
     const roll = extensionSettings.lastDiceRoll;
     const dmg = extensionSettings.lastDamageRoll;
     const mods = extensionSettings.lastModifierRolls || {};
@@ -190,16 +183,16 @@ export function buildRollPrompt() {
 
     const userName = getContext().name1 || 'User';
     const includeAttrs = sendAttributesOnRoll;
-    let prompt = '';
+    const lines = ['<dice>', '[Combat — use these pre-rolled values]'];
+
+    if (includeAttrs) {
+        lines.push(`Attributes: ${buildAttributesString()}`);
+    }
 
     if (roll) {
-        prompt += `[Combat Dice (D&D 2024) — combat only, non-combat uses own rolls.]\n`;
+        lines.push(`d20: d20_1=${roll.roll1}, d20_2=${roll.roll2}`);
         if (includeAttrs) {
-            prompt += `${userName}'s attributes: ${buildAttributesString()}\n`;
-        }
-        prompt += `${userName} combat d20: d20_1=${roll.roll1}, d20_2=${roll.roll2}\n`;
-        if (includeAttrs) {
-            prompt += `Attack = d20 + ability mod + proficiency. Apply all proficiencies/expertise where applicable.\n`;
+            lines.push('Attack = d20 + ability mod + proficiency. Apply all proficiencies/expertise where applicable.');
         }
         const allies = roll.allyRolls ?? (roll.allyRoll1 != null
             ? [{ roll1: roll.allyRoll1, roll2: roll.allyRoll2 }] : []);
@@ -208,9 +201,9 @@ export function buildRollPrompt() {
                 const a = allies[i];
                 const n = i + 1;
                 const tag = allies.length === 1 ? 'Ally' : `Ally ${n}`;
-                prompt += `${tag} combat d20 — ally${n}_d20_1 = ${a.roll1}, ally${n}_d20_2 = ${a.roll2}`;
-                if (a.dmg) prompt += ` | dmg: ${fmtDmgDice(a.dmg)}`;
-                prompt += `\n`;
+                let line = `${tag}: d20_1=${a.roll1}, d20_2=${a.roll2}`;
+                if (a.dmg) line += ` | dmg: ${fmtDmgDice(a.dmg)}`;
+                lines.push(line);
             }
         }
         const enemies = roll.enemyRolls ?? (roll.npcRoll1 != null
@@ -220,61 +213,61 @@ export function buildRollPrompt() {
                 const e = enemies[i];
                 const n = i + 1;
                 const tag = enemies.length === 1 ? 'Enemy' : `Enemy ${n}`;
-                prompt += `${tag} combat d20 — enemy${n}_d20_1 = ${e.roll1}, enemy${n}_d20_2 = ${e.roll2}`;
-                if (e.dmg) prompt += ` | dmg: ${fmtDmgDice(e.dmg)}`;
-                prompt += `\n`;
+                let line = `${tag}: d20_1=${e.roll1}, d20_2=${e.roll2}`;
+                if (e.dmg) line += ` | dmg: ${fmtDmgDice(e.dmg)}`;
+                lines.push(line);
             }
         }
     }
 
     if (dmg) {
-        if (prompt) prompt += '\n';
         const diceList = dmg.dice
             ? dmg.dice.map(d => `d${d.sides}→${d.result}`).join(', ')
             : dmg.rolls.map(r => `d${dmg.sides}→${r}`).join(', ');
-        prompt += `${userName} damage dice: ${diceList}\n`;
+        lines.push(`Damage: ${diceList}`);
     }
 
     if (hasModifiers) {
-        if (prompt) prompt += '\n';
-        prompt += `${userName} has the following active combat dice modifiers:\n`;
+        lines.push('Modifiers:');
         for (const [id, modRoll] of Object.entries(mods)) {
             const def = MODIFIER_DEFS.find(m => m.id === id);
             if (!def || !modRoll) continue;
             const desc = def.prompt.replace(/\{user\}/g, userName);
-            prompt += `- ${desc} Rolled ${modRoll.formula}: ${modRoll.rolls.join(' + ')} = ${modRoll.total}.\n`;
+            lines.push(`- ${desc} Rolled ${modRoll.formula}: ${modRoll.rolls.join(' + ')} = ${modRoll.total}.`);
         }
     }
 
-    return prompt;
+    lines.push('</dice>');
+    return lines.join('\n');
 }
 
 /**
- * Build the non-combat dice prompt. Provides pre-rolled d20 pairs for
- * skill checks, ability checks, and saving throws (vs DC, not opposed).
- * Always injects user + NPC rolls when enabled.
+ * Build the <dice> section for non-combat checks.
+ * Returns empty string if non-combat dice are disabled or no roll exists.
  */
-export function buildNonCombatDicePrompt() {
+export function buildNonCombatDiceSection() {
     if (!extensionSettings.nonCombatDiceEnabled || !lastNonCombatRoll) return '';
 
     const userName = getContext().name1 || 'User';
     const { user, npc } = lastNonCombatRoll;
 
-    let prompt = `[Non-Combat Dice (D&D 2024) — for skill checks, ability checks, saving throws ONLY.]\n`;
-    prompt += `These are individual checks vs a DC (Difficulty Class), NOT opposed rolls against each other.\n`;
-    prompt += `Pick one d20 per check: use higher if advantage, lower if disadvantage, either if straight roll.\n`;
-    prompt += `${userName}: d20_1=${user.roll1}, d20_2=${user.roll2}\n`;
-    prompt += `NPC: d20_1=${npc.roll1}, d20_2=${npc.roll2}\n`;
+    const lines = [
+        '<dice>',
+        '[Non-combat — skill checks, ability checks, saving throws only. Use for non-trivial checks vs DC.]',
+        'Pick one d20 per check: use higher if advantage, lower if disadvantage, either if straight roll.',
+        `${userName}: user_d20_1=${user.roll1}, user_d20_2=${user.roll2}`,
+        `NPC: npc_d20_1=${npc.roll1}, npc_d20_2=${npc.roll2}`,
+        '</dice>',
+    ];
 
-    return prompt;
+    return lines.join('\n');
 }
 
 /**
- * Collect all unique spell casts since the last short/long rest from the spell log,
- * plus any new casts in the latest user message. Build a prompt injecting precalculated
- * spell stats so the LLM can narrate accurately without doing math.
+ * Build the <active_spells> section with precalculated spell stats.
+ * Returns empty string if spell inject is disabled or no spells matched.
  */
-export function buildSpellInjectPrompt() {
+export function buildActiveSpellsSection() {
     if (!spellInjectEnabled) return '';
 
     const chat = getContext().chat;
@@ -284,7 +277,6 @@ export function buildSpellInjectPrompt() {
     const seen = new Set();
     const matched = [];
 
-    // Gather all spell casts from spell log since last short/long rest
     if (spellLog && spellLog.length > 0) {
         let startIdx = 0;
         for (let i = spellLog.length - 1; i >= 0; i--) {
@@ -306,7 +298,6 @@ export function buildSpellInjectPrompt() {
         }
     }
 
-    // Also scan the current (last) user message for new casts not yet in the log
     let lastUserMsg = null;
     for (let i = chat.length - 1; i >= 0; i--) {
         if (chat[i].is_user) { lastUserMsg = chat[i].mes; break; }
@@ -325,9 +316,9 @@ export function buildSpellInjectPrompt() {
 
     if (matched.length === 0) return '';
 
-    const userName = getContext().name1 || '{{User}}';
     const lines = [
-        `[${userName}'s Active Spells (D&D 2024 rules) — FINAL precalculated values, do not recalculate:]`,
+        '<active_spells>',
+        '[Precalculated values — do not recalculate]',
     ];
 
     for (const { spell, cast } of matched) {
@@ -349,7 +340,6 @@ export function buildSpellInjectPrompt() {
 
         lines.push(`  Time: ${fmtTime(spell.time)} | Range: ${fmtRange(spell.range)} | Duration: ${fmtDuration(spell.duration)}`);
 
-        // Only include spell description for utility spells with no computed stats
         if (!statsBlock) {
             const desc = plainTextEntries(spell.entries);
             if (desc) {
@@ -359,6 +349,7 @@ export function buildSpellInjectPrompt() {
         }
     }
 
+    lines.push('</active_spells>');
     return lines.join('\n');
 }
 
@@ -387,8 +378,7 @@ function findSpellForInject(name) {
 }
 
 /**
- * Build a clear, precalculated stats block for a spell.
- * Returns a multi-line string with FINAL damage/heal/attack values the LLM should use directly.
+ * Build precalculated stats block for a spell (indented lines, no section tags).
  */
 function buildPrecalculatedStats(spell, characterLevel, castLevel) {
     const info = getV1SpellDamageInfo(spell.name, characterLevel, { castLevel })
@@ -397,7 +387,6 @@ function buildPrecalculatedStats(spell, characterLevel, castLevel) {
 
     const lines = [];
 
-    // Resolve final dice at the actual cast level
     const finalDice = castLevel != null && info.upcastTable?.[castLevel]?.dice
         ? info.upcastTable[castLevel].dice
         : (info.atCastLevel?.dice ?? info.dice);
@@ -408,7 +397,6 @@ function buildPrecalculatedStats(spell, characterLevel, castLevel) {
     const isUpcast = castLevel != null && castLevel > (info.spellLevel || 1);
     const upcastLabel = isUpcast ? ` (upcast at ${ordinal(castLevel)} level)` : '';
 
-    // Dual damage+heal spells (e.g. Vampiric Touch)
     if (finalDice && info.isHealing && info.hasDamageAndHeal) {
         const typeStr = !info.omitDamageType && info.type ? ` ${info.type}` : '';
         lines.push(`  DAMAGE${upcastLabel}: ${finalDice}${typeStr}`);
@@ -421,19 +409,16 @@ function buildPrecalculatedStats(spell, characterLevel, castLevel) {
         lines.push(`  HEALING${upcastLabel}: ${finalHealDice} HP${bonusNote}`);
     }
 
-    // Attack/save mechanic
     if (info.savingThrow) {
         lines.push(`  SAVE: ${info.savingThrow.charAt(0).toUpperCase() + info.savingThrow.slice(1)} saving throw`);
     } else if (info.spellAttack) {
         lines.push(`  ATTACK: ${info.spellAttack === 'R' ? 'Ranged' : 'Melee'} spell attack roll`);
     }
 
-    // Conditions
     if (info.conditionInflict?.length > 0) {
         lines.push(`  CONDITIONS: ${info.conditionInflict.join(', ')}`);
     }
 
-    // Cantrip scaling info
     if (info.isCantrip) {
         if (info.range && info.baseRange && info.range !== info.baseRange) {
             lines.push(`  RANGE (scaled for Lv ${characterLevel}): ${info.range}`);
@@ -443,7 +428,6 @@ function buildPrecalculatedStats(spell, characterLevel, castLevel) {
         }
     }
 
-    // Upcast extra effects (non-dice bonuses like extra targets)
     if (info.upcastExtra && castLevel != null && castLevel > (info.spellLevel || 1)) {
         lines.push(`  UPCAST BONUS: ${stripTags(info.upcastExtra)}`);
     }
@@ -453,15 +437,16 @@ function buildPrecalculatedStats(spell, characterLevel, castLevel) {
 
 
 /**
- * Build the sidekick injection prompt with compact stat blocks for enabled NPCs.
+ * Build the <sidekicks> section with compact stat blocks for enabled NPCs.
+ * Returns empty string if no sidekicks are enabled.
  */
-export function buildSidekickPrompt() {
+export function buildSidekickSection() {
     if (!sidekicks || sidekicks.length === 0) return '';
     const enabled = sidekicks.filter(sk => sk.enabled);
     if (enabled.length === 0) return '';
 
     const level = getSidekickLevel();
-    const lines = [`[Active Sidekicks (Lv ${level}):]`];
+    const lines = ['<sidekicks>'];
 
     for (const sk of enabled) {
         const stats = computeSidekickStats(sk, level);
@@ -473,16 +458,14 @@ export function buildSidekickPrompt() {
         const creatureStr = sk.creatureName || '';
         const armorNote = sk.equippedArmor ? ` (${sk.equippedArmor.name}${sk.hasShield ? '+Shield' : ''})` : (sk.hasShield ? ' (Shield)' : '');
 
-        lines.push(`\n[Hireling — ${sk.name} (${raceStr}${creatureStr}, ${typeLabel}${subLabel}) Lv ${level}:]`);
+        lines.push(`\n[Hireling — ${sk.name} (${raceStr}${creatureStr}, ${typeLabel}${subLabel}) Lv ${level}]`);
         lines.push(`HP ${stats.hp} | AC ${stats.ac}${armorNote} | SPD ${sk.speedFull || sk.baseSpeed + 'ft'} | Prof +${stats.proficiency}`);
 
-        // Ability scores
         const abilLine = ['str','dex','con','int','wis','cha']
             .map(a => `${a.toUpperCase()} ${stats.scores[a]}(${getModStr(stats.scores[a])})`)
             .join(' ');
         lines.push(abilLine);
 
-        // Saves — show all, mark proficient with *
         const saveParts = ['str','dex','con','int','wis','cha'].map(a => {
             const s = stats.saves[a];
             const mark = s.proficient ? '*' : '';
@@ -490,7 +473,6 @@ export function buildSidekickPrompt() {
         });
         lines.push(`Saves: ${saveParts.join(', ')}  (* = proficient)`);
 
-        // Skills — only proficient/expert, mark * / **
         const skillParts = ALL_SKILLS
             .filter(sk2 => stats.skills[sk2].proficient || stats.skills[sk2].expertise)
             .map(sk2 => {
@@ -502,7 +484,6 @@ export function buildSidekickPrompt() {
             lines.push(`Skills: ${skillParts.join(', ')}  (* = proficient, ** = expertise)`);
         }
 
-        // Tool proficiencies
         const allTools = [...(sk.toolProficiencies || [])];
         const fe = stats.featEffects;
         if (fe?.toolProficiencies?.length > 0) {
@@ -510,26 +491,22 @@ export function buildSidekickPrompt() {
         }
         if (allTools.length > 0) lines.push(`Tools: ${allTools.join(', ')}`);
 
-        // Senses / Languages
         if (sk.senses) lines.push(`Senses: ${sk.senses}`);
         const allLangs = [...(sk.languagesFixed || []), ...(sk.chosenLanguages || [])];
         const langDisplay = allLangs.length > 0 ? allLangs.join(', ') : sk.languages;
         if (langDisplay) lines.push(`Languages: ${langDisplay}`);
 
-        // Creature Traits
         const enabledTraits = (sk.creatureTraits || []).filter(t => t.enabled);
         if (enabledTraits.length > 0) {
             lines.push('Traits:');
             for (const t of enabledTraits) lines.push(`  ${t.name}: ${t.text}`);
         }
 
-        // Armor
         const equipParts = [];
         if (sk.equippedArmor) equipParts.push(sk.equippedArmor.name);
         if (sk.hasShield) equipParts.push('Shield');
         if (equipParts.length > 0) lines.push(`Armor: ${equipParts.join(', ')}`);
 
-        // Weapons (player-assigned)
         const cWeapons = stats.computedWeapons || [];
         if (cWeapons.length > 0) {
             const wpnParts = cWeapons.map(w => {
@@ -543,7 +520,6 @@ export function buildSidekickPrompt() {
             lines.push(`Weapons: ${wpnParts.join('; ')}`);
         }
 
-        // Creature Actions (stat-block attacks / abilities)
         const cActions = (stats.computedActions || []).filter(a => a.enabled);
         if (cActions.length > 0) {
             lines.push('Creature Actions:');
@@ -561,7 +537,6 @@ export function buildSidekickPrompt() {
             lines.push(`Items: ${sk.items.map(it => it.customNotes ? `${it.name} [${it.customNotes}]` : it.name).join(', ')}`);
         }
 
-        // Spellcasting
         if (stats.spellcasting) {
             const sc = stats.spellcasting;
             lines.push(`Spellcasting (${sc.abilityLabel}): Attack +${sc.attackMod}, Save DC ${sc.saveDC}`);
@@ -592,13 +567,11 @@ export function buildSidekickPrompt() {
             }
         }
 
-        // Class Features (level-derived)
         if (stats.features?.length > 0) {
             lines.push('Class Features:');
             for (const f of stats.features) lines.push(`  ${f.name}: ${f.text}`);
         }
 
-        // Feats (ASI-chosen)
         if (stats.chosenFeats?.length > 0) {
             lines.push(`Feats: ${stats.chosenFeats.join(', ')}`);
             for (const name of stats.chosenFeats) {
@@ -642,7 +615,6 @@ export function buildSidekickPrompt() {
             }
         }
 
-        // Hire cost
         if (sk.hireGoldPerDay > 0 || sk.hireDate || sk.hirePayMode === 'free' || sk.hirePayMode === 'quest') {
             const parts = [];
             if (sk.hirePayMode === 'free') {
@@ -673,17 +645,18 @@ export function buildSidekickPrompt() {
         }
     }
 
+    lines.push('</sidekicks>');
     return lines.join('\n');
 }
 
 /**
- * Build the random event injection prompt.
- * Always wraps output in <Random_Event> tags for COT reference.
- * @param {object} eventResult - Result from rollRandomEvent()
+ * Build the <random_event> section.
+ * @param {object|null} eventResult - Result from rollRandomEvent()
+ * @returns {string} Section content or empty string
  */
-export function buildRandomEventPrompt(eventResult) {
+export function buildRandomEventSection(eventResult) {
     if (!eventResult) {
-        return '<random_event>\n[No Roll]\nRandom events are active but no roll was produced this turn.\n</Random_Event>';
+        return '<random_event>\n[No Roll]\nRandom events are active but no roll was produced this turn.\n</random_event>';
     }
 
     const { roll, severity, category, categoryMeta, examples, cooldownActive, cooldownRemaining } = eventResult;
@@ -692,17 +665,17 @@ export function buildRandomEventPrompt(eventResult) {
         const cdNote = cooldownActive
             ? ` (Cooldown: ${cooldownRemaining} turn${cooldownRemaining !== 1 ? 's' : ''} remaining)`
             : '';
-        return `<Random_Event>\n[d100: ${roll} | No Event${cdNote}]\nNo random event this turn. Continue the narrative based on the player's actions and current situation.\n</Random_Event>`;
+        return `<random_event>\n[d100: ${roll} | No Event${cdNote}]\nNo random event this turn. Continue the narrative based on the player's actions and current situation.\n</random_event>`;
     }
 
     const lines = [];
-    lines.push(`<Random_Event>`);
+    lines.push('<random_event>');
     lines.push(`[d100: ${roll} | ${severity.label} | ${categoryMeta.label}]`);
     lines.push(categoryMeta.directive);
 
     if (examples.length > 0) {
         lines.push('');
-        lines.push('Examples for inspiration (adapt to current context — do not copy verbatim):');
+        lines.push('Examples for inspiration (adapt to current context):');
         for (const ex of examples) {
             lines.push(`- ${ex}`);
         }
@@ -710,7 +683,7 @@ export function buildRandomEventPrompt(eventResult) {
 
     lines.push('');
     lines.push('Weave naturally into narrative. Party reacts. No meta-game references.');
-    lines.push('</Random_Event>');
+    lines.push('</random_event>');
 
     return lines.join('\n');
 }

@@ -601,6 +601,14 @@
     padding: 0.15em 0.3em;
     font-size: 0.9em;
 }
+.dnd-random-event-options select:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
+}
+.dnd-random-event-options select option {
+    background: #1a1a2e;
+    color: #ddd;
+}
 
 /* Event threshold modal */
 .dnd-modal-event-threshold {
@@ -634,6 +642,11 @@
     text-align: center;
     font-size: 0.85em;
     font-variant-numeric: tabular-nums;
+}
+.dnd-event-tier-min:focus,
+.dnd-event-tier-max:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
 }
 .dnd-event-tier-sep {
     opacity: 0.4;
@@ -700,6 +713,8 @@
     transition: opacity 0.15s;
 }
 .dnd-header-btn:hover { opacity: 1; }
+.dnd-v2-revert-btn { color: var(--warning-color, #ff9800); opacity: 0.85; }
+.dnd-v2-revert-btn:hover { opacity: 1; }
 .dnd-panel-power-btn {
     background: none;
     border: none;
@@ -966,17 +981,18 @@
     transform: scale(1.1);
 }
 
-/* Spell Slots: per-level display */
+/* Spell Slots: per-level display (2-column grid) */
 .dnd-spell-levels {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px 8px;
     padding: 2px 0;
 }
 .dnd-spell-level-row {
     display: flex;
     align-items: center;
     gap: 4px;
+    min-width: 0;
 }
 .dnd-spell-level-label {
     font-size: 0.75em;
@@ -989,6 +1005,10 @@
     display: flex;
     gap: 2px;
     flex: 1;
+    flex-wrap: wrap;
+}
+.dnd-spell-row-wide {
+    grid-column: 1 / -1;
 }
 .dnd-spell-cube {
     width: 8px;
@@ -2252,12 +2272,247 @@
 /* 5 Artifact */
 .dnd-rarity-5 .dnd-inventory-rarity-btn { color: #ff5252; filter: drop-shadow(0 0 5px rgba(255,82,82,0.55)); }
 
-/* Rarity row tinting */
-.dnd-rarity-1 { border-left: 2px solid rgba(129,199,132,0.35); }
-.dnd-rarity-2 { border-left: 2px solid rgba(100,181,246,0.45); }
-.dnd-rarity-3 { border-left: 2px solid rgba(186,104,200,0.45); background: rgba(186,104,200,0.04); }
-.dnd-rarity-4 { border-left: 2px solid rgba(255,183,77,0.5); background: rgba(255,183,77,0.05); }
-.dnd-rarity-5 { border-left: 2px solid rgba(255,82,82,0.55); background: rgba(255,82,82,0.06); }
+/* Rarity row tinting — subtle background per tier */
+.dnd-rarity-0 { background: transparent; }
+.dnd-rarity-1 { background: rgba(129,199,132,0.035); }
+.dnd-rarity-2 { background: rgba(100,181,246,0.04); }
+.dnd-rarity-3 { background: rgba(186,104,200,0.045); }
+.dnd-rarity-4 { background: rgba(255,183,77,0.05); }
+.dnd-rarity-5 { background: rgba(255,82,82,0.06); }
+
+/* Stored (unequipped) items — even fainter rarity tinting */
+.dnd-inventory-stored.dnd-rarity-1 { background: rgba(129,199,132,0.018); }
+.dnd-inventory-stored.dnd-rarity-2 { background: rgba(100,181,246,0.02); }
+.dnd-inventory-stored.dnd-rarity-3 { background: rgba(186,104,200,0.022); }
+.dnd-inventory-stored.dnd-rarity-4 { background: rgba(255,183,77,0.025); }
+.dnd-inventory-stored.dnd-rarity-5 { background: rgba(255,82,82,0.03); }
+
+/* Type icon button — equipment type indicator */
+.dnd-inventory-type-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.7em;
+    padding: 0 1px;
+    width: 1.2em;
+    text-align: center;
+    color: rgba(255,255,255,0.18);
+    transition: color 0.15s, filter 0.15s;
+    flex-shrink: 0;
+}
+.dnd-inventory-type-btn:hover { color: rgba(255,255,255,0.55); }
+.dnd-inventory-type-btn.dnd-type-armor { color: rgba(100,160,240,0.7); }
+.dnd-inventory-type-btn.dnd-type-shield { color: rgba(80,200,220,0.7); }
+.dnd-inventory-type-btn.dnd-type-weapon { color: rgba(240,130,80,0.7); }
+.dnd-inventory-type-btn.dnd-type-armor:hover { color: rgba(100,160,240,0.95); }
+.dnd-inventory-type-btn.dnd-type-shield:hover { color: rgba(80,200,220,0.95); }
+.dnd-inventory-type-btn.dnd-type-weapon:hover { color: rgba(240,130,80,0.95); }
+
+/* Magic glow on equipment type icon */
+.dnd-inventory-type-btn.dnd-magic-glow {
+    filter: drop-shadow(0 0 4px rgba(255,215,0,0.6));
+}
+.dnd-inventory-type-btn.dnd-magic-glow.dnd-type-armor { color: rgba(130,200,255,0.95); }
+.dnd-inventory-type-btn.dnd-magic-glow.dnd-type-shield { color: rgba(120,230,240,0.95); }
+.dnd-inventory-type-btn.dnd-magic-glow.dnd-type-weapon { color: rgba(255,160,100,0.95); }
+
+/* Equipment text (non-editable, clickable) */
+.dnd-inventory-text-equip {
+    cursor: pointer;
+    border-bottom: 1px dashed rgba(255,255,255,0.15);
+}
+.dnd-inventory-text-equip:hover {
+    border-bottom-color: rgba(138,180,248,0.4);
+}
+
+/* Type emoji (default state) */
+.dnd-type-emoji { font-size: 0.85em; }
+
+/* Equipment search modal overlay */
+.dnd-equip-search-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.dnd-equip-search-modal {
+    background: var(--dnd-panel-bg, #1a1a2e);
+    border: 1px solid var(--dnd-border, rgba(255,255,255,0.12));
+    border-radius: 0.6em;
+    padding: 0.8em;
+    width: min(400px, 90vw);
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    font-size: 0.85em;
+}
+.dnd-equip-search-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    color: rgba(255,255,255,0.8);
+}
+.dnd-equip-search-close-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 0.2em;
+}
+.dnd-equip-search-close-btn:hover { color: rgba(255,255,255,0.9); }
+.dnd-equip-search-tabs {
+    display: flex;
+    gap: 0.2em;
+    margin-bottom: 0.3em;
+}
+.dnd-equip-search-tab {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 0.25em;
+    color: rgba(255,255,255,0.5);
+    padding: 0.2em 0.4em;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.dnd-equip-search-tab:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+.dnd-equip-search-tab.active {
+    background: rgba(138,180,248,0.12);
+    border-color: rgba(138,180,248,0.3);
+    color: #8ab4f8;
+}
+.dnd-equip-search-input-row {
+    display: flex;
+    gap: 0.3em;
+    align-items: center;
+    margin-bottom: 0.3em;
+}
+.dnd-equip-search-input {
+    flex: 1;
+    padding: 0.25em 0.4em;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--dnd-border, rgba(255,255,255,0.1));
+    border-radius: 0.25em;
+    color: var(--dnd-text, #eee);
+    font-size: 0.9em;
+}
+.dnd-equip-search-input:focus { outline: 1px solid var(--dnd-highlight, #8ab4f8); }
+.dnd-equip-search-magic-label {
+    font-size: 0.8em;
+    color: rgba(255,255,255,0.5);
+    display: flex;
+    align-items: center;
+    gap: 0.2em;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.dnd-equip-search-results {
+    max-height: 30vh;
+    overflow-y: auto;
+    margin-bottom: 0.3em;
+    flex: 1;
+}
+.dnd-equip-search-result {
+    padding: 0.25em 0.4em;
+    border-radius: 0.2em;
+    cursor: pointer;
+    color: rgba(255,255,255,0.75);
+    transition: background 0.1s;
+}
+.dnd-equip-search-result:hover {
+    background: rgba(138,180,248,0.1);
+    color: #fff;
+}
+.dnd-equip-search-magic-badge {
+    font-size: 0.7em;
+    color: rgba(255,215,0,0.8);
+    background: rgba(255,215,0,0.1);
+    padding: 0.05em 0.3em;
+    border-radius: 0.2em;
+    margin-left: 0.3em;
+}
+.dnd-equip-search-empty {
+    padding: 0.4em;
+    color: rgba(255,255,255,0.3);
+    font-style: italic;
+    text-align: center;
+}
+.dnd-equip-search-actions {
+    display: flex;
+    gap: 0.3em;
+    justify-content: flex-end;
+}
+.dnd-equip-search-actions button {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 0.2em;
+    color: rgba(255,255,255,0.6);
+    padding: 0.2em 0.5em;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.dnd-equip-search-actions button:hover {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.9);
+}
+
+/* Magic fields in search modal */
+.dnd-equip-search-magic-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4em;
+    margin-bottom: 0.5em;
+    padding: 0.5em;
+    border-radius: 0.3em;
+    background: rgba(255,215,0,0.03);
+    border: 1px solid rgba(255,215,0,0.1);
+}
+.dnd-equip-search-charges-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    font-size: 0.85em;
+    color: rgba(255,255,255,0.7);
+}
+.dnd-equip-search-charges {
+    width: 4em;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 0.2em;
+    padding: 0.2em 0.4em;
+    color: rgba(255,255,255,0.8);
+    font-size: 0.9em;
+}
+.dnd-equip-search-notes {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 0.2em;
+    padding: 0.3em 0.4em;
+    color: rgba(255,255,255,0.8);
+    font-size: 0.8em;
+    min-height: 3em;
+    resize: vertical;
+    font-family: inherit;
+}
+.dnd-equip-search-notes::placeholder { color: rgba(255,255,255,0.3); }
+
+/* Charges badge in inventory row */
+.dnd-inventory-charges {
+    font-size: 0.65em;
+    color: rgba(255,215,0,0.7);
+    padding: 0 0.2em;
+    flex-shrink: 0;
+    cursor: default;
+}
 
 /* Item text */
 .dnd-inventory-text {
@@ -2267,6 +2522,12 @@
     border-radius: 0.15em;
     min-height: 1.2em;
     word-break: break-word;
+}
+.dnd-inventory-text.dnd-tt-hover {
+    border-bottom: none;
+}
+.dnd-inventory-text.dnd-tt-hover:hover {
+    border-bottom: none;
 }
 .dnd-inventory-text:focus {
     outline: 1px solid var(--dnd-highlight);
@@ -2326,6 +2587,34 @@
     flex-shrink: 0;
 }
 .dnd-inventory-delete:hover { color: #f44336; }
+
+/* Readonly items (from character sheet) */
+.dnd-inventory-item-readonly {
+    opacity: 0.55;
+    border-left: 2px solid rgba(138,180,248,0.3);
+    cursor: default;
+}
+.dnd-inventory-item-readonly .dnd-inventory-text {
+    cursor: default;
+    font-style: italic;
+}
+.dnd-inventory-readonly-icon {
+    font-size: 0.7em;
+    width: 1.4em;
+    text-align: center;
+    color: rgba(138,180,248,0.6);
+    flex-shrink: 0;
+}
+.dnd-inventory-readonly-badge {
+    font-size: 0.55em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(138,180,248,0.5);
+    background: rgba(138,180,248,0.08);
+    padding: 0.1em 0.4em;
+    border-radius: 0.2em;
+    flex-shrink: 0;
+}
 
 /* Section dividers */
 .dnd-inventory-section-divider {
@@ -2740,7 +3029,13 @@
     opacity: 0.7;
 }
 .dnd-toggle-label:hover { opacity: 1; }
-.dnd-toggle-label input[type="checkbox"] { margin: 0; }
+.dnd-toggle-label input[type="checkbox"] {
+    accent-color: #5cd6b8;
+    width: 13px;
+    height: 13px;
+    cursor: pointer;
+    margin: 0;
+}
 .dnd-toggle-text { white-space: nowrap; }
 
 /* ─── Action buttons ─────────────────────────────────── */
@@ -2828,6 +3123,32 @@
     gap: 0.5em;
 }
 
+/* ─── Dark mode normalization for all modals ─────────── */
+
+/* Checkboxes: consistent accent color and sizing across all modals */
+.dnd-modal input[type="checkbox"] {
+    accent-color: #5cd6b8;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    margin: 0;
+}
+
+/* Radio buttons: match checkbox accent and sizing */
+.dnd-modal input[type="radio"] {
+    accent-color: #5cd6b8;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    margin: 0;
+}
+
+/* Settings modal toggle checkboxes — slightly smaller, keep existing behavior */
+.dnd-toggle-label input[type="checkbox"] {
+    width: 13px;
+    height: 13px;
+}
+
 /* Attribute editor grid */
 .dnd-modal-attr-editor .dnd-modal-body {
     max-height: 60vh;
@@ -2864,6 +3185,12 @@
     color: var(--dnd-text);
     font-size: 0.85em;
     text-align: center;
+}
+.dnd-attr-label-input:focus,
+.dnd-attr-value-input:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
 }
 .dnd-attr-remove-btn {
     background: none;
@@ -2906,6 +3233,15 @@
     border: 1px solid var(--dnd-border);
     border-radius: 0.25em;
     color: var(--dnd-text);
+}
+.dnd-setting-row select:focus,
+.dnd-setting-row input[type="number"]:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
+}
+.dnd-setting-row select option {
+    background: #1a1a2e;
+    color: #ddd;
 }
 
 /* ─── Mobile ─────────────────────────────────────────── */
@@ -3491,6 +3827,13 @@
     resize: vertical;
     box-sizing: border-box;
 }
+.dnd-spellbook-paste-input:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
+}
+.dnd-spellbook-paste-input::placeholder {
+    color: rgba(255,255,255,0.3);
+}
 .dnd-spellbook-import-error {
     margin-top: 0.4em;
     padding: 0.3em 0.5em;
@@ -3723,6 +4066,17 @@
     color: var(--dnd-text, #ddd);
     padding: 0.25em 0.4em;
     font-size: 0.85em;
+}
+
+.dnd-modal-character-config select:focus,
+.dnd-modal-character-config input[type="number"]:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
+}
+
+.dnd-modal-character-config select option {
+    background: #1a1a2e;
+    color: #ddd;
 }
 
 /* ─── Sidekick Card Grid (2-column) ──────────────────────── */
@@ -4077,6 +4431,22 @@
     font-size: 0.9em;
 }
 
+.dnd-modal-sidekick-config input[type="text"]:focus,
+.dnd-modal-sidekick-config input[type="number"]:focus,
+.dnd-modal-sidekick-config select:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
+}
+
+.dnd-modal-sidekick-config input::placeholder {
+    color: rgba(255,255,255,0.3);
+}
+
+.dnd-modal-sidekick-config select option {
+    background: #1a1a2e;
+    color: #ddd;
+}
+
 .dnd-sk-creature-preview {
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(100, 200, 180, 0.15);
@@ -4284,6 +4654,10 @@
     margin-top: 0.15em;
 }
 .dnd-sk-item-notes::placeholder { opacity: 0.4; }
+.dnd-sk-item-notes:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
+}
 
 .dnd-sk-equip-item span {
     flex: 1;
@@ -4292,7 +4666,8 @@
     text-overflow: ellipsis;
 }
 
-.dnd-sk-equip-remove {
+.dnd-sk-equip-remove,
+.dnd-sk-item-remove {
     background: none;
     border: none;
     color: rgba(255, 100, 100, 0.6);
@@ -4302,7 +4677,8 @@
     flex-shrink: 0;
 }
 
-.dnd-sk-equip-remove:hover {
+.dnd-sk-equip-remove:hover,
+.dnd-sk-item-remove:hover {
     color: rgba(255, 100, 100, 1);
 }
 
@@ -4348,9 +4724,11 @@
 }
 
 .dnd-sk-action-toggle input[type="checkbox"] {
+    accent-color: #5cd6b8;
     width: 13px;
     height: 13px;
     cursor: pointer;
+    margin: 0;
 }
 
 .dnd-sk-action-text {
@@ -4939,6 +5317,14 @@
 .dnd-v1-skill-checks label:hover { border-color: rgba(255,255,255,0.15); }
 .dnd-v1-skill-checks label.selected { border-color: var(--SmartThemeQuoteColor, #888); background: rgba(255,255,255,0.06); }
 
+.dnd-v1-skill-checks label input[type="checkbox"] {
+    accent-color: #5cd6b8;
+    width: 13px;
+    height: 13px;
+    cursor: pointer;
+    margin: 0;
+}
+
 /* Spell tags */
 .dnd-v1-spell-tags {
     display: flex;
@@ -4960,10 +5346,11 @@
 
 .dnd-v1-spell-tag .tag-remove {
     cursor: pointer;
-    opacity: 0.5;
+    color: rgba(255, 100, 100, 0.6);
     font-size: 0.85em;
+    transition: color 0.15s;
 }
-.dnd-v1-spell-tag .tag-remove:hover { opacity: 1; }
+.dnd-v1-spell-tag .tag-remove:hover { color: rgba(255, 100, 100, 1); }
 
 /* Extra spell rich rows */
 .dnd-v1-extra-spell-row {
@@ -5007,11 +5394,12 @@
 }
 .dnd-v1-extra-spell-row .tag-remove {
     cursor: pointer;
-    opacity: 0.5;
+    color: rgba(255, 100, 100, 0.6);
     font-size: 0.95em;
     flex: 0 0 auto;
+    transition: color 0.15s;
 }
-.dnd-v1-extra-spell-row .tag-remove:hover { opacity: 1; color: #e44; }
+.dnd-v1-extra-spell-row .tag-remove:hover { color: rgba(255, 100, 100, 1); }
 
 /* Dropdown for search results */
 .dnd-v1-dropdown {
@@ -5062,10 +5450,15 @@
 
 .dnd-v1-equip-item .item-remove {
     cursor: pointer;
-    opacity: 0.5;
+    opacity: 0.7;
     margin-left: auto;
+    color: rgba(255, 100, 100, 0.7);
+    transition: opacity 0.15s, color 0.15s;
 }
-.dnd-v1-equip-item .item-remove:hover { opacity: 1; }
+.dnd-v1-equip-item .item-remove:hover {
+    opacity: 1;
+    color: rgba(255, 100, 100, 1);
+}
 
 .dnd-v1-equip-notes {
     width: 100%;
@@ -5078,6 +5471,10 @@
     margin-top: 0.15em;
 }
 .dnd-v1-equip-notes::placeholder { opacity: 0.4; }
+.dnd-v1-equip-notes:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
+}
 
 .dnd-v1-equip-note-text {
     font-size: 0.88em;
@@ -5121,6 +5518,15 @@
     align-items: center;
     gap: 0.25em;
     font-size: 0.85em;
+    cursor: pointer;
+}
+
+.dnd-v1-check input[type="checkbox"] {
+    accent-color: #5cd6b8;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    margin: 0;
 }
 
 /* Level Features section */
@@ -5200,7 +5606,11 @@
 }
 
 .dnd-v1-asi-toggle input[type="checkbox"] {
-    accent-color: var(--SmartThemeQuoteColor, #5ba0d0);
+    accent-color: #5cd6b8;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    margin: 0;
 }
 
 /* Feat search wrapper */
@@ -5417,10 +5827,15 @@
 .dnd-v1-trait-item .trait-remove {
     float: right;
     cursor: pointer;
-    opacity: 0.5;
+    opacity: 0.7;
     font-size: 0.85em;
+    color: rgba(255, 100, 100, 0.7);
+    transition: opacity 0.15s, color 0.15s;
 }
-.dnd-v1-trait-item .trait-remove:hover { opacity: 1; }
+.dnd-v1-trait-item .trait-remove:hover {
+    opacity: 1;
+    color: rgba(255, 100, 100, 1);
+}
 
 /* V1 Detail Modal */
 .dnd-modal-v1-detail {
@@ -5600,7 +6015,8 @@
 }
 .dnd-panel-input::placeholder { opacity: 0.35; }
 .dnd-panel-input:focus {
-    outline: 1px solid var(--dnd-highlight);
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
     background: rgba(255,255,255,0.06);
 }
 
@@ -5614,7 +6030,8 @@
     min-width: 6em;
 }
 .dnd-panel-select:focus {
-    outline: 1px solid var(--dnd-highlight);
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
     background: rgba(255,255,255,0.06);
 }
 .dnd-panel-select option {
@@ -5721,9 +6138,16 @@
     opacity: 0.35;
 }
 
-#dnd-v1-add-spell-modal input:focus {
-    outline: 1px solid var(--dnd-highlight, rgba(140,100,220,0.4));
+#dnd-v1-add-spell-modal input:focus,
+#dnd-v1-add-spell-modal select:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
     background: rgba(255,255,255,0.08);
+}
+
+#dnd-v1-add-spell-modal select option {
+    background: #1a1a2e;
+    color: #ddd;
 }
 
 /* Magic item toggle */
@@ -5755,13 +6179,13 @@
 .dnd-v1-spell-tag .tag-remove {
     cursor: pointer;
     margin-left: 0.2em;
-    opacity: 0.5;
+    color: rgba(255, 100, 100, 0.6);
     font-size: 0.85em;
+    transition: color 0.15s;
 }
 
 .dnd-v1-spell-tag .tag-remove:hover {
-    opacity: 1;
-    color: #e44;
+    color: rgba(255, 100, 100, 1);
 }
 
 /* ============================================================
@@ -6020,6 +6444,10 @@
 }
 
 .dnd-v1-radio input[type="radio"] {
+    accent-color: #5cd6b8;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
     margin: 0;
 }
 
@@ -6105,4 +6533,365 @@
     font-size: 0.78em;
     margin-bottom: 0.3em;
     line-height: 1.35;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   V2 Tool Calling Styles
+   ═══════════════════════════════════════════════════════════════ */
+
+/* V2 Quest list items */
+.dnd-v2-quest-item {
+    align-items: flex-start;
+}
+
+.dnd-v2-quest-content {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1em;
+}
+
+.dnd-v2-quest-content:hover .dnd-quest-text {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+
+.dnd-v2-quest-subtitle {
+    font-size: 0.72em;
+    opacity: 0.55;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dnd-v2-quest-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+    flex-shrink: 0;
+}
+
+.dnd-v2-quest-progress {
+    font-size: 0.7em;
+    opacity: 0.6;
+    background: rgba(255,255,255,0.06);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    font-variant-numeric: tabular-nums;
+}
+
+.dnd-v2-quest-status-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.15em;
+    font-size: 0.9em;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+    color: inherit;
+}
+
+.dnd-v2-quest-status-btn:hover {
+    opacity: 1;
+}
+
+.dnd-v2-quest-failed {
+    opacity: 0.5;
+}
+
+.dnd-v2-quest-failed .dnd-quest-text {
+    text-decoration: line-through;
+}
+
+/* ─── V2 Quest Detail Modal ──────────────────────────── */
+
+.dnd-modal-v2-quest-detail {
+    min-width: 320px;
+    max-width: 520px;
+    max-height: 85vh;
+}
+
+.dnd-modal-v2-quest-detail .dnd-modal-body {
+    overflow-y: auto;
+    max-height: 65vh;
+}
+
+.dnd-v2-quest-det-header {
+    margin-bottom: 0.5em;
+    padding-bottom: 0.4em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dnd-v2-quest-det-name {
+    font-size: 1.1em;
+    font-weight: 700;
+    color: #5cd6b8;
+    line-height: 1.3;
+}
+
+.dnd-v2-quest-det-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35em;
+    margin-top: 0.35em;
+}
+
+.dnd-v2-quest-det-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+    font-size: 0.75em;
+    padding: 0.15em 0.45em;
+    border-radius: 0.25em;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dnd-v2-quest-det-priority {
+    color: rgba(200, 220, 210, 0.9);
+}
+
+.dnd-v2-quest-det-status-not_started {
+    color: rgba(180, 180, 180, 0.85);
+}
+
+.dnd-v2-quest-det-status-in_progress {
+    color: rgba(100, 180, 255, 0.9);
+    border-color: rgba(100, 180, 255, 0.2);
+}
+
+.dnd-v2-quest-det-status-completed {
+    color: rgba(120, 220, 140, 0.9);
+    border-color: rgba(120, 220, 140, 0.2);
+}
+
+.dnd-v2-quest-det-status-failed {
+    color: rgba(255, 120, 120, 0.9);
+    border-color: rgba(255, 120, 120, 0.2);
+}
+
+.dnd-v2-quest-det-meta {
+    font-size: 0.82em;
+    color: rgba(180, 210, 200, 0.75);
+    margin-bottom: 0.5em;
+    line-height: 1.4;
+}
+
+.dnd-v2-quest-det-meta strong {
+    color: rgba(255, 255, 255, 0.55);
+    font-weight: 600;
+}
+
+.dnd-v2-quest-det-section {
+    margin: 0.45em 0;
+    font-size: 0.85em;
+    line-height: 1.45;
+}
+
+.dnd-v2-quest-det-label {
+    font-weight: 600;
+    font-size: 0.9em;
+    color: rgba(100, 200, 180, 0.8);
+    margin-bottom: 0.2em;
+}
+
+.dnd-v2-quest-det-text {
+    color: rgba(220, 220, 220, 0.88);
+    white-space: pre-wrap;
+}
+
+.dnd-v2-quest-det-objectives {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em;
+}
+
+.dnd-v2-quest-det-objective {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4em;
+    padding: 0.2em 0;
+}
+
+.dnd-v2-quest-det-objective i {
+    flex-shrink: 0;
+    margin-top: 0.15em;
+    font-size: 0.85em;
+    color: rgba(180, 180, 180, 0.6);
+}
+
+.dnd-v2-quest-det-objective.dnd-v2-quest-det-obj-done i {
+    color: rgba(120, 220, 140, 0.85);
+}
+
+.dnd-v2-quest-det-objective.dnd-v2-quest-det-obj-done span {
+    opacity: 0.75;
+    text-decoration: line-through;
+}
+
+/* ─── V2 Quest Edit Modal ────────────────────────────── */
+
+.dnd-modal-v2-quest-edit {
+    max-width: 900px;
+    width: 90vw;
+    max-height: 90vh;
+}
+
+.dnd-modal-v2-quest-edit .dnd-modal-body {
+    overflow-y: auto;
+    max-height: 72vh;
+}
+
+/* V2 form controls — match sidekick / V1 config modal styling */
+.dnd-modal-v2-quest-edit input[type="text"],
+.dnd-modal-v2-quest-edit input[type="number"],
+.dnd-modal-v2-quest-edit select,
+.dnd-modal-v2-quest-edit textarea {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--dnd-border, rgba(255,255,255,0.08));
+    border-radius: 0.3em;
+    color: var(--dnd-text, #ddd);
+    padding: 0.25em 0.4em;
+    font-size: 0.9em;
+    font-family: inherit;
+}
+
+.dnd-modal-v2-quest-edit input[type="text"]:focus,
+.dnd-modal-v2-quest-edit input[type="number"]:focus,
+.dnd-modal-v2-quest-edit select:focus,
+.dnd-modal-v2-quest-edit textarea:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
+}
+
+.dnd-modal-v2-quest-edit input::placeholder,
+.dnd-modal-v2-quest-edit textarea::placeholder {
+    color: rgba(255,255,255,0.3);
+}
+
+.dnd-modal-v2-quest-edit select option {
+    background: #1a1a2e;
+    color: #ddd;
+}
+
+.dnd-modal-v2-quest-edit textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 3em;
+    padding: 0.35em 0.6em;
+    box-sizing: border-box;
+}
+
+.dnd-modal-v2-quest-edit .dnd-setting-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin-bottom: 0.35em;
+    font-size: 0.85em;
+}
+
+.dnd-modal-v2-quest-edit .dnd-setting-row > span:first-child {
+    min-width: 5em;
+    color: rgba(255, 255, 255, 0.6);
+    flex-shrink: 0;
+}
+
+.dnd-modal-v2-quest-edit .dnd-setting-row input[type="text"],
+.dnd-modal-v2-quest-edit .dnd-setting-row input[type="number"],
+.dnd-modal-v2-quest-edit .dnd-setting-row select {
+    flex: 1;
+}
+
+/* Stacked row for description textarea */
+.dnd-v2-row-stacked {
+    flex-direction: column;
+    align-items: stretch !important;
+}
+
+.dnd-v2-row-stacked > span:first-child {
+    min-width: unset !important;
+    margin-bottom: 0.2em;
+}
+
+/* V2 config section — matches dnd-sk-config-section */
+.dnd-v2-config-section {
+    margin-bottom: 0.8em;
+    padding-bottom: 0.5em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dnd-v2-config-section:last-child {
+    border-bottom: none;
+}
+
+.dnd-v2-config-section-title {
+    font-weight: 600;
+    font-size: 0.85em;
+    color: rgba(100, 200, 180, 0.8);
+    margin-bottom: 0.4em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* V2 Objectives list */
+.dnd-v2-quest-objectives {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em;
+    margin-bottom: 0.4em;
+}
+
+.dnd-v2-quest-objective-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+}
+
+.dnd-v2-quest-objective-row input[type="checkbox"] {
+    accent-color: #5cd6b8;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.dnd-v2-quest-objective-row input[type="text"] {
+    flex: 1;
+    min-width: 0;
+}
+
+.dnd-v2-obj-delete {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.2em;
+    color: rgba(255, 100, 100, 0.6);
+    font-size: 0.85em;
+    transition: color 0.15s;
+}
+
+.dnd-v2-obj-delete:hover {
+    color: rgba(255, 100, 100, 1);
+}
+
+.dnd-v2-quest-no-objectives {
+    font-size: 0.82em;
+    opacity: 0.4;
+    font-style: italic;
+}
+
+/* ─── V2 Migration Modal ────────────────────────────── */
+
+.dnd-modal-v2-migration {
+    max-width: 440px;
+}
+
+.dnd-modal-v2-migration .dnd-modal-body p {
+    margin: 0.4em 0;
+    font-size: 0.88em;
+    line-height: 1.5;
 }

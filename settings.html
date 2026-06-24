@@ -11,13 +11,59 @@
             </label>
             <small>Lightweight RPG tracker for D&D 5e campaigns. Open the side panel for full controls.</small>
             <hr />
-            <label class="checkbox_label" for="dnd-v1-enabled">
-                <input type="checkbox" id="dnd-v1-enabled" />
-                <span>Character System V1 (Full Character Builder)</span>
-            </label>
-            <small>Enables the full character builder with computed stats, species, backgrounds, and context injection. When off, the legacy class reference panel is used.</small>
+            <div class="dnd-mode-selector">
+                <small style="display:block; margin-bottom:4px; font-weight:600;">System Mode</small>
+                <label class="checkbox_label" for="dnd-mode-legacy">
+                    <input type="radio" name="dnd-mode" id="dnd-mode-legacy" value="legacy" />
+                    <span>Legacy (Basic class reference + simple inventory)</span>
+                </label>
+                <label class="checkbox_label" for="dnd-mode-v1">
+                    <input type="radio" name="dnd-mode" id="dnd-mode-v1" value="v1" />
+                    <span>V1 (Full character builder + legacy inventory)</span>
+                </label>
+                <label class="checkbox_label" for="dnd-mode-v2">
+                    <input type="radio" name="dnd-mode" id="dnd-mode-v2" value="v2" />
+                    <span>V2 (Full character + AI-managed inventory &amp; quests)</span>
+                </label>
+                <small>Legacy: basic class panel. V1: full character builder with computed stats. V2: V2 character sheet with equipment managed in inventory, LLM-driven game actions.</small>
+            </div>
+            <div id="dnd-v2-regex-section" style="display:none; margin-top:6px;">
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                    <small>Context Regex:</small>
+                    <span id="dnd-v2-regex-status" style="font-size:0.85em; font-weight:600;"></span>
+                </div>
+                <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                    <button id="dnd-v2-regex-reinstall" class="menu_button menu_button_icon" title="Remove and re-create the regex script">
+                        <i class="fa-solid fa-rotate"></i> <span>Reinstall</span>
+                    </button>
+                    <button id="dnd-v2-regex-manual-toggle" class="menu_button menu_button_icon" title="Show regex pattern for manual setup">
+                        <i class="fa-solid fa-clipboard"></i> <span>Manual Setup</span>
+                    </button>
+                </div>
+                <div id="dnd-v2-regex-manual" style="display:none; margin-top:6px;">
+                    <small>If auto-install fails, create a global regex script manually with these settings:</small>
+                    <div style="margin-top:4px; padding:6px; border-radius:4px; background:var(--SmartThemeBlurTintColor); font-family:monospace; font-size:0.8em; word-break:break-all;">
+                        <div><b>Name:</b> D&amp;D 5e - Strip game_actions</div>
+                        <div><b>Find Regex:</b> &lt;details&gt;\s*&lt;summary&gt;game_actions&lt;/summary&gt;[\s\S]*?&lt;/details&gt;</div>
+                        <div><b>Replace:</b> (empty)</div>
+                        <div><b>Affects:</b> AI Output only</div>
+                        <div><b>Only Format Prompt:</b> checked</div>
+                    </div>
+                </div>
+            </div>
             <hr />
-            <small>v1.0.0</small>
+            <label class="checkbox_label" for="dnd-milestone-xp">
+                <input type="checkbox" id="dnd-milestone-xp" />
+                <span>Milestone Leveling (Hide XP)</span>
+            </label>
+            <small>Removes XP rewards from quest tracking and LLM instructions. Use for milestone-based campaigns.</small>
+            <hr />
+            <details class="dnd-debug-section">
+                <summary style="cursor:pointer; font-size:0.8em; color:rgba(255,255,255,0.4);">Debug: Loaded Modules</summary>
+                <div id="dnd-debug-modules" style="margin-top:4px; padding:6px; border-radius:4px; background:rgba(0,0,0,0.2); font-family:monospace; font-size:0.7em; max-height:200px; overflow-y:auto; word-break:break-all; color:rgba(255,255,255,0.6);"></div>
+            </details>
+            <hr />
+            <small>v2.0.0</small>
         </div>
     </div>
 </div>
