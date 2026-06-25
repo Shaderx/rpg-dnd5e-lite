@@ -4,9 +4,10 @@
  * Two-line layout: spell/rest name on line 1, date/time on line 2.
  */
 
-import { spellLog } from '../core/state.js';
+import { spellLog, extensionSettings } from '../core/state.js';
 import { saveSpellLog } from '../core/persistence.js';
 import { addManualSpellCast, addManualRest, addManualShortRest, addManualDispel, hardRefreshSpellLog, actionLabels } from '../features/spellTracker.js';
+import { renderV2Spellbook } from '../v2/rendering/spellbook.js';
 
 let dragSrcIdx = null;
 
@@ -36,6 +37,7 @@ export function renderSpellLog() {
 
     if (spellLog.length === 0) {
         container.innerHTML = '<div class="dnd-spell-log-empty">No spells tracked</div>';
+        if (extensionSettings.v2Enabled) renderV2Spellbook();
         return;
     }
 
@@ -92,6 +94,7 @@ export function renderSpellLog() {
 
     container.innerHTML = html;
     bindSpellLogEvents(container);
+    if (extensionSettings.v2Enabled) renderV2Spellbook();
 }
 
 function bindSpellLogEvents(container) {

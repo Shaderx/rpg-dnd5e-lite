@@ -77,13 +77,13 @@ function formatItemLine(item, globalIdx) {
     const typeTags = [];
     if (item.type && item.type !== 'none') typeTags.push(item.type);
     if (item.magic) typeTags.push('magic');
-    if (item.location === 'attuned') typeTags.push('attuned');
     if (item.charges !== null && item.charges !== undefined) typeTags.push(`charges:${item.charges}`);
     const typeStr = typeTags.length > 0 ? ` {${typeTags.join(', ')}}` : '';
+    const attunedTag = item.location === 'attuned' ? ' [attuned]' : '';
     const notes = item.magicNotes ? ` (${item.magicNotes})` : '';
     const baseName = item.equipmentData?.name;
     const baseTag = (baseName && baseName !== item.name) ? ` [base:${baseName}]` : '';
-    return `  [#${globalIdx}] ${item.name} ${qty}${rTag}${typeStr}${baseTag}${notes}`;
+    return `  [#${globalIdx}] ${item.name} ${qty}${rTag}${typeStr}${attunedTag}${baseTag}${notes}`;
 }
 
 /**
@@ -165,18 +165,19 @@ Do NOT set type for mundane/generic items. A cloak, ring, boots, or potion is ty
 
 add: add a new item to inventory:
   Normal item: {"tool":"inventory","action":"add","name":"Potion of Greater Healing","quantity":2,"rarity":"uncommon","location":"stored"}
-  Spell scroll: {"tool":"inventory","action":"add","name":"Scroll of Lesser Restoration","quantity":1,"rarity":"uncommon","location":"stored"}
-  Magic item: {"tool":"inventory","action":"add","name":"Cold Iron Bell","rarity":"uncommon","magic":true,"magic_notes":"Repels fey within 30ft for 1hr when rung 3 times"}
+  Described item: {"tool":"inventory","action":"add","name":"Vinton Leyline Chart","rarity":"uncommon","notes":"Cartographic chart mapping 7 Feywild crossing nodes across southern Neverwinter Wood"}
+  Magic item: {"tool":"inventory","action":"add","name":"Cold Iron Bell","rarity":"uncommon","magic":true,"notes":"Repels fey within 30ft for 1hr when rung 3 times"}
   Equipment: {"tool":"inventory","action":"add","name":"Chain Mail","type":"armor","location":"equipped"}
-  Magic weapon: {"tool":"inventory","action":"add","name":"Staff of Fire","type":"weapon","magic":true,"charges":10,"magic_notes":"Fireball (3ch), Wall of Fire (4ch)","location":"equipped"}
+  Magic weapon: {"tool":"inventory","action":"add","name":"Staff of Fire","type":"weapon","magic":true,"charges":10,"notes":"Fireball (3ch), Wall of Fire (4ch)","location":"equipped"}
   Required: name
-  Optional: quantity (default 1), rarity (common/uncommon/rare/very_rare/legendary/artifact), location (equipped/stored), type, magic, magic_notes, charges
+  Optional: quantity (default 1), rarity, location (equipped/stored), type, magic, notes, charges
+  notes: brief static description of what the item is or does (set on add only, never update)
   Naming: use canonical D&D names when possible (e.g. "Potion of Healing" not "Healing Potion", "Scroll of [Spell]" not "[Spell] Scroll")
 
-update: modify fields on existing item:
+update: modify quantity or rarity on existing item:
   {"tool":"inventory","action":"update","index":1,"quantity":3}
-  {"tool":"inventory","action":"update","index":2,"magic_notes":"Used 1 charge of Fireball"}
   quantity_change: use +/- for relative changes (e.g. -1 to consume one)
+  Do NOT update notes. Item descriptions are permanent.
 
 equip: {"tool":"inventory","action":"equip","index":1}
 unequip: {"tool":"inventory","action":"unequip","index":1}
@@ -188,11 +189,12 @@ charges: modify charges on a magic item:
 
 == RULES ==${msNote}
 - Only output game_actions when state actually changed. Omit entirely if nothing changed.
-- Do NOT mention game_actions in prose. It is invisible metadata.
+- Do NOT mention game_actions in prose. It is invisible metadata. You will not see previous turn game_actions.
 - Quest description is the original briefing. Never overwrite it on update. Put evolving progress in notes instead.
 - Equipment type auto-resolves stats from D&D database. Only 1 armor + 1 shield can be equipped.
 - No gold/currency in inventory. Track items only.
-- magic_notes: describe attached spells/abilities. charges: track uses remaining.
+- Item notes are permanent (add only, never update). Do not add narrative or usage history to items.
+- [attuned] items are already equipped. Do not re-equip them.
 </game_state_actions>`;
 }
 

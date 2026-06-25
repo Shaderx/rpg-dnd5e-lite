@@ -192,25 +192,61 @@ function trimToTwoLongRests(entries) {
     return entries.slice(cutoff);
 }
 
+
 /**
- * Build a unique key for an entry to support deduplication during merge.
+ * Parse a time string into minutes-since-midnight for comparison.
+ * Handles "HH:MM AM/PM", "HH:MM", and 24-hour formats.
+ * @returns {number} Minutes since midnight, or -1 if unparseable
  */
-function entryKey(entry) {
-    if (entry.type === 'cast') {
-        const action = entry.action || 'cast';
-        return `${action}|${entry.spell}|${entry.details || ''}|${entry.msgIndex ?? ''}`;
-    }
-    if (entry.type === 'short-rest' && entry.msgIndex != null) {
-        return `short-rest|${entry.msgIndex}`;
-    }
-    return `${entry.type}|${entry.date || ''}`;
+function timeToMinutes(timeStr) {
+    if (!timeStr) return -1;
+    const m = timeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+    if (!m) return -1;
+    let hours = parseInt(m[1], 10);
+    const minutes = parseInt(m[2], 10);
+    const period = m[4]?.toUpperCase();
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
 }
 
-/** Max number of LLM (assistant) messages to look back through when scanning for spells. */
-const SPELL_LOG_LOOKBACK = 50;
+/**
+ * Insert manual entries into a chronologically-ordered scanned array at the
+ * correct position based on their date and time fields.
+ * Entries with the same date are ordered by time; entries with the same
+ * date+time are placed after the last scanned entry at that point.
+ * @param {Array} scanned - Chronologically ordered entries from scanChatForSpells (mutated)
+ * @param {Array} manual - Manual entries to interleave
+ */
+function interleaveManualEntries(scanned, manual) {
+    if (!manual.length) return;
+
+    for (const entry of manual) {
+        const entryDateNorm = normalizeDate(entry.date);
+        const entryTime = timeToMinutes(entry.time);
+        let insertAt = scanned.length;
+
+        for (let i = scanned.length - 1; i >= 0; i--) {
+            const sDateNorm = normalizeDate(scanned[i].date);
+            if (sDateNorm !== entryDateNorm) {
+                if (insertAt < scanned.length) break;
+                continue;
+            }
+            const sTime = timeToMinutes(scanned[i].time);
+            if (entryTime >= 0 && sTime >= 0 && sTime <= entryTime) {
+                insertAt = i + 1;
+                break;
+            }
+            insertAt = i;
+        }
+
+        scanned.splice(insertAt, 0, entry);
+    }
+}
 
 /**
- * Scan chat messages and return an array of parsed spell/rest entries.
+ * Scan ALL chat messages and return an array of parsed spell/rest entries.
+ * Includes hidden messages (is_system) so casts survive ST summarization.
  * Does NOT modify state or persist — purely a read operation.
  * @param {object} [options]
  * @param {boolean} [options.skipLastAssistant] - Exclude the last assistant message from the scan
@@ -223,20 +259,8 @@ function scanChatForSpells({ skipLastAssistant = false } = {}) {
     let lastAssistantIdx = -1;
     if (skipLastAssistant) {
         for (let i = chat.length - 1; i >= 0; i--) {
-            if (!chat[i].is_user && !chat[i].is_system) {
+            if (!chat[i].is_user) {
                 lastAssistantIdx = i;
-                break;
-            }
-        }
-    }
-
-    let scanStart = 0;
-    let llmCount = 0;
-    for (let i = chat.length - 1; i >= 0; i--) {
-        if (!chat[i].is_user && !chat[i].is_system) {
-            llmCount++;
-            if (llmCount >= SPELL_LOG_LOOKBACK) {
-                scanStart = i;
                 break;
             }
         }
@@ -249,21 +273,8 @@ function scanChatForSpells({ skipLastAssistant = false } = {}) {
     let lastDateTokens = null;
     let lastTime = null;
 
-    for (let i = 0; i < scanStart; i++) {
+    for (let i = 0; i < chat.length; i++) {
         const msg = chat[i];
-        if (msg.is_system || msg.is_user) continue;
-        const header = parseHeader(msg.mes);
-        if (header?.date) {
-            lastDate = header.date;
-            lastDateNorm = normalizeDate(header.date);
-            lastDateTokens = dateDayTokens(header.date);
-        }
-        if (header?.time) lastTime = header.time;
-    }
-
-    for (let i = scanStart; i < chat.length; i++) {
-        const msg = chat[i];
-        if (msg.is_system) continue;
         if (skipLastAssistant && i === lastAssistantIdx) continue;
 
         if (!msg.is_user) {
@@ -290,15 +301,12 @@ function scanChatForSpells({ skipLastAssistant = false } = {}) {
             continue;
         }
 
-        // Use time/date from the next assistant reply (the LLM response to this
-        // user message) since that reflects when the action actually takes place.
-        // Falls back to previous assistant time if no reply exists yet.
         let useTime = lastTime;
         let useDate = lastDate;
         for (let j = i + 1; j < chat.length; j++) {
             if (skipLastAssistant && j === lastAssistantIdx) continue;
             const nextMsg = chat[j];
-            if (nextMsg.is_system || nextMsg.is_user) continue;
+            if (nextMsg.is_user) continue;
             const nextHeader = parseHeader(nextMsg.mes);
             if (nextHeader?.time) useTime = nextHeader.time;
             if (nextHeader?.date) useDate = nextHeader.date;
@@ -333,42 +341,13 @@ function scanChatForSpells({ skipLastAssistant = false } = {}) {
 }
 
 /**
- * Merge mode: scan chat and add only NEW entries not already in the stored spell log.
- * Existing entries (including those from truncated/older chat) are preserved.
- * Used by the top refresh button and automated events (MESSAGE_RECEIVED, etc.).
+ * Rebuild the spell log from the full chat history.
+ * Preserves manually added entries (_manual flag).
+ * Used by automated events (MESSAGE_RECEIVED, swipes, etc.) and UI refresh.
  * @param {object} [options]
  * @param {boolean} [options.skipLastAssistant] - Exclude the last assistant message from the scan
  */
 export function refreshSpellLog({ skipLastAssistant = false } = {}) {
-    const context = getContext();
-    const chat = context.chat;
-    if (!chat || chat.length === 0) return;
-
-    const parsed = scanChatForSpells({ skipLastAssistant });
-
-    const existingKeys = new Set();
-    for (const entry of spellLog) {
-        if (!entry._manual) {
-            existingKeys.add(entryKey(entry));
-        }
-    }
-
-    const newEntries = parsed.filter(e => !existingKeys.has(entryKey(e)));
-
-    if (newEntries.length > 0) {
-        const merged = [...spellLog, ...newEntries];
-        const trimmed = trimToTwoLongRests(merged);
-        setSpellLog(trimmed);
-        saveSpellLog(trimmed);
-    }
-}
-
-/**
- * Hard refresh: wipe the spell log and rebuild entirely from visible chat.
- * Preserves manually added entries (_manual flag).
- * Used by the spell log's own refresh button.
- */
-export function hardRefreshSpellLog() {
     const context = getContext();
     const chat = context.chat;
     if (!chat || chat.length === 0) {
@@ -379,12 +358,21 @@ export function hardRefreshSpellLog() {
     }
 
     const manualEntries = spellLog.filter(e => e._manual);
-    const parsed = scanChatForSpells();
-    parsed.push(...manualEntries);
+    const parsed = scanChatForSpells({ skipLastAssistant });
+    interleaveManualEntries(parsed, manualEntries);
 
     const trimmed = trimToTwoLongRests(parsed);
     setSpellLog(trimmed);
     saveSpellLog(trimmed);
+}
+
+/**
+ * Hard refresh: rebuild spell log from the full chat history.
+ * Preserves manually added entries (_manual flag).
+ * Used by the spell log's own refresh button.
+ */
+export function hardRefreshSpellLog() {
+    refreshSpellLog();
 }
 
 /**

@@ -6,6 +6,8 @@
 import { characterV2 } from '../core/characterState.js';
 import { lookupSpellSync } from '../features/spells.js';
 import { computeV2CharacterStats } from '../features/character.js';
+import { computeFreeCastUsage, getFreeCastUsage } from '../features/freeCastTracker.js';
+import { spellLog } from '../../core/state.js';
 import { SPELL_SCHOOLS } from '../core/constants.js';
 import { renderSpellbookLevelFilters, matchesSpellbookLevelFilter } from '../../rendering/spellbookLevelFilter.js';
 
@@ -218,6 +220,8 @@ export function renderV2Spellbook() {
     container.style.display = '';
 
     const spells = gatherCharacterSpells();
+    const stats = computeV2CharacterStats(characterV2);
+    const freeCastUsage = computeFreeCastUsage(characterV2, stats, spellLog);
 
     if (!spells.length) {
         list.innerHTML = '<div class="dnd-empty-state">No spells configured</div>';
@@ -250,10 +254,16 @@ export function renderV2Spellbook() {
         if (spell.source.startsWith('feat:')) sourceTag = `<span class="dnd-v1-spell-source-tag">${esc(spell.source.replace('feat:', ''))}</span>`;
         else if (spell.source.startsWith('extra:')) sourceTag = `<span class="dnd-v1-spell-source-tag">${esc(spell.source.replace('extra:', ''))}</span>`;
         else if (spell.source === 'subclass') sourceTag = '<span class="dnd-v1-spell-source-tag">Subclass</span>';
-        const freeCastTag = spell.freeCast ? `<span class="dnd-v1-spell-freecast-tag">${esc(spell.freeCast)}</span>` : '';
+        const freeCastTag = spell.freeCast
+            ? (() => {
+                const usage = getFreeCastUsage(freeCastUsage, spell.name);
+                const usedClass = usage && !usage.available ? ' dnd-v1-spell-freecast-tag--used' : '';
+                return `<span class="dnd-v1-spell-freecast-tag${usedClass}">${esc(spell.freeCast)}</span>`;
+            })()
+            : '';
         const ritualTag = spell.ritualOnly ? '<span class="dnd-v1-spell-freecast-tag">Ritual</span>' : '';
 
-        html += `<div class="dnd-spellbook-item" data-spell="${esc(spell.name)}" data-source="${esc(spell.source)}">` +
+        html += `<div class="dnd-spellbook-item" data-spell="${esc(spell.name)}" data-source="${esc(spell.source)}" data-freecast="${esc(spell.freeCast || '')}">` +
             `<span class="dnd-spellbook-lvl ${badgeClass}">${lvlChar}</span>` +
             `<span class="dnd-spellbook-name">${esc(spell.name)}</span>` +
             freeCastTag + ritualTag + sourceTag +
@@ -261,10 +271,10 @@ export function renderV2Spellbook() {
     }
 
     list.innerHTML = html;
-    bindSpellbookEvents(list);
+    bindSpellbookEvents(list, freeCastUsage);
 }
 
-function bindSpellbookEvents(container) {
+function bindSpellbookEvents(container, freeCastUsage) {
     container.querySelectorAll('.dnd-spellbook-item').forEach(el => {
         el.addEventListener('mouseenter', () => {
             const spellData = lookupSpellSync(el.dataset.spell);
@@ -277,7 +287,10 @@ function bindSpellbookEvents(container) {
             const name = el.dataset.spell;
             const spellData = lookupSpellSync(name);
             const level = spellData?.level !== undefined ? formatLevel(spellData.level) : '?';
-            const text = `[${name}, ${level}]`;
+            const freeCast = el.dataset.freecast;
+            const usage = freeCast ? getFreeCastUsage(freeCastUsage, name) : null;
+            const includeFree = freeCast && freeCast !== 'at will' && usage?.available !== false;
+            const text = includeFree ? `[${name}, ${level}, Free]` : `[${name}, ${level}]`;
             navigator.clipboard.writeText(text).then(() => {
                 if (typeof toastr !== 'undefined') {
                     toastr.success(`Copied: ${text}`, '', { timeOut: 1500 });

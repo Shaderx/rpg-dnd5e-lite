@@ -6558,6 +6558,10 @@
     color: #81c784;
     margin-left: auto;
 }
+.dnd-v1-spell-freecast-tag--used {
+    background: rgba(244, 67, 54, 0.25);
+    color: #e57373;
+}
 
 .dnd-v1-spell-remove {
     background: none;

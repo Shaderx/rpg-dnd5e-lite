@@ -107,7 +107,8 @@ export function collectWondrousEffects(context) {
     for (const item of v2Inventory) {
         if (item.type !== 'none' || !item.magic || !isItemEquipped(item)) continue;
 
-        const cdnItem = lookupItemByName(item.name);
+        const cdnItem = lookupItemByName(item.name)
+            || (item.equipmentData?.name && lookupItemByName(item.equipmentData.name));
         if (!cdnItem) continue;
 
         const requiresAttunement = !!cdnItem.reqAttune;

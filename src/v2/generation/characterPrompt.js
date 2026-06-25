@@ -6,9 +6,10 @@
 
 import { characterV2 } from '../core/characterState.js';
 import { computeV2CharacterStats } from '../features/character.js';
+import { computeFreeCastUsage, formatFreeCastPromptTag } from '../features/freeCastTracker.js';
 import { ABILITY_KEYS, ABILITY_LABELS } from '../core/constants.js';
 import { v2Companions } from '../core/state.js';
-import { extensionSettings } from '../../core/state.js';
+import { extensionSettings, spellLog } from '../../core/state.js';
 
 /**
  * Build the V2 <character> section for the consolidated game state injection.
@@ -21,6 +22,7 @@ export function buildV2CharacterSection() {
     const stats = computeV2CharacterStats(characterV2);
     if (!stats) return '';
 
+    const freeCastUsage = computeFreeCastUsage(characterV2, stats, spellLog);
     const lines = [];
 
     lines.push('<character>');
@@ -117,7 +119,7 @@ export function buildV2CharacterSection() {
             parts.push(`${c.name} (${c.source})`);
         }
         for (const s of (stats.featBonusSpells || [])) {
-            const free = s.freeCast ? ' [1/LR free]' : '';
+            const free = formatFreeCastPromptTag(s.freeCast, freeCastUsage, s.name);
             const always = s.alwaysPrepared ? ' [always prepared]' : '';
             const ritual = s.ritualOnly ? ' [ritual only]' : '';
             parts.push(`${s.name}${free}${always}${ritual} (${s.source})`);
@@ -147,7 +149,7 @@ export function buildV2CharacterSection() {
                 const lv = sp.info?.spellLevel ?? 1;
                 if (!byLevel[lv]) byLevel[lv] = [];
                 let entry = sp.annotation;
-                if (sp.extraFreeCast) entry += ` [${sp.extraFreeCast} free]`;
+                if (sp.extraFreeCast) entry += formatFreeCastPromptTag(sp.extraFreeCast, freeCastUsage, sp.name);
                 if (sp.extraSource) entry += ` (${sp.extraSource})`;
                 byLevel[lv].push(entry);
             }

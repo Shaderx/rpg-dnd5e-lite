@@ -124,7 +124,7 @@ function buildItemRowHtml(item, i) {
     const ttName = baseItemName || resolveItemTooltipName(item.name);
     const ttCls = ttName ? ' dnd-tt-hover' : '';
     const ttData = ttName ? ` data-tt-type="equipment" data-tt-name="${escapeHtml(ttName)}"` : '';
-    const magicNotesAttr = (item.magic && item.magicNotes) ? ` data-magic-notes="${escapeHtml(item.magicNotes)}"` : '';
+    const magicNotesAttr = item.magicNotes ? ` data-magic-notes="${escapeHtml(item.magicNotes)}"` : '';
 
     const typeInfo = TYPE_ICONS[item.type] || TYPE_ICONS.none;
     const typeCls = typeInfo.cls ? ` ${typeInfo.cls}` : '';
@@ -278,6 +278,8 @@ function openItemInfoModal(idx) {
 
             <!-- Magic Tab -->
             <div class="dnd-item-info-panel" data-panel="magic" style="display:none">
+                <label class="dnd-item-info-field-label">Notes:</label>
+                <textarea class="dnd-equip-search-notes" placeholder="Brief description of what this item is or does...">${escapeHtml(item.magicNotes || '')}</textarea>
                 <label class="dnd-magic-props-toggle">
                     <input type="checkbox" class="dnd-magic-props-check"${item.magic ? ' checked' : ''}>
                     <span>Magic Item</span>
@@ -287,8 +289,6 @@ function openItemInfoModal(idx) {
                         <label>Charges:</label>
                         <input type="number" class="dnd-equip-search-charges" min="0" placeholder="∞ (leave empty)" value="${chargesVal}">
                     </div>
-                    <label class="dnd-item-info-field-label">Descriptor (spells, abilities, effects):</label>
-                    <textarea class="dnd-equip-search-notes" placeholder="e.g. Contains Fireball (3rd level), Repels fey within 30ft...">${escapeHtml(item.magicNotes || '')}</textarea>
                 </div>
             </div>
 
@@ -440,14 +440,15 @@ function openItemInfoModal(idx) {
             item.equipmentData = null;
         }
 
+        // Apply notes (available for all items)
+        item.magicNotes = notesInput.value.trim();
+
         // Apply magic
         item.magic = magicCheck.checked;
         if (item.magic) {
             const cv = chargesInput.value.trim();
             item.charges = cv === '' ? null : Math.max(0, parseInt(cv) || 0);
-            item.magicNotes = notesInput.value.trim();
         } else {
-            item.magicNotes = '';
             item.charges = null;
             if (item.location === 'attuned') item.location = 'equipped';
         }
@@ -524,13 +525,10 @@ function bindV2InventoryEvents(container) {
             if (!name) return;
             const idx = parseInt(row.dataset.idx);
             const item = v2Inventory[idx];
-            let extra = '';
-            if (item?.magic) {
-                const parts = [];
-                if (item.magicNotes) parts.push(item.magicNotes);
-                if (item.charges !== null && item.charges !== undefined) parts.push(`Charges: ${item.charges}`);
-                extra = parts.join(' | ');
-            }
+            const parts = [];
+            if (item?.magicNotes) parts.push(item.magicNotes);
+            if (item?.magic && item?.charges !== null && item?.charges !== undefined) parts.push(`Charges: ${item.charges}`);
+            const extra = parts.join(' | ');
             showEquipmentTooltip(row, name, extra);
         });
         row.addEventListener('mouseleave', () => { hideTooltip(); });
@@ -547,7 +545,9 @@ function bindV2InventoryEvents(container) {
                 tip.className = 'dnd-magic-tooltip';
                 row.appendChild(tip);
             }
-            tip.textContent = `✨ ${notes}`;
+            const idx = parseInt(row.dataset.idx);
+            const isMagic = v2Inventory[idx]?.magic;
+            tip.textContent = isMagic ? `✨ ${notes}` : notes;
             tip.style.display = '';
         });
         row.addEventListener('mouseleave', () => {

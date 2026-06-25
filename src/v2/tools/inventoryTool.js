@@ -9,9 +9,17 @@ import { saveV2Inventory } from '../core/persistence.js';
 import { renderV2Inventory } from '../rendering/inventory.js';
 import { renderV2CharacterPanel } from '../rendering/character.js';
 import { normalizeRarity } from '../../features/inventoryRarity.js';
-import { searchEquipment, fuzzyLookupItem, searchMagicItems, lookupSpellByName } from '../../features/sidekick.js';
+import { searchEquipment, fuzzyLookupItem, searchMagicItems, lookupSpellByName, lookupItemByName } from '../../features/sidekick.js';
 
 const VALID_TYPES = new Set(['none', 'armor', 'shield', 'weapon']);
+
+/** Auto-promote equipped magic items to attuned if the CDN says they require attunement. */
+function autoAttune(item) {
+    if (item.location !== 'equipped' || !item.magic) return;
+    const cdnItem = lookupItemByName(item.name)
+        || (item.equipmentData?.name && lookupItemByName(item.equipmentData.name));
+    if (cdnItem?.reqAttune) item.location = 'attuned';
+}
 
 /**
  * Attempt to resolve LLM-generated item names to canonical D&D names.
@@ -260,7 +268,7 @@ function handleAdd(args) {
         location: args.location === 'equipped' ? 'equipped' : 'stored',
         type,
         magic: equipData ? !!equipData._magic : (pattern?.magic || magic),
-        magicNotes: args.magic_notes || pattern?.magicNotes || '',
+        magicNotes: args.notes || args.magic_notes || pattern?.magicNotes || '',
         charges: args.charges !== undefined && args.charges !== null ? Math.max(0, parseInt(args.charges) || 0) : null,
         equipmentData: equipData || pattern?.equipmentData || null,
     });
@@ -271,6 +279,7 @@ function handleAdd(args) {
         if (type === 'armor') enforceSingleArmor(idx);
         if (type === 'shield') enforceSingleShield(idx);
     }
+    autoAttune(item);
 
     persist();
     return `Item added: "${item.name}" x${item.quantity}${type !== 'none' ? ` [${type}]` : ''}`;
@@ -293,14 +302,13 @@ function handleUpdate(args) {
         }
     }
     if (args.magic !== undefined) item.magic = !!args.magic;
-    if (args.magic_notes !== undefined) item.magicNotes = String(args.magic_notes);
     if (args.charges !== undefined) {
         item.charges = args.charges === null ? null : Math.max(0, parseInt(args.charges) || 0);
     }
     if (args.location !== undefined) {
         if (args.location === 'stored') {
             item.location = 'stored';
-        } else {
+        } else if (item.location !== 'attuned') {
             item.location = 'equipped';
             if (item.type === 'armor') enforceSingleArmor(idx);
             if (item.type === 'shield') enforceSingleShield(idx);
@@ -309,6 +317,7 @@ function handleUpdate(args) {
     if (args.magic === false && item.location === 'attuned') {
         item.location = 'equipped';
     }
+    autoAttune(item);
 
     if (args.quantity_change !== undefined) {
         const change = parseInt(args.quantity_change) || 0;
@@ -333,8 +342,10 @@ function handleEquip(args, location) {
     if (idx < 0 || idx >= v2Inventory.length) return `Error: item not found at index ${args.index}`;
 
     const item = v2Inventory[idx];
-    if (location === 'stored' && item.location === 'attuned') {
+    if (location === 'stored') {
         item.location = 'stored';
+    } else if (item.location === 'attuned') {
+        // Already attuned (superset of equipped) -- preserve attunement
     } else {
         item.location = location;
     }
@@ -342,6 +353,7 @@ function handleEquip(args, location) {
         if (item.type === 'armor') enforceSingleArmor(idx);
         if (item.type === 'shield') enforceSingleShield(idx);
     }
+    autoAttune(item);
     persist();
     return `Item ${isItemEquipped(item) ? 'equipped' : 'unequipped'}: "${item.name}"`;
 }
