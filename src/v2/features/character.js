@@ -20,8 +20,9 @@ import { collectLevelChoiceEffects, computeCompanionStats, FAMILIAR_CREATURES, M
 import { getSubclassSpells } from './subclassSpells.js';
 import { getResolvedClassFeaturesSync } from './classData.js';
 import { computeAC, computeWeaponStats } from './equipment.js';
+import { collectWondrousEffects } from './wondrousEffects.js';
 import { getSpellDamageInfo, buildSpellAnnotation, getMaxSpellLevel, formatSlots } from './spells.js';
-import { v2Inventory } from '../core/state.js';
+import { v2Inventory, isItemEquipped } from '../core/state.js';
 
 /**
  * Create a new V2 character object from config modal selections.
@@ -105,15 +106,17 @@ export function createV2Character(config) {
  */
 function getEquipmentFromInventory() {
     const equippedArmor = v2Inventory.find(
-        i => i.location === 'equipped' && i.type === 'armor' && i.equipmentData
+        i => isItemEquipped(i) && i.type === 'armor' && i.equipmentData
     );
-    const hasShield = v2Inventory.some(
-        i => i.location === 'equipped' && i.type === 'shield'
+    const shieldItem = v2Inventory.find(
+        i => isItemEquipped(i) && i.type === 'shield'
     );
+    const hasShield = !!shieldItem;
+    const shieldAc = shieldItem?.equipmentData?.ac || (hasShield ? 2 : 0);
     const weapons = v2Inventory.filter(
-        i => i.location === 'equipped' && i.type === 'weapon' && i.equipmentData
+        i => isItemEquipped(i) && i.type === 'weapon' && i.equipmentData
     );
-    return { equippedArmor, hasShield, weapons };
+    return { equippedArmor, hasShield, shieldAc, weapons };
 }
 
 /**
@@ -123,10 +126,12 @@ function getEquipmentFromInventory() {
 export function computeV2CharacterStats(char) {
     if (!char) return null;
 
-    const { equippedArmor: armorItem, hasShield, weapons: weaponItems } = getEquipmentFromInventory();
+    const { equippedArmor: armorItem, hasShield, shieldAc, weapons: weaponItems } = getEquipmentFromInventory();
 
     const armorData = armorItem?.equipmentData || null;
     const weaponDataList = weaponItems.map(i => i.equipmentData);
+
+    const wondrousEffects = collectWondrousEffects({ hasArmor: !!armorData, hasShield });
 
     const classKey = char.className.toLowerCase();
     const level = char.level || 1;
@@ -217,6 +222,7 @@ export function computeV2CharacterStats(char) {
         mods,
         abilities: finalAbilities,
         hasArmor: !!armorData,
+        armorType: armorData?.type || null,
         equippedWeaponCount: weaponDataList.length,
         draconicElement: effectiveDraconicElement,
         levelChoiceEffects,
@@ -269,23 +275,25 @@ export function computeV2CharacterStats(char) {
 
     const ac = computeAC(
         armorData,
-        hasShield,
+        shieldAc,
         mods.dex,
         {
             unarmoredFormula,
             defenseBonus,
+            wondrousAcBonus: wondrousEffects.acBonus,
             mediumArmorMaster: !!featEffects.meta.mediumArmorMaster,
         }
     );
 
     // --- Saves ---
     const saves = {};
+    const wondrousSaveBonus = wondrousEffects.saveBonus;
     const saveProficiencies = new Set(char.saveProficiencies || []);
     for (const s of (featEffects.extraSaves || [])) saveProficiencies.add(s);
     for (const ab of ABILITY_KEYS) {
         const isProficient = saveProficiencies.has(ab);
         saves[ab] = {
-            mod: mods[ab] + (isProficient ? proficiency : 0),
+            mod: mods[ab] + (isProficient ? proficiency : 0) + wondrousSaveBonus,
             proficient: isProficient,
         };
     }

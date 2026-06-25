@@ -250,13 +250,13 @@ function parseWeapon(item) {
 /**
  * Compute AC from equipped armor, shield, DEX mod, and class features.
  * @param {object|null} armor - Parsed armor object
- * @param {boolean} hasShield
+ * @param {number} shieldAc - Shield AC value (0 if no shield; typically 2 for mundane, 3 for +1, etc.)
  * @param {number} dexMod
- * @param {object} [overrides] - { unarmoredFormula, defenseBonus, mediumArmorMaster }
+ * @param {object} [overrides] - { unarmoredFormula, defenseBonus, wondrousAcBonus, mediumArmorMaster }
  * @returns {number}
  */
-export function computeAC(armor, hasShield, dexMod, overrides = {}) {
-    const { unarmoredFormula, defenseBonus = 0, mediumArmorMaster = false } = overrides;
+export function computeAC(armor, shieldAc, dexMod, overrides = {}) {
+    const { unarmoredFormula, defenseBonus = 0, wondrousAcBonus = 0, mediumArmorMaster = false } = overrides;
 
     let ac;
     if (!armor) {
@@ -272,10 +272,11 @@ export function computeAC(armor, hasShield, dexMod, overrides = {}) {
             ac = armor.ac;
         }
         ac += armor.bonusAc || 0;
-        ac += defenseBonus;
     }
 
-    if (hasShield) ac += 2;
+    ac += defenseBonus;
+    ac += wondrousAcBonus;
+    if (shieldAc) ac += shieldAc;
     return ac;
 }
 

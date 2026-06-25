@@ -301,7 +301,7 @@ register('cleric', 'Artisan\'s Blessing', 3, {
 }, { subclass: 'Forge' });
 
 register('cleric', 'Soul of the Forge', 6, {
-    acBonus: (stats) => stats.hasArmor && stats.armorType === 'heavy' ? 1 : 0,
+    acBonus: (stats) => stats.hasArmor && stats.armorType === 'HA' ? 1 : 0,
     promptNote: () => 'Soul of the Forge: +1 AC in heavy armor; resistance to fire damage',
 }, { subclass: 'Forge' });
 

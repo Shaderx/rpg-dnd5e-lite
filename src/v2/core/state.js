@@ -11,6 +11,13 @@ export function setV2Quests(val) { v2Quests = val; }
 export let v2Inventory = [];
 export function setV2Inventory(val) { v2Inventory = val; }
 
+export const MAX_ATTUNEMENT = 3;
+
+/** An item counts as "equipped" if its location is 'equipped' OR 'attuned'. */
+export function isItemEquipped(item) {
+    return item?.location === 'equipped' || item?.location === 'attuned';
+}
+
 // V2 companions: per-chat array stored in chat_metadata.dnd5e_v2_companions
 export let v2Companions = [];
 export function setV2Companions(val) { v2Companions = val; }
@@ -20,6 +27,7 @@ export function createDefaultQuest(overrides = {}) {
         id: crypto.randomUUID(),
         title: '',
         description: '',
+        notes: '',
         status: 'not_started',
         priority: 1,
         giver: '',

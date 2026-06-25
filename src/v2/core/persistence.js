@@ -28,6 +28,7 @@ export function loadV2Quests() {
             if (!q.id) q.id = crypto.randomUUID();
             if (!q.title) q.title = '';
             if (!q.description) q.description = '';
+            if (q.notes === undefined || q.notes === null) q.notes = '';
             if (!q.status) q.status = 'not_started';
             if (!q.priority || q.priority < 1 || q.priority > 3) q.priority = 1;
             if (!q.giver) q.giver = '';
@@ -68,7 +69,8 @@ export function loadV2Inventory() {
             if (item.quantity === undefined) item.quantity = 1;
             if (item.rarity === undefined) item.rarity = 0;
             item.rarity = normalizeRarity(item.rarity);
-            if (!item.location) item.location = 'stored';
+            if (!item.location || !['stored', 'equipped', 'attuned'].includes(item.location)) item.location = 'stored';
+            if (item.location === 'attuned' && !item.magic) item.location = 'equipped';
             if (!VALID_ITEM_TYPES.has(item.type)) item.type = 'none';
             if (item.magic === undefined) item.magic = false;
             if (item.magicNotes === undefined) item.magicNotes = '';

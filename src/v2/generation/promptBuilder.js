@@ -5,7 +5,7 @@
  * Inventory items include type tags (armor/shield/weapon) for equipment tracking.
  */
 
-import { v2Quests, v2Inventory, v2Companions } from '../core/state.js';
+import { v2Quests, v2Inventory, v2Companions, isItemEquipped } from '../core/state.js';
 import { extensionSettings } from '../../core/state.js';
 import { RARITY_LABELS, normalizeRarity } from '../../features/inventoryRarity.js';
 import { getComputedStats, CATEGORY_META } from '../features/companion.js';
@@ -37,6 +37,7 @@ export function buildV2QuestSection() {
             lines.push(`[#${globalIdx}] [${p}] ${q.title}${metaStr}`);
 
             if (q.description) lines.push(`  ${q.description}`);
+            if (q.notes?.trim()) lines.push(`  Notes: ${q.notes.trim()}`);
 
             if (q.objectives?.length > 0) {
                 for (let oi = 0; oi < q.objectives.length; oi++) {
@@ -76,10 +77,13 @@ function formatItemLine(item, globalIdx) {
     const typeTags = [];
     if (item.type && item.type !== 'none') typeTags.push(item.type);
     if (item.magic) typeTags.push('magic');
+    if (item.location === 'attuned') typeTags.push('attuned');
     if (item.charges !== null && item.charges !== undefined) typeTags.push(`charges:${item.charges}`);
     const typeStr = typeTags.length > 0 ? ` {${typeTags.join(', ')}}` : '';
     const notes = item.magicNotes ? ` (${item.magicNotes})` : '';
-    return `  [#${globalIdx}] ${item.name} ${qty}${rTag}${typeStr}${notes}`;
+    const baseName = item.equipmentData?.name;
+    const baseTag = (baseName && baseName !== item.name) ? ` [base:${baseName}]` : '';
+    return `  [#${globalIdx}] ${item.name} ${qty}${rTag}${typeStr}${baseTag}${notes}`;
 }
 
 /**
@@ -88,8 +92,8 @@ function formatItemLine(item, globalIdx) {
  * @returns {string} XML section or empty string
  */
 export function buildV2InventorySection() {
-    const equipped = v2Inventory ? v2Inventory.filter(item => item.location === 'equipped') : [];
-    const stored = v2Inventory ? v2Inventory.filter(item => item.location !== 'equipped') : [];
+    const equipped = v2Inventory ? v2Inventory.filter(item => isItemEquipped(item)) : [];
+    const stored = v2Inventory ? v2Inventory.filter(item => !isItemEquipped(item)) : [];
 
     if (equipped.length === 0 && stored.length === 0) return '';
 
@@ -136,12 +140,14 @@ Each object needs "tool" + "action". [#N] from lists above = "index" for existin
 Priority levels: 1=Reminder, 2=Side Quest, 3=Main Quest
 
 add: create a new quest:
-  {"tool":"quest","action":"add","title":"Slay the Manticore","priority":3,"giver":"Liora","location":"Northern Wastes","description":"Hunt the beast","objectives":[{"text":"Travel north"},{"text":"Find lair"}],${rewardsEx}}
+  {"tool":"quest","action":"add","title":"Slay the Manticore","priority":3,"giver":"Liora","location":"Northern Wastes","description":"Hunt the beast threatening the village","objectives":[{"text":"Travel north"},{"text":"Find lair"}],${rewardsEx}}
   Required: title
-  Optional: priority (default 1), giver, location, description, objectives[{text,completed}], ${ms ? 'rewards{gold,items}' : 'rewards{xp,gold,items}'}
+  Optional: priority (default 1), giver, location, description, notes, objectives[{text,completed}], ${ms ? 'rewards{gold,items}' : 'rewards{xp,gold,items}'}
+  description = original quest briefing (set once on add). notes = optional initial progress summary.
 
 update: modify fields on an existing quest:
-  {"tool":"quest","action":"update","index":1,"description":"New info","giver":"Different NPC"}
+  {"tool":"quest","action":"update","index":1,"notes":"Discovered fey gatehouse beneath warehouse. Gatekeeper accepted offering and opened crossing."}
+  description = original briefing (do not overwrite). notes = ongoing progress and discoveries (update freely).
   Check off objectives using their [#N] number:
   {"tool":"quest","action":"update","index":1,"objectives_update":[{"objective_index":1,"completed":true},{"objective_index":2,"completed":true}]}
 
@@ -158,11 +164,14 @@ Item types:
 Do NOT set type for mundane/generic items. A cloak, ring, boots, or potion is type "none".
 
 add: add a new item to inventory:
-  Normal item: {"tool":"inventory","action":"add","name":"Healing Potion","quantity":2,"rarity":"uncommon","location":"stored"}
+  Normal item: {"tool":"inventory","action":"add","name":"Potion of Greater Healing","quantity":2,"rarity":"uncommon","location":"stored"}
+  Spell scroll: {"tool":"inventory","action":"add","name":"Scroll of Lesser Restoration","quantity":1,"rarity":"uncommon","location":"stored"}
+  Magic item: {"tool":"inventory","action":"add","name":"Cold Iron Bell","rarity":"uncommon","magic":true,"magic_notes":"Repels fey within 30ft for 1hr when rung 3 times"}
   Equipment: {"tool":"inventory","action":"add","name":"Chain Mail","type":"armor","location":"equipped"}
   Magic weapon: {"tool":"inventory","action":"add","name":"Staff of Fire","type":"weapon","magic":true,"charges":10,"magic_notes":"Fireball (3ch), Wall of Fire (4ch)","location":"equipped"}
   Required: name
   Optional: quantity (default 1), rarity (common/uncommon/rare/very_rare/legendary/artifact), location (equipped/stored), type, magic, magic_notes, charges
+  Naming: use canonical D&D names when possible (e.g. "Potion of Healing" not "Healing Potion", "Scroll of [Spell]" not "[Spell] Scroll")
 
 update: modify fields on existing item:
   {"tool":"inventory","action":"update","index":1,"quantity":3}
@@ -180,6 +189,7 @@ charges: modify charges on a magic item:
 == RULES ==${msNote}
 - Only output game_actions when state actually changed. Omit entirely if nothing changed.
 - Do NOT mention game_actions in prose. It is invisible metadata.
+- Quest description is the original briefing. Never overwrite it on update. Put evolving progress in notes instead.
 - Equipment type auto-resolves stats from D&D database. Only 1 armor + 1 shield can be equipped.
 - No gold/currency in inventory. Track items only.
 - magic_notes: describe attached spells/abilities. charges: track uses remaining.

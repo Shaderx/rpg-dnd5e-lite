@@ -77,6 +77,13 @@ export function renderQuestDetail(idx) {
         </div>`);
     }
 
+    if (quest.notes?.trim()) {
+        sections.push(`<div class="dnd-v2-quest-det-section">
+            <div class="dnd-v2-quest-det-label">Notes</div>
+            <div class="dnd-v2-quest-det-text">${escapeHtml(quest.notes)}</div>
+        </div>`);
+    }
+
     const objectives = quest.objectives || [];
     if (objectives.length > 0) {
         const done = objectives.filter(o => o.completed).length;
@@ -240,6 +247,7 @@ export function openQuestEditModal(idx) {
     document.getElementById('dnd-v2-quest-edit-id').value = quest.id;
     document.getElementById('dnd-v2-quest-title').value = quest.title;
     document.getElementById('dnd-v2-quest-description').value = quest.description;
+    document.getElementById('dnd-v2-quest-notes').value = quest.notes || '';
     document.getElementById('dnd-v2-quest-status').value = quest.status;
     document.getElementById('dnd-v2-quest-priority').value = quest.priority;
     document.getElementById('dnd-v2-quest-giver').value = quest.giver;
@@ -291,6 +299,7 @@ function bindEditModalEvents() {
             id: document.getElementById('dnd-v2-quest-edit-id').value || crypto.randomUUID(),
             title,
             description: document.getElementById('dnd-v2-quest-description').value.trim(),
+            notes: document.getElementById('dnd-v2-quest-notes').value.trim(),
             status: document.getElementById('dnd-v2-quest-status').value,
             priority: parseInt(document.getElementById('dnd-v2-quest-priority').value) || 1,
             giver: document.getElementById('dnd-v2-quest-giver').value.trim(),

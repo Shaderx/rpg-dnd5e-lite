@@ -2309,22 +2309,15 @@
 .dnd-inventory-type-btn.dnd-type-shield:hover { color: rgba(80,200,220,0.95); }
 .dnd-inventory-type-btn.dnd-type-weapon:hover { color: rgba(240,130,80,0.95); }
 
-/* Magic glow on equipment type icon */
+/* Magic glow on type icon (any item) */
 .dnd-inventory-type-btn.dnd-magic-glow {
     filter: drop-shadow(0 0 4px rgba(255,215,0,0.6));
+    color: rgba(255,215,0,0.8);
 }
 .dnd-inventory-type-btn.dnd-magic-glow.dnd-type-armor { color: rgba(130,200,255,0.95); }
 .dnd-inventory-type-btn.dnd-magic-glow.dnd-type-shield { color: rgba(120,230,240,0.95); }
 .dnd-inventory-type-btn.dnd-magic-glow.dnd-type-weapon { color: rgba(255,160,100,0.95); }
 
-/* Equipment text (non-editable, clickable) */
-.dnd-inventory-text-equip {
-    cursor: pointer;
-    border-bottom: 1px dashed rgba(255,255,255,0.15);
-}
-.dnd-inventory-text-equip:hover {
-    border-bottom-color: rgba(138,180,248,0.4);
-}
 
 /* Type emoji (default state) */
 .dnd-type-emoji { font-size: 0.85em; }
@@ -2466,17 +2459,6 @@
     color: rgba(255,255,255,0.9);
 }
 
-/* Magic fields in search modal */
-.dnd-equip-search-magic-fields {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4em;
-    margin-bottom: 0.5em;
-    padding: 0.5em;
-    border-radius: 0.3em;
-    background: rgba(255,215,0,0.03);
-    border: 1px solid rgba(255,215,0,0.1);
-}
 .dnd-equip-search-charges-row {
     display: flex;
     align-items: center;
@@ -2511,6 +2493,88 @@
     font-size: 0.65em;
     color: rgba(255,215,0,0.7);
     padding: 0 0.2em;
+    flex-shrink: 0;
+    cursor: default;
+}
+
+/* Magic tooltip on item hover */
+.dnd-inventory-item { position: relative; }
+.dnd-magic-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 1.5em;
+    right: 1em;
+    background: rgba(20,18,35,0.95);
+    border: 1px solid rgba(255,215,0,0.2);
+    border-radius: 0.3em;
+    padding: 0.3em 0.5em;
+    font-size: 0.7em;
+    color: rgba(255,255,255,0.8);
+    z-index: 50;
+    pointer-events: none;
+    white-space: pre-wrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+/* Item Info Modal */
+.dnd-item-info-tabs { display: flex; gap: 0.2em; margin-bottom: 0.5em; }
+.dnd-item-info-tab {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 0.25em;
+    color: rgba(255,255,255,0.5);
+    padding: 0.3em 0.4em;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.dnd-item-info-tab:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+.dnd-item-info-tab.active { background: rgba(138,180,248,0.12); border-color: rgba(138,180,248,0.3); color: #8ab4f8; }
+.dnd-item-info-panel { display: flex; flex-direction: column; gap: 0.4em; margin-bottom: 0.5em; min-height: 6em; }
+.dnd-item-info-type-row { display: flex; align-items: center; gap: 0.4em; }
+.dnd-item-info-type-row > label { font-size: 0.8em; color: rgba(255,255,255,0.6); }
+.dnd-item-info-type-btns { display: flex; gap: 0.2em; flex-wrap: wrap; }
+.dnd-item-type-opt {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 0.25em;
+    color: rgba(255,255,255,0.55);
+    padding: 0.2em 0.5em;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.dnd-item-type-opt:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); }
+.dnd-item-type-opt.active { background: rgba(138,180,248,0.15); border-color: rgba(138,180,248,0.4); color: #8ab4f8; }
+.dnd-item-info-search-section { margin-top: 0.3em; }
+.dnd-item-info-base-display {
+    display: flex; align-items: center; gap: 0.4em;
+    padding: 0.3em 0.5em; margin-top: 0.3em;
+    background: rgba(138,180,248,0.06); border: 1px solid rgba(138,180,248,0.15); border-radius: 0.25em;
+    font-size: 0.8em;
+}
+.dnd-item-info-base-label { color: rgba(255,255,255,0.5); }
+.dnd-item-info-base-name { color: #8ab4f8; font-weight: 500; }
+.dnd-item-info-base-clear { background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; font-size: 0.9em; padding: 0 0.2em; }
+.dnd-item-info-base-clear:hover { color: rgba(255,100,100,0.8); }
+.dnd-item-info-field-label { font-size: 0.8em; color: rgba(255,255,255,0.6); }
+.dnd-item-info-save { background: rgba(100,200,120,0.15) !important; border-color: rgba(100,200,120,0.3) !important; }
+.dnd-item-info-save:hover { background: rgba(100,200,120,0.25) !important; }
+
+/* Magic properties (in modal) */
+.dnd-magic-props-toggle { display: flex; align-items: center; gap: 0.5em; font-size: 0.9em; color: rgba(255,255,255,0.8); cursor: pointer; }
+.dnd-magic-props-toggle input { cursor: pointer; }
+.dnd-magic-props-fields { display: flex; flex-direction: column; gap: 0.4em; padding: 0.5em; border-radius: 0.3em; background: rgba(255,215,0,0.03); border: 1px solid rgba(255,215,0,0.1); }
+
+/* Base item tag prefix */
+.dnd-inventory-base-tag {
+    font-size: 0.7em;
+    color: rgba(138,180,248,0.7);
+    background: rgba(138,180,248,0.08);
+    border-radius: 0.2em;
+    padding: 0.05em 0.3em;
+    white-space: nowrap;
     flex-shrink: 0;
     cursor: default;
 }
@@ -2571,10 +2635,18 @@
     font-size: 0.7em;
     padding: 0 2px;
     color: rgba(255,255,255,0.2);
-    transition: color 0.15s;
+    transition: color 0.15s, filter 0.15s;
     flex-shrink: 0;
 }
 .dnd-inventory-move-btn:hover { color: #8ab4f8; }
+.dnd-inventory-move-btn.dnd-move-attuned {
+    color: rgba(180,160,255,0.85);
+    filter: drop-shadow(0 0 4px rgba(160,140,255,0.5));
+}
+.dnd-inventory-move-btn.dnd-move-attuned:hover {
+    color: rgba(200,180,255,1);
+    filter: drop-shadow(0 0 6px rgba(160,140,255,0.7));
+}
 
 /* Delete */
 .dnd-inventory-delete {
@@ -2639,6 +2711,23 @@
     color: rgba(255,255,255,0.25);
     white-space: nowrap;
 }
+
+/* Attuned section divider */
+.dnd-inventory-attuned-divider span {
+    color: rgba(180,160,255,0.5);
+}
+.dnd-inventory-attuned-divider::before,
+.dnd-inventory-attuned-divider::after {
+    background: rgba(160,140,255,0.15);
+}
+
+/* Attuned item rows — subtle purple tint */
+.dnd-inventory-attuned { background: rgba(160,140,255,0.04); }
+.dnd-inventory-attuned.dnd-rarity-1 { background: rgba(160,140,255,0.05); }
+.dnd-inventory-attuned.dnd-rarity-2 { background: rgba(140,140,255,0.06); }
+.dnd-inventory-attuned.dnd-rarity-3 { background: rgba(160,120,255,0.07); }
+.dnd-inventory-attuned.dnd-rarity-4 { background: rgba(180,140,255,0.08); }
+.dnd-inventory-attuned.dnd-rarity-5 { background: rgba(200,120,255,0.09); }
 
 /* Empty sub-section hint */
 .dnd-inventory-empty-sub {

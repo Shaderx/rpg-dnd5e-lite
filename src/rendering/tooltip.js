@@ -341,11 +341,15 @@ export function showSpellTooltip(anchorEl, spellName, extraText = '') {
     }, TOOLTIP_DELAY);
 }
 
-export function showEquipmentTooltip(anchorEl, itemName) {
+export function showEquipmentTooltip(anchorEl, itemName, extraText = '') {
     clearTimeout(tooltipTimer);
     tooltipTimer = setTimeout(() => {
         const item = lookupItemByName(itemName);
-        showTooltip(anchorEl, buildEquipmentTooltip(item));
+        let html = buildEquipmentTooltip(item);
+        if (extraText) {
+            html += `<div class="dnd-tt-divider"></div><div class="dnd-tt-field"><strong>✨ Magic:</strong> ${escHtml(extraText)}</div>`;
+        }
+        showTooltip(anchorEl, html);
     }, TOOLTIP_DELAY);
 }
 

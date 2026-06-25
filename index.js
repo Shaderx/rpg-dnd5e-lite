@@ -803,7 +803,7 @@ function renderWeaponsList() {
     $list.find('.dnd-sk-item-notes').on('change', function() {
         const idx = parseInt($(this).data('equip-idx'));
         if (idx >= 0 && idx < _skTempWeapons.length) {
-            _skTempWeapons[idx].customNotes = $(this).val().trim();
+            _skTempWeapons[idx].customNotes = /** @type {string} */ ($(this).val()).trim();
         }
     });
 }
@@ -895,7 +895,7 @@ function renderItemsList() {
     $list.find('.dnd-sk-item-notes').on('change', function() {
         const idx = parseInt($(this).data('item-idx'));
         if (idx >= 0 && idx < _skTempItems.length) {
-            _skTempItems[idx].customNotes = $(this).val().trim();
+            _skTempItems[idx].customNotes = /** @type {string} */ ($(this).val()).trim();
         }
     });
 }
@@ -1390,7 +1390,7 @@ function refreshSpellDropdown(isCantrip) {
     const dropId = isCantrip ? '#dnd-sk-cantrip-dropdown' : '#dnd-sk-spell-dropdown';
     const searchId = isCantrip ? '#dnd-sk-cantrip-search' : '#dnd-sk-spell-search';
     const $drop = $(dropId);
-    const query = ($(searchId).val() || '').toLowerCase().trim();
+    const query = (/** @type {string} */ ($(searchId).val()) || '').toLowerCase().trim();
 
     const subtype = /** @type {string} */ ($('#dnd-sk-subtype').val());
     const subInfo = SIDEKICK_TYPES.spellcaster.subtypes.find(s => s.key === subtype);
@@ -1531,7 +1531,7 @@ function saveSidekickFromModal() {
             data.selectedSkills = [];
             data.selectedTools = [];
             $stPicks.each(function () {
-                const val = $(this).val();
+                const val = /** @type {string} */ ($(this).val());
                 if (!val) return;
                 if (ALL_SKILLS.includes(val)) data.selectedSkills.push(val);
                 else data.selectedTools.push(val);
@@ -1561,10 +1561,10 @@ function saveSidekickFromModal() {
     const sharpMindSave = /** @type {string} */ ($('#dnd-sk-sharp-mind-select').val()) || null;
     const empoweredSchool = /** @type {string} */ ($('#dnd-sk-empowered-select').val()) || null;
 
-    const hireGoldPerDay = parseInt($('#dnd-sk-hire-gold').val()) || 0;
+    const hireGoldPerDay = parseInt(/** @type {string} */ ($('#dnd-sk-hire-gold').val())) || 0;
     const hirePayMode = /** @type {string} */ ($('#dnd-sk-hire-paymode').val()) || 'owed';
-    const hirePaidAmount = parseInt($('#dnd-sk-hire-paid').val()) || 0;
-    const hireQuestAmount = parseInt($('#dnd-sk-hire-quest-amount').val()) || 0;
+    const hirePaidAmount = parseInt(/** @type {string} */ ($('#dnd-sk-hire-paid').val())) || 0;
+    const hireQuestAmount = parseInt(/** @type {string} */ ($('#dnd-sk-hire-quest-amount').val())) || 0;
     const hireQuestPaid = !!$('#dnd-sk-hire-quest-paid').prop('checked');
     const hireDate = /** @type {string} */ ($('#dnd-sk-hire-date').val()).trim() || null;
 
@@ -1746,6 +1746,7 @@ function handleRefreshFromChat() {
     if (extensionSettings.v2Enabled) {
         renderV2Quests();
         renderV2Inventory();
+        renderV2CharacterPanel();
         renderCompanionCards();
     } else {
         renderQuests();
@@ -2010,7 +2011,7 @@ function openThresholdModal() {
 }
 
 function updateThresholdSummary() {
-    const minors = parseInt($('.dnd-event-tier-min[data-tier="minor"]').val()) || 71;
+    const minors = parseInt(/** @type {string} */ ($('.dnd-event-tier-min[data-tier="minor"]').val())) || 71;
     const noEventMax = minors - 1;
     $('#dnd-event-threshold-summary').text(`Rolls 1\u2013${noEventMax} = no event`);
 }
@@ -2018,8 +2019,8 @@ function updateThresholdSummary() {
 function saveThresholds() {
     const overrides = {};
     for (const tier of DEFAULT_SEVERITY_TIERS) {
-        const min = parseInt($(`.dnd-event-tier-min[data-tier="${tier.id}"]`).val());
-        const max = parseInt($(`.dnd-event-tier-max[data-tier="${tier.id}"]`).val());
+        const min = parseInt(/** @type {string} */ ($(`.dnd-event-tier-min[data-tier="${tier.id}"]`).val()));
+        const max = parseInt(/** @type {string} */ ($(`.dnd-event-tier-max[data-tier="${tier.id}"]`).val()));
         if (!isNaN(min) && !isNaN(max)) {
             overrides[tier.id] = { min, max };
         }
@@ -2149,10 +2150,12 @@ function showSpeciesListView() {
         </div>
     `).join('');
 
-    list.querySelectorAll('.v1-species-edit').forEach(btn => {
+    list.querySelectorAll('.v1-species-edit').forEach(b => {
+        const btn = /** @type {HTMLElement} */ (b);
         btn.onclick = () => openSpeciesForm(btn.dataset.id);
     });
-    list.querySelectorAll('.v1-species-delete').forEach(btn => {
+    list.querySelectorAll('.v1-species-delete').forEach(b => {
+        const btn = /** @type {HTMLElement} */ (b);
         btn.onclick = () => {
             if (confirm('Delete this custom species?')) {
                 deleteCustomSpecies(btn.dataset.id);
@@ -2169,15 +2172,15 @@ function openSpeciesForm(editId) {
     document.getElementById('dnd-v1-species-form-back').style.display = '';
 
     const data = editId ? (listCustomSpecies().find(s => s.id === editId) || blankCustomSpecies()) : blankCustomSpecies();
-    document.getElementById('dnd-v1-species-form-id').value = editId || '';
+    /** @type {HTMLInputElement} */ (document.getElementById('dnd-v1-species-form-id')).value = editId || '';
 
-    document.getElementById('dnd-v1-cs-name').value = data.name || '';
-    document.getElementById('dnd-v1-cs-size').value = data.size || 'Medium';
-    document.getElementById('dnd-v1-cs-speed').value = data.speed ?? 30;
-    document.getElementById('dnd-v1-cs-darkvision').value = data.darkvision ?? 0;
-    document.getElementById('dnd-v1-cs-resistances').value = (data.resistances || []).join(', ');
-    document.getElementById('dnd-v1-cs-languages').value = (data.languages || []).join(', ');
-    document.getElementById('dnd-v1-cs-lang-choices').value = data.languageChoiceCount ?? 0;
+    /** @type {HTMLInputElement} */ (document.getElementById('dnd-v1-cs-name')).value = data.name || '';
+    /** @type {HTMLInputElement} */ (document.getElementById('dnd-v1-cs-size')).value = data.size || 'Medium';
+    /** @type {HTMLInputElement} */ (document.getElementById('dnd-v1-cs-speed')).value = data.speed ?? 30;
+    /** @type {HTMLInputElement} */ (document.getElementById('dnd-v1-cs-darkvision')).value = data.darkvision ?? 0;
+    /** @type {HTMLInputElement} */ (document.getElementById('dnd-v1-cs-resistances')).value = (data.resistances || []).join(', ');
+    /** @type {HTMLInputElement} */ (document.getElementById('dnd-v1-cs-languages')).value = (data.languages || []).join(', ');
+    /** @type {HTMLInputElement} */ (document.getElementById('dnd-v1-cs-lang-choices')).value = data.languageChoiceCount ?? 0;
 
     // Creature type dropdown
     const typeSelect = document.getElementById('dnd-v1-cs-creature-type');
@@ -2217,30 +2220,31 @@ function addSpeciesTraitRow(name = '', description = '') {
         <input type="text" class="v1-trait-name" placeholder="Trait name" value="${escHtml(name)}" />
         <textarea class="v1-trait-desc" placeholder="Mechanical description">${escHtml(description)}</textarea>
     `;
-    div.querySelector('.trait-remove').onclick = () => div.remove();
+    /** @type {HTMLElement} */ (div.querySelector('.trait-remove')).onclick = () => div.remove();
     list.appendChild(div);
 }
 
 function saveSpeciesForm() {
-    const id = document.getElementById('dnd-v1-species-form-id')?.value || '';
-    const name = document.getElementById('dnd-v1-cs-name')?.value?.trim() || '';
+    const id = /** @type {HTMLInputElement | null} */ (document.getElementById('dnd-v1-species-form-id'))?.value || '';
+    const name = /** @type {HTMLInputElement | null} */ (document.getElementById('dnd-v1-cs-name'))?.value?.trim() || '';
     if (!name) { toastr.warning('Species name is required'); return; }
 
     const data = {
         name,
-        size: document.getElementById('dnd-v1-cs-size')?.value || 'Medium',
-        speed: parseInt(document.getElementById('dnd-v1-cs-speed')?.value) || 30,
-        darkvision: parseInt(document.getElementById('dnd-v1-cs-darkvision')?.value) || 0,
-        resistances: (document.getElementById('dnd-v1-cs-resistances')?.value || '').split(',').map(s => s.trim()).filter(Boolean),
-        languages: (document.getElementById('dnd-v1-cs-languages')?.value || '').split(',').map(s => s.trim()).filter(Boolean),
-        languageChoiceCount: parseInt(document.getElementById('dnd-v1-cs-lang-choices')?.value) || 0,
-        creatureType: document.getElementById('dnd-v1-cs-creature-type')?.value || 'Humanoid',
+        size: /** @type {HTMLInputElement | null} */ (document.getElementById('dnd-v1-cs-size'))?.value || 'Medium',
+        speed: parseInt(/** @type {HTMLInputElement | null} */ (document.getElementById('dnd-v1-cs-speed'))?.value) || 30,
+        darkvision: parseInt(/** @type {HTMLInputElement | null} */ (document.getElementById('dnd-v1-cs-darkvision'))?.value) || 0,
+        resistances: (/** @type {HTMLInputElement | null} */ (document.getElementById('dnd-v1-cs-resistances'))?.value || '').split(',').map(s => s.trim()).filter(Boolean),
+        languages: (/** @type {HTMLInputElement | null} */ (document.getElementById('dnd-v1-cs-languages'))?.value || '').split(',').map(s => s.trim()).filter(Boolean),
+        languageChoiceCount: parseInt(/** @type {HTMLInputElement | null} */ (document.getElementById('dnd-v1-cs-lang-choices'))?.value) || 0,
+        creatureType: /** @type {HTMLInputElement | null} */ (document.getElementById('dnd-v1-cs-creature-type'))?.value || 'Humanoid',
     };
 
     // Ability boosts
     const boosts = {};
     let hasBoosts = false;
-    document.querySelectorAll('.v1-cs-boost').forEach(inp => {
+    document.querySelectorAll('.v1-cs-boost').forEach(el => {
+        const inp = /** @type {HTMLInputElement} */ (el);
         const val = parseInt(inp.value) || 0;
         if (val > 0) {
             boosts[inp.dataset.ability] = val;
@@ -2252,8 +2256,8 @@ function saveSpeciesForm() {
     // Traits
     const traits = [];
     document.querySelectorAll('.dnd-v1-trait-item').forEach(div => {
-        const tName = div.querySelector('.v1-trait-name')?.value?.trim() || '';
-        const tDesc = div.querySelector('.v1-trait-desc')?.value?.trim() || '';
+        const tName = /** @type {HTMLInputElement | null} */ (div.querySelector('.v1-trait-name'))?.value?.trim() || '';
+        const tDesc = /** @type {HTMLTextAreaElement | null} */ (div.querySelector('.v1-trait-desc'))?.value?.trim() || '';
         if (tName) traits.push({ name: tName, description: tDesc });
     });
     data.traits = traits;
@@ -3349,7 +3353,7 @@ jQuery(async () => {
     // Mode selector handler (replaces V1/V2 toggle checkboxes)
     $(`input[name="dnd-mode"][value="${extensionSettings.mode}"]`).prop('checked', true);
     $('input[name="dnd-mode"]').on('change', function () {
-        const newMode = $(this).val();
+        const newMode = /** @type {string} */ ($(this).val());
         extensionSettings.mode = newMode;
         extensionSettings.v1Enabled = newMode === 'v1';
         extensionSettings.v2Enabled = newMode === 'v2';

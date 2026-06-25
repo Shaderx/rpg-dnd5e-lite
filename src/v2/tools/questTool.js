@@ -37,6 +37,7 @@ function handleAdd(args) {
     const quest = createDefaultQuest({
         title,
         description: args.description?.trim() || '',
+        notes: args.notes?.trim() || '',
         priority: normalizePriority(args.priority),
         status: args.status || 'not_started',
         giver: args.giver?.trim() || '',
@@ -68,6 +69,7 @@ function handleUpdate(args) {
 
     if (args.title !== undefined) quest.title = args.title.trim();
     if (args.description !== undefined) quest.description = args.description.trim();
+    if (args.notes !== undefined) quest.notes = args.notes.trim();
     if (args.priority !== undefined) quest.priority = normalizePriority(args.priority);
     if (args.status !== undefined) quest.status = args.status;
     if (args.giver !== undefined) quest.giver = args.giver.trim();
