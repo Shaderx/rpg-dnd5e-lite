@@ -11,7 +11,7 @@ import { refreshHeaderFromChat } from '../features/headerParser.js';
 import { refreshSpellLog } from '../features/spellTracker.js';
 import { rollRandomEvent, getLastEventRoll } from '../features/randomEvents.js';
 import { buildCharacterSection } from '../v1/generation/promptBuilder.js';
-import { buildV2QuestSection, buildV2InventorySection, buildToolInstructionsSection } from '../v2/generation/promptBuilder.js';
+import { buildV2QuestSection, buildV2InventorySection, buildToolInstructionsSection, buildCompanionSection } from '../v2/generation/promptBuilder.js';
 import { buildV2CharacterSection } from '../v2/generation/characterPrompt.js';
 
 const LEGACY_KEYS = [
@@ -54,6 +54,12 @@ function buildConsolidatedPrompt(options) {
     // 2. Sidekicks
     const sidekickSection = buildSidekickSection();
     if (sidekickSection) sections.push(sidekickSection);
+
+    // 2b. V2 Companions (active companion)
+    if (extensionSettings.v2Enabled) {
+        const companionSection = buildCompanionSection();
+        if (companionSection) sections.push(companionSection);
+    }
 
     // 3. Inventory (V2 or legacy)
     if (extensionSettings.v2Enabled) {

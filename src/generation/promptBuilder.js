@@ -138,7 +138,7 @@ export function buildSpellLogSection() {
     const userName = getContext().name1 || 'User';
     const lines = [
         '<spell_log>',
-        '[Chronological — does not include current message]',
+        '[Chronological, does not include current message]',
     ];
 
     for (const entry of prior) {
@@ -183,7 +183,7 @@ export function buildCombatDiceSection() {
 
     const userName = getContext().name1 || 'User';
     const includeAttrs = sendAttributesOnRoll;
-    const lines = ['<dice>', '[Combat — use these pre-rolled values]'];
+    const lines = ['<dice>', '[Combat: use these pre-rolled values]'];
 
     if (includeAttrs) {
         lines.push(`Attributes: ${buildAttributesString()}`);
@@ -253,7 +253,7 @@ export function buildNonCombatDiceSection() {
 
     const lines = [
         '<dice>',
-        '[Non-combat — skill checks, ability checks, saving throws only. Use for non-trivial checks vs DC.]',
+        '[Non-combat: skill checks, ability checks, saving throws only. Use for non-trivial checks vs DC.]',
         'Pick one d20 per check: use higher if advantage, lower if disadvantage, either if straight roll.',
         `${userName}: user_d20_1=${user.roll1}, user_d20_2=${user.roll2}`,
         `NPC: npc_d20_1=${npc.roll1}, npc_d20_2=${npc.roll2}`,
@@ -317,8 +317,8 @@ export function buildActiveSpellsSection() {
     if (matched.length === 0) return '';
 
     const lines = [
-        '<active_spells>',
-        '[Precalculated values — do not recalculate]',
+        '<spell_reference>',
+        '[Precalculated values, do not recalculate]',
     ];
 
     for (const { spell, cast } of matched) {
@@ -349,7 +349,7 @@ export function buildActiveSpellsSection() {
         }
     }
 
-    lines.push('</active_spells>');
+    lines.push('</spell_reference>');
     return lines.join('\n');
 }
 
@@ -458,7 +458,7 @@ export function buildSidekickSection() {
         const creatureStr = sk.creatureName || '';
         const armorNote = sk.equippedArmor ? ` (${sk.equippedArmor.name}${sk.hasShield ? '+Shield' : ''})` : (sk.hasShield ? ' (Shield)' : '');
 
-        lines.push(`\n[Hireling — ${sk.name} (${raceStr}${creatureStr}, ${typeLabel}${subLabel}) Lv ${level}]`);
+        lines.push(`\n[Hireling: ${sk.name} (${raceStr}${creatureStr}, ${typeLabel}${subLabel}) Lv ${level}]`);
         lines.push(`HP ${stats.hp} | AC ${stats.ac}${armorNote} | SPD ${sk.speedFull || sk.baseSpeed + 'ft'} | Prof +${stats.proficiency}`);
 
         const abilLine = ['str','dex','con','int','wis','cha']
@@ -618,7 +618,7 @@ export function buildSidekickSection() {
         if (sk.hireGoldPerDay > 0 || sk.hireDate || sk.hirePayMode === 'free' || sk.hirePayMode === 'quest') {
             const parts = [];
             if (sk.hirePayMode === 'free') {
-                parts.push('Oathbound/volunteer — serves without pay');
+                parts.push('Oathbound/volunteer, serves without pay');
             } else if (sk.hirePayMode === 'quest') {
                 const amt = sk.hireQuestAmount > 0 ? `${sk.hireQuestAmount}gp` : 'agreed sum';
                 parts.push(`One-time quest payment: ${amt}`);
@@ -656,7 +656,7 @@ export function buildSidekickSection() {
  */
 export function buildRandomEventSection(eventResult) {
     if (!eventResult) {
-        return '<random_event>\n[No Roll]\nRandom events are active but no roll was produced this turn.\n</random_event>';
+        return '<random_world_event>\n[No Roll]\nRandom world events are active but no roll was produced this turn.\n</random_world_event>';
     }
 
     const { roll, severity, category, categoryMeta, examples, cooldownActive, cooldownRemaining } = eventResult;
@@ -665,11 +665,11 @@ export function buildRandomEventSection(eventResult) {
         const cdNote = cooldownActive
             ? ` (Cooldown: ${cooldownRemaining} turn${cooldownRemaining !== 1 ? 's' : ''} remaining)`
             : '';
-        return `<random_event>\n[d100: ${roll} | No Event${cdNote}]\nNo random event this turn. Continue the narrative based on the player's actions and current situation.\n</random_event>`;
+        return `<random_world_event>\n[d100: ${roll} | No Event${cdNote}]\nNo random world event this turn. Continue the narrative based on the player's actions and current situation.\n</random_world_event>`;
     }
 
     const lines = [];
-    lines.push('<random_event>');
+    lines.push('<random_world_event>');
     lines.push(`[d100: ${roll} | ${severity.label} | ${categoryMeta.label}]`);
     lines.push(categoryMeta.directive);
 
@@ -682,8 +682,8 @@ export function buildRandomEventSection(eventResult) {
     }
 
     lines.push('');
-    lines.push('Weave naturally into narrative. Party reacts. No meta-game references.');
-    lines.push('</random_event>');
+    lines.push('Weave world event naturally into narrative. Party reacts. No meta-game references.');
+    lines.push('</random_world_event>');
 
     return lines.join('\n');
 }
@@ -697,13 +697,13 @@ function findSpellInCache(name) {
 }
 
 function fmtTime(timeArr) {
-    if (!Array.isArray(timeArr) || !timeArr.length) return '—';
+    if (!Array.isArray(timeArr) || !timeArr.length) return '-';
     const t = timeArr[0];
     return typeof t === 'string' ? t : `${t.number} ${t.unit}`;
 }
 
 function fmtRange(range) {
-    if (!range) return '—';
+    if (!range) return '-';
     if (range.type === 'point') {
         const d = range.distance;
         if (!d || d.type === 'self') return 'Self';
@@ -711,11 +711,11 @@ function fmtRange(range) {
         return `${d.amount} ${d.type}`;
     }
     if (range.type === 'special') return 'Special';
-    return '—';
+    return '-';
 }
 
 function fmtDuration(durArr) {
-    if (!Array.isArray(durArr) || !durArr.length) return '—';
+    if (!Array.isArray(durArr) || !durArr.length) return '-';
     const d = durArr[0];
     if (d.type === 'instant') return 'Instantaneous';
     if (d.type === 'permanent') return 'Until dispelled';
@@ -723,7 +723,7 @@ function fmtDuration(durArr) {
         const conc = d.concentration ? 'Concentration, up to ' : '';
         return `${conc}${d.duration.amount} ${d.duration.type}${d.duration.amount > 1 ? 's' : ''}`;
     }
-    return '—';
+    return '-';
 }
 
 function stripTags(str) {

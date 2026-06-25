@@ -34,6 +34,7 @@ import { renderV1DetailModal } from './src/v1/rendering/detail.js';
 import { openV1ConfigModal } from './src/v1/rendering/configModal.js';
 import { renderV1Spellbook, initV1Spellbook } from './src/v1/rendering/spellbook.js';
 import { preloadSpellData as preloadV1SpellData } from './src/v1/features/spells.js';
+import { preloadSpellData as preloadV2SpellData } from './src/v2/features/spells.js';
 import { fetchClassFile } from './src/v1/data/sources.js';
 import { renderV1CompanionPanel, initCompanionPanel } from './src/v1/rendering/companion.js';
 import { listCustomSpecies, createCustomSpecies, updateCustomSpecies, deleteCustomSpecies, blankCustomSpecies } from './src/v1/features/customSpecies.js';
@@ -41,7 +42,7 @@ import { CREATURE_TYPES as V1_CREATURE_TYPES, DAMAGE_TYPES, ABILITY_KEYS as V1_A
 
 // V2 Inline Game Actions
 import { v2Quests, v2Inventory } from './src/v2/core/state.js';
-import { loadV2Quests, loadV2Inventory, saveV2Quests, saveV2Inventory, getChatDataVersion } from './src/v2/core/persistence.js';
+import { loadV2Quests, loadV2Inventory, saveV2Quests, saveV2Inventory, getChatDataVersion, loadV2Companions } from './src/v2/core/persistence.js';
 import { hasV1DataToMigrate, isChatV2, executeV2Migration } from './src/v2/core/migration.js';
 import { parseAndApplyGameActions, hasGameActionBackup, revertGameActions } from './src/v2/tools/inlineParser.js';
 import { renderV2Quests, addV2QuestFromInput } from './src/v2/rendering/quests.js';
@@ -53,7 +54,8 @@ import { renderV2CharacterPanel } from './src/v2/rendering/character.js';
 import { renderV2DetailModal } from './src/v2/rendering/detail.js';
 import { openV2ConfigModal } from './src/v2/rendering/configModal.js';
 import { renderV2Spellbook, initV2Spellbook } from './src/v2/rendering/spellbook.js';
-import { renderV2CompanionPanel, initV2CompanionPanel } from './src/v2/rendering/companion.js';
+import { renderCompanionCards, renderCompanionDetail, openCompanionEditModal, saveCompanionFromEditModal, openCompanionWizard } from './src/v2/rendering/companionCards.js';
+import { toggleCompanionEnabled, deleteCompanion } from './src/v2/features/companion.js';
 
 // ─── Power toggle ───────────────────────────────────────────
 
@@ -103,8 +105,10 @@ function togglePower() {
             loadCharacterV2();
             loadV2Quests();
             loadV2Inventory();
+            loadV2Companions();
             renderV2Quests();
             renderV2Inventory();
+            renderCompanionCards();
         }
 
         loadSidekicks();
@@ -1730,6 +1734,7 @@ function handleRefreshFromChat() {
     if (extensionSettings.v2Enabled) {
         loadV2Quests();
         loadV2Inventory();
+        loadV2Companions();
     } else {
         loadQuests();
         loadInventory();
@@ -1741,6 +1746,7 @@ function handleRefreshFromChat() {
     if (extensionSettings.v2Enabled) {
         renderV2Quests();
         renderV2Inventory();
+        renderCompanionCards();
     } else {
         renderQuests();
         renderInventory();
@@ -1868,6 +1874,7 @@ function onChatChanged() {
     if (extensionSettings.v2Enabled) {
         loadCharacterV2();
         renderV2CharacterPanel();
+        preloadV2Assets();
     }
 
     loadSidekicks();
@@ -1900,6 +1907,7 @@ function preloadV1Assets() {
 function preloadV2Assets() {
     const tasks = [
         preloadSpellData(),
+        preloadV2SpellData(),
         fetchFeats(),
         fetchEquipmentItems().then(() => fetchMagicItems()),
     ];
@@ -2303,19 +2311,23 @@ function updatePanelTitle() {
 
 function applyV2Mode() {
     const v2 = extensionSettings.v2Enabled;
+    const $compContainer = $('#dnd-v2-companion-container');
     if (v2) {
         loadV2Quests();
         loadV2Inventory();
+        loadV2Companions();
         renderV2Quests();
         renderV2Inventory();
+        renderCompanionCards();
+        $compContainer.show();
+        $('#dnd-v1-companion-container').hide();
         loadCharacterV2();
         renderV2CharacterPanel();
         initV2Spellbook();
         renderV2Spellbook();
-        initV2CompanionPanel();
-        renderV2CompanionPanel();
         preloadV2Assets();
     } else {
+        $compContainer.hide();
         renderQuests();
         renderInventory();
     }
@@ -2347,7 +2359,9 @@ function handleV2ChatChanged() {
     loadCharacterV2();
     renderV2CharacterPanel();
     renderV2Spellbook();
-    renderV2CompanionPanel();
+    loadV2Companions();
+    renderCompanionCards();
+    $('#dnd-v1-companion-container').hide();
 }
 
 function checkCrossVersionWarning() {
@@ -2505,14 +2519,16 @@ async function initUI() {
     if (extensionSettings.v2Enabled) {
         loadV2Quests();
         loadV2Inventory();
+        loadV2Companions();
         renderV2Quests();
         renderV2Inventory();
+        renderCompanionCards();
+        $('#dnd-v2-companion-container').show();
+        $('#dnd-v1-companion-container').hide();
         loadCharacterV2();
         renderV2CharacterPanel();
         initV2Spellbook();
         renderV2Spellbook();
-        initV2CompanionPanel();
-        renderV2CompanionPanel();
         preloadV2Assets();
     }
 
@@ -2540,6 +2556,52 @@ async function initUI() {
             toastr.success('Reverted quests & inventory to pre-parse state.', 'D&D 5e Lite');
         }
     });
+
+    // V2 Companion cards — click for details, shift+click to toggle
+    $(document).on('click', '.dnd-comp-card', function (e) {
+        const id = $(this).data('comp-id');
+        if (!id) return;
+        if (e.shiftKey) {
+            toggleCompanionEnabled(id);
+            renderCompanionCards();
+        } else {
+            renderCompanionDetail(id);
+            $('#dnd-v2-comp-detail-popup').css('display', 'flex');
+        }
+    });
+
+    // V2 Companion add button
+    $('#dnd-v2-companion-add').on('click', (e) => {
+        e.stopPropagation();
+        openCompanionWizard();
+    });
+
+    // V2 Companion detail modal
+    $('#dnd-v2-comp-detail-close').on('click', () => { hideTooltip(); $('#dnd-v2-comp-detail-popup').hide(); });
+    $('#dnd-v2-comp-detail-edit').on('click', () => {
+        const id = $('#dnd-v2-comp-detail-body').data('companionId') || $('#dnd-v2-comp-detail-body').attr('data-companion-id');
+        if (id) {
+            $('#dnd-v2-comp-detail-popup').hide();
+            openCompanionEditModal(id);
+        }
+    });
+    $('#dnd-v2-comp-detail-delete').on('click', () => {
+        const id = $('#dnd-v2-comp-detail-body').data('companionId') || $('#dnd-v2-comp-detail-body').attr('data-companion-id');
+        if (id) {
+            deleteCompanion(id);
+            renderCompanionCards();
+            $('#dnd-v2-comp-detail-popup').hide();
+        }
+    });
+
+    // V2 Companion edit modal
+    $('#dnd-v2-comp-edit-close, #dnd-v2-comp-edit-cancel').on('click', () => { $('#dnd-v2-comp-edit-popup').hide(); });
+    $('#dnd-v2-comp-edit-save').on('click', () => {
+        saveCompanionFromEditModal();
+    });
+
+    // V2 Companion wizard modal
+    $('#dnd-v2-comp-wizard-close').on('click', () => { $('#dnd-v2-comp-wizard-popup').hide(); });
 
     // Dice — expanded panel roll button
     $('#dnd-roll-btn').on('click', () => {

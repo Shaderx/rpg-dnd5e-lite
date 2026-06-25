@@ -213,8 +213,8 @@ function renderSpellLevels(container, spellSlots, sorceryPoints, secondaryResour
             for (let i = 0; i < empty; i++) cubes += '<div class="dnd-spell-cube dnd-spell-empty"></div>';
             return `<div class="dnd-spell-level-row" data-spell-level="${s.level}">
                 <span class="dnd-spell-level-label">${label}</span>
-                <div class="dnd-spell-level-cubes">${cubes}</div>
                 <span class="dnd-spell-level-count">${s.current}/${s.max}</span>
+                <div class="dnd-spell-level-cubes">${cubes}</div>
             </div>`;
         }).join('');
     }
@@ -228,8 +228,8 @@ function renderSpellLevels(container, spellSlots, sorceryPoints, secondaryResour
         const wideClass = sp.max > 8 ? ' dnd-spell-row-wide' : '';
         html += `<div class="dnd-spell-level-row dnd-spell-sorcery-row${wideClass}" data-spell-level="sp">
             <span class="dnd-spell-level-label">⚡</span>
-            <div class="dnd-spell-level-cubes">${circles}</div>
             <span class="dnd-spell-level-count">${sp.current}/${sp.max}</span>
+            <div class="dnd-spell-level-cubes">${circles}</div>
         </div>`;
     }
     if (secondaryResource) {
@@ -242,8 +242,8 @@ function renderSpellLevels(container, spellSlots, sorceryPoints, secondaryResour
         const wideClass = sr.max > 8 ? ' dnd-spell-row-wide' : '';
         html += `<div class="dnd-spell-level-row dnd-spell-secondary-row${wideClass}" data-spell-level="sr">
             <span class="dnd-spell-level-label">🔥</span>
-            <div class="dnd-spell-level-cubes">${circles}</div>
             <span class="dnd-spell-level-count">${sr.current}/${sr.max}</span>
+            <div class="dnd-spell-level-cubes">${circles}</div>
         </div>`;
     }
 

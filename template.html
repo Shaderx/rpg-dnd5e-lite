@@ -338,6 +338,23 @@
                 </div>
             </div>
 
+            <!-- V2 Companions (collapsible, card grid) -->
+            <div id="dnd-v2-companion-container" class="dnd-collapsible dnd-collapsed" style="display:none;">
+                <div class="dnd-collapsible-header" data-section="companions" title="Click to toggle, Shift+click card to activate">
+                    <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
+                    <i class="fa-solid fa-paw"></i>
+                    <span>Companions</span>
+                    <button id="dnd-v2-companion-add" class="dnd-section-action-btn" title="Add companion">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+                <div class="dnd-collapsible-body">
+                    <div id="dnd-v2-companion-cards" class="dnd-comp-card-grid">
+                        <div class="dnd-empty-state">No companions</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Spellbook (collapsible, Shift+click header to import) -->
             <div id="dnd-spellbook-container" class="dnd-collapsible dnd-collapsed">
                 <div class="dnd-collapsible-header" data-section="spellbook" title="Click to toggle, Shift+click to import">
@@ -1261,6 +1278,69 @@
             <button id="dnd-v2-quest-edit-delete" class="dnd-btn dnd-btn-danger"><i class="fa-solid fa-trash-can"></i> Delete</button>
             <button id="dnd-v2-quest-edit-cancel" class="dnd-btn">Cancel</button>
         </div>
+    </div>
+</div>
+
+<!-- V2 Companion Detail Modal -->
+<div id="dnd-v2-comp-detail-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-comp-detail">
+        <div class="dnd-modal-header">
+            <span id="dnd-v2-comp-detail-title">Companion Details</span>
+            <button class="dnd-modal-close" id="dnd-v2-comp-detail-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body" id="dnd-v2-comp-detail-body"></div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-v2-comp-detail-edit" class="dnd-btn dnd-btn-primary"><i class="fa-solid fa-pen"></i> Edit</button>
+            <button id="dnd-v2-comp-detail-delete" class="dnd-btn dnd-btn-danger"><i class="fa-solid fa-trash-can"></i> Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- V2 Companion Edit Modal -->
+<div id="dnd-v2-comp-edit-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-comp-edit">
+        <div class="dnd-modal-header">
+            <span id="dnd-v2-comp-edit-title">Edit Companion</span>
+            <button class="dnd-modal-close" id="dnd-v2-comp-edit-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body">
+            <input type="hidden" id="dnd-v2-comp-edit-id" value="" />
+            <div class="dnd-setting-row">
+                <span>Name:</span>
+                <input type="text" id="dnd-v2-comp-edit-name" placeholder="Companion name" />
+            </div>
+            <div class="dnd-setting-row" id="dnd-v2-comp-edit-ctype-row" style="display:none;">
+                <span>Creature Type:</span>
+                <select id="dnd-v2-comp-edit-ctype">
+                    <option value="celestial">Celestial</option>
+                    <option value="fey">Fey</option>
+                    <option value="fiend">Fiend</option>
+                </select>
+            </div>
+            <div class="dnd-setting-row" id="dnd-v2-comp-edit-level-row" style="display:none;">
+                <span id="dnd-v2-comp-edit-level-label">Level:</span>
+                <input type="number" id="dnd-v2-comp-edit-level" min="1" max="20" />
+            </div>
+            <div class="dnd-setting-row">
+                <span>Notes:</span>
+                <textarea id="dnd-v2-comp-edit-desc" rows="3" placeholder="Custom notes..."></textarea>
+            </div>
+        </div>
+        <div class="dnd-modal-footer">
+            <button id="dnd-v2-comp-edit-save" class="dnd-btn dnd-btn-primary">Save</button>
+            <button id="dnd-v2-comp-edit-cancel" class="dnd-btn">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- V2 Companion Creation Wizard Modal -->
+<div id="dnd-v2-comp-wizard-popup" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-modal dnd-modal-comp-wizard">
+        <div class="dnd-modal-header">
+            <span id="dnd-v2-comp-wizard-title">Add Companion</span>
+            <button class="dnd-modal-close" id="dnd-v2-comp-wizard-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dnd-modal-body" id="dnd-v2-comp-wizard-body"></div>
     </div>
 </div>
 

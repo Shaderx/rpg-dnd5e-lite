@@ -81,9 +81,11 @@ function handleUpdate(args) {
     }
 
     // Update individual objective completion by index
+    // Prompt uses 1-based [#N] numbering; gracefully accept 0-based too
     if (Array.isArray(args.objectives_update)) {
         for (const update of args.objectives_update) {
-            const objIdx = (update.objective_index || 0) - 1;
+            const raw = typeof update.objective_index === 'number' ? update.objective_index : -1;
+            const objIdx = raw >= 1 ? raw - 1 : raw;
             if (objIdx >= 0 && objIdx < quest.objectives.length) {
                 quest.objectives[objIdx].completed = !!update.completed;
             }

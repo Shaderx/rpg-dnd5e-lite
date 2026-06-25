@@ -22,7 +22,7 @@ export function buildCharacterSection() {
     lines.push('<character>');
 
     const subLabel = stats.subclassName ? ` (${stats.subclassName})` : '';
-    lines.push(`[Player Character — ${stats.name || 'Unnamed'} (Lv ${stats.level})]`);
+    lines.push(`[Player Character: ${stats.name || 'Unnamed'} (Lv ${stats.level})]`);
     lines.push(`Species: ${stats.speciesName || 'Unknown'} | Background: ${stats.backgroundName || 'Unknown'} | Class: ${stats.className}${subLabel}`);
 
     lines.push(`HP: ${stats.hp} | AC: ${stats.ac} | Speed: ${stats.speed}ft | Prof: +${stats.proficiency}`);
@@ -98,7 +98,7 @@ export function buildCharacterSection() {
                 const truncated = desc.length > 150
                     ? desc.substring(0, 147) + '...'
                     : desc;
-                lines.push(`  Lv${feat.level}: ${prefix}${feat.name}${truncated ? ` — ${truncated}` : ''}`);
+                lines.push(`  Lv${feat.level}: ${prefix}${feat.name}${truncated ? `: ${truncated}` : ''}`);
             }
         }
     }
@@ -177,7 +177,7 @@ export function buildCharacterSection() {
     if (stats.levelChoiceDetails) {
         const lcd = stats.levelChoiceDetails;
         if (lcd.pactBoon) {
-            lines.push(`Pact Boon: ${lcd.pactBoon.label} — ${lcd.pactBoon.desc}`);
+            lines.push(`Pact Boon: ${lcd.pactBoon.label}: ${lcd.pactBoon.desc}`);
         }
         if (lcd.metamagic?.length > 0) {
             lines.push(`Metamagic: ${lcd.metamagic.map(o => `${o.label} (${o.desc})`).join('; ')}`);
@@ -201,7 +201,7 @@ export function buildCharacterSection() {
         const c = stats.companion;
         const displayName = c.customName || c.name;
         lines.push('');
-        lines.push(`[Companion — ${displayName} (${c.size} ${c.type})]`);
+        lines.push(`[Companion: ${displayName} (${c.size} ${c.type})]`);
         lines.push(`HP: ${c.hp} | AC: ${c.ac} | Speed: ${c.speed}`);
         const cAbil = ABILITY_KEYS.map(a => {
             const score = c[a];
@@ -225,7 +225,7 @@ export function buildCharacterSection() {
             ? f.creatureType.charAt(0).toUpperCase() + f.creatureType.slice(1)
             : f.type;
         lines.push('');
-        lines.push(`[Familiar — ${displayName} (${f.size} ${typeLabel})]`);
+        lines.push(`[Familiar: ${displayName} (${f.size} ${typeLabel})]`);
         lines.push(`HP: ${f.hp} | AC: ${f.ac} | Speed: ${f.speed}`);
         const fAbil = ABILITY_KEYS.map(a => {
             const score = f[a];

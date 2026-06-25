@@ -7,6 +7,8 @@
 import { characterV2 } from '../core/characterState.js';
 import { computeV2CharacterStats } from '../features/character.js';
 import { ABILITY_KEYS, ABILITY_LABELS } from '../core/constants.js';
+import { v2Companions } from '../core/state.js';
+import { extensionSettings } from '../../core/state.js';
 
 /**
  * Build the V2 <character> section for the consolidated game state injection.
@@ -24,7 +26,7 @@ export function buildV2CharacterSection() {
     lines.push('<character>');
 
     const subLabel = stats.subclassName ? ` (${stats.subclassName})` : '';
-    lines.push(`${stats.name || 'Unnamed'} — Lv${stats.level} ${stats.speciesName || ''} ${stats.className}${subLabel}`.trim());
+    lines.push(`[${stats.name || 'Unnamed'}, Lv${stats.level} ${stats.speciesName || ''} ${stats.className}${subLabel}]`.trim());
     if (stats.backgroundName) lines.push(`Background: ${stats.backgroundName}`);
 
     lines.push(`HP: ${stats.hp} | AC: ${stats.ac} | Speed: ${stats.speed}ft | Prof: +${stats.proficiency}`);
@@ -86,7 +88,7 @@ export function buildV2CharacterSection() {
                 const truncated = desc.length > 150
                     ? desc.substring(0, 147) + '...'
                     : desc;
-                lines.push(`  Lv${feat.level}: ${prefix}${feat.name}${truncated ? ` — ${truncated}` : ''}`);
+                lines.push(`  Lv${feat.level}: ${prefix}${feat.name}${truncated ? `: ${truncated}` : ''}`);
             }
         }
     }
@@ -165,7 +167,7 @@ export function buildV2CharacterSection() {
     if (stats.levelChoiceDetails) {
         const lcd = stats.levelChoiceDetails;
         if (lcd.pactBoon) {
-            lines.push(`Pact Boon: ${lcd.pactBoon.label} — ${lcd.pactBoon.desc}`);
+            lines.push(`Pact Boon: ${lcd.pactBoon.label}: ${lcd.pactBoon.desc}`);
         }
         if (lcd.metamagic?.length > 0) {
             lines.push(`Metamagic: ${lcd.metamagic.map(o => `${o.label} (${o.desc})`).join('; ')}`);
@@ -184,53 +186,56 @@ export function buildV2CharacterSection() {
         }
     }
 
-    // Companion / Familiar
-    if (stats.companion) {
-        const c = stats.companion;
-        const displayName = c.customName || c.name;
-        lines.push('');
-        lines.push(`[Companion — ${displayName} (${c.size} ${c.type})]`);
-        lines.push(`HP: ${c.hp} | AC: ${c.ac} | Speed: ${c.speed}`);
-        const cAbil = ABILITY_KEYS.map(a => {
-            const score = c[a];
-            if (score == null) return null;
-            const mod = Math.floor((score - 10) / 2);
-            return `${a.toUpperCase()} ${score}(${mod >= 0 ? '+' : ''}${mod})`;
-        }).filter(Boolean).join(' ');
-        if (cAbil) lines.push(cAbil);
-        if (c.traits?.length > 0) {
-            lines.push('Traits:');
-            for (const t of c.traits) lines.push(`  ${t.name}: ${t.desc}`);
-        }
-        if (c.actions?.length > 0) {
-            lines.push('Actions:');
-            for (const a of c.actions) lines.push(`  ${a.name}: ${a.desc}`);
-        }
-    } else if (stats.familiarStats) {
-        const f = stats.familiarStats;
-        const displayName = f.customName || f.label;
-        const typeLabel = f.creatureType
-            ? f.creatureType.charAt(0).toUpperCase() + f.creatureType.slice(1)
-            : f.type;
-        lines.push('');
-        lines.push(`[Familiar — ${displayName} (${f.size} ${typeLabel})]`);
-        lines.push(`HP: ${f.hp} | AC: ${f.ac} | Speed: ${f.speed}`);
-        const fAbil = ABILITY_KEYS.map(a => {
-            const score = f[a];
-            if (score == null) return null;
-            const mod = Math.floor((score - 10) / 2);
-            return `${a.toUpperCase()} ${score}(${mod >= 0 ? '+' : ''}${mod})`;
-        }).filter(Boolean).join(' ');
-        if (fAbil) lines.push(fAbil);
-        if (f.senses) lines.push(`Senses: ${f.senses}`);
-        if (f.skills) lines.push(`Skills: ${f.skills}`);
-        if (f.traits?.length > 0) {
-            lines.push('Traits:');
-            for (const t of f.traits) lines.push(`  ${t.name}: ${t.desc}`);
-        }
-        if (f.actions?.length > 0) {
-            lines.push('Actions:');
-            for (const a of f.actions) lines.push(`  ${a.name}: ${a.desc}`);
+    // Companion / Familiar — skip if V2 companion module is active (injected via <companion> tag)
+    const hasV2Companion = extensionSettings.v2Enabled && v2Companions?.some(c => c.enabled);
+    if (!hasV2Companion) {
+        if (stats.companion) {
+            const c = stats.companion;
+            const displayName = c.customName || c.name;
+            lines.push('');
+            lines.push(`[Companion: ${displayName} (${c.size} ${c.type})]`);
+            lines.push(`HP: ${c.hp} | AC: ${c.ac} | Speed: ${c.speed}`);
+            const cAbil = ABILITY_KEYS.map(a => {
+                const score = c[a];
+                if (score == null) return null;
+                const mod = Math.floor((score - 10) / 2);
+                return `${a.toUpperCase()} ${score}(${mod >= 0 ? '+' : ''}${mod})`;
+            }).filter(Boolean).join(' ');
+            if (cAbil) lines.push(cAbil);
+            if (c.traits?.length > 0) {
+                lines.push('Traits:');
+                for (const t of c.traits) lines.push(`  ${t.name}: ${t.desc}`);
+            }
+            if (c.actions?.length > 0) {
+                lines.push('Actions:');
+                for (const a of c.actions) lines.push(`  ${a.name}: ${a.desc}`);
+            }
+        } else if (stats.familiarStats) {
+            const f = stats.familiarStats;
+            const displayName = f.customName || f.label;
+            const typeLabel = f.creatureType
+                ? f.creatureType.charAt(0).toUpperCase() + f.creatureType.slice(1)
+                : f.type;
+            lines.push('');
+            lines.push(`[Familiar: ${displayName} (${f.size} ${typeLabel})]`);
+            lines.push(`HP: ${f.hp} | AC: ${f.ac} | Speed: ${f.speed}`);
+            const fAbil = ABILITY_KEYS.map(a => {
+                const score = f[a];
+                if (score == null) return null;
+                const mod = Math.floor((score - 10) / 2);
+                return `${a.toUpperCase()} ${score}(${mod >= 0 ? '+' : ''}${mod})`;
+            }).filter(Boolean).join(' ');
+            if (fAbil) lines.push(fAbil);
+            if (f.senses) lines.push(`Senses: ${f.senses}`);
+            if (f.skills) lines.push(`Skills: ${f.skills}`);
+            if (f.traits?.length > 0) {
+                lines.push('Traits:');
+                for (const t of f.traits) lines.push(`  ${t.name}: ${t.desc}`);
+            }
+            if (f.actions?.length > 0) {
+                lines.push('Actions:');
+                for (const a of f.actions) lines.push(`  ${a.name}: ${a.desc}`);
+            }
         }
     }
 

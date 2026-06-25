@@ -5,9 +5,10 @@
  * Inventory items include type tags (armor/shield/weapon) for equipment tracking.
  */
 
-import { v2Quests, v2Inventory } from '../core/state.js';
+import { v2Quests, v2Inventory, v2Companions } from '../core/state.js';
 import { extensionSettings } from '../../core/state.js';
 import { RARITY_LABELS, normalizeRarity } from '../../features/inventoryRarity.js';
+import { getComputedStats, CATEGORY_META } from '../features/companion.js';
 
 const PRIORITY_LABELS = { 1: 'Reminder', 2: 'Side Quest', 3: 'Main Quest' };
 
@@ -40,7 +41,7 @@ export function buildV2QuestSection() {
             if (q.objectives?.length > 0) {
                 for (let oi = 0; oi < q.objectives.length; oi++) {
                     const obj = q.objectives[oi];
-                    lines.push(`  [${obj.completed ? 'x' : ' '}] ${obj.text}`);
+                    lines.push(`  [#${oi + 1}] [${obj.completed ? 'x' : ' '}] ${obj.text}`);
                 }
             }
 
@@ -77,7 +78,7 @@ function formatItemLine(item, globalIdx) {
     if (item.magic) typeTags.push('magic');
     if (item.charges !== null && item.charges !== undefined) typeTags.push(`charges:${item.charges}`);
     const typeStr = typeTags.length > 0 ? ` {${typeTags.join(', ')}}` : '';
-    const notes = item.magicNotes ? ` — ${item.magicNotes}` : '';
+    const notes = item.magicNotes ? ` (${item.magicNotes})` : '';
     return `  [#${globalIdx}] ${item.name} ${qty}${rTag}${typeStr}${notes}`;
 }
 
@@ -134,35 +135,36 @@ Each object needs "tool" + "action". [#N] from lists above = "index" for existin
 == QUEST (tool:"quest") ==
 Priority levels: 1=Reminder, 2=Side Quest, 3=Main Quest
 
-add — create a new quest:
+add: create a new quest:
   {"tool":"quest","action":"add","title":"Slay the Manticore","priority":3,"giver":"Liora","location":"Northern Wastes","description":"Hunt the beast","objectives":[{"text":"Travel north"},{"text":"Find lair"}],${rewardsEx}}
   Required: title
   Optional: priority (default 1), giver, location, description, objectives[{text,completed}], ${ms ? 'rewards{gold,items}' : 'rewards{xp,gold,items}'}
 
-update — modify fields on an existing quest:
+update: modify fields on an existing quest:
   {"tool":"quest","action":"update","index":1,"description":"New info","giver":"Different NPC"}
-  Objective progress: {"tool":"quest","action":"update","index":1,"objectives_update":[{"objective_index":1,"completed":true}]}
+  Check off objectives using their [#N] number:
+  {"tool":"quest","action":"update","index":1,"objectives_update":[{"objective_index":1,"completed":true},{"objective_index":2,"completed":true}]}
 
-complete — mark quest done: {"tool":"quest","action":"complete","index":2}
-fail — mark quest failed: {"tool":"quest","action":"fail","index":3}
-remove — delete quest: {"tool":"quest","action":"remove","index":4}
+complete: mark quest done: {"tool":"quest","action":"complete","index":2}
+fail: mark quest failed: {"tool":"quest","action":"fail","index":3}
+remove: delete quest: {"tool":"quest","action":"remove","index":4}
 
 == INVENTORY (tool:"inventory") ==
 Item types:
-  "none" — DEFAULT. Normal items: potions, cloaks, rope, tools, scrolls, food, clothing, trinkets, gems, etc.
-  "armor" — ONLY actual D&D armor (Leather, Chain Mail, Plate, etc.) that provides a base AC calculation.
-  "shield" — ONLY a shield (+2 AC).
-  "weapon" — ONLY actual D&D weapons (Longsword, Shortbow, Dagger, etc.) with attack/damage stats.
+  "none" = DEFAULT. Normal items: potions, cloaks, rope, tools, scrolls, food, clothing, trinkets, gems, etc.
+  "armor" = ONLY actual D&D armor (Leather, Chain Mail, Plate, etc.) that provides a base AC calculation.
+  "shield" = ONLY a shield (+2 AC).
+  "weapon" = ONLY actual D&D weapons (Longsword, Shortbow, Dagger, etc.) with attack/damage stats.
 Do NOT set type for mundane/generic items. A cloak, ring, boots, or potion is type "none".
 
-add — add a new item to inventory:
+add: add a new item to inventory:
   Normal item: {"tool":"inventory","action":"add","name":"Healing Potion","quantity":2,"rarity":"uncommon","location":"stored"}
   Equipment: {"tool":"inventory","action":"add","name":"Chain Mail","type":"armor","location":"equipped"}
   Magic weapon: {"tool":"inventory","action":"add","name":"Staff of Fire","type":"weapon","magic":true,"charges":10,"magic_notes":"Fireball (3ch), Wall of Fire (4ch)","location":"equipped"}
   Required: name
   Optional: quantity (default 1), rarity (common/uncommon/rare/very_rare/legendary/artifact), location (equipped/stored), type, magic, magic_notes, charges
 
-update — modify fields on existing item:
+update: modify fields on existing item:
   {"tool":"inventory","action":"update","index":1,"quantity":3}
   {"tool":"inventory","action":"update","index":2,"magic_notes":"Used 1 charge of Fireball"}
   quantity_change: use +/- for relative changes (e.g. -1 to consume one)
@@ -171,7 +173,7 @@ equip: {"tool":"inventory","action":"equip","index":1}
 unequip: {"tool":"inventory","action":"unequip","index":1}
 remove: {"tool":"inventory","action":"remove","index":2}
 
-charges — modify charges on a magic item:
+charges: modify charges on a magic item:
   {"tool":"inventory","action":"charges","index":1,"op":"reduce","value":3}
   ops: set (absolute), reduce (subtract), increase (add), reset (restore to value)
 
@@ -179,7 +181,57 @@ charges — modify charges on a magic item:
 - Only output game_actions when state actually changed. Omit entirely if nothing changed.
 - Do NOT mention game_actions in prose. It is invisible metadata.
 - Equipment type auto-resolves stats from D&D database. Only 1 armor + 1 shield can be equipped.
-- No gold/currency in inventory — track items only.
+- No gold/currency in inventory. Track items only.
 - magic_notes: describe attached spells/abilities. charges: track uses remaining.
 </game_state_actions>`;
+}
+
+/**
+ * Build the <companion> section for the active companion.
+ * Only included if a companion is enabled.
+ */
+export function buildCompanionSection() {
+    if (!v2Companions || v2Companions.length === 0) return '';
+    const active = v2Companions.find(c => c.enabled);
+    if (!active) return '';
+
+    const meta = CATEGORY_META[active.category] || CATEGORY_META.familiar;
+    const computed = getComputedStats(active);
+    const ctypeLabel = active.creatureType
+        ? active.creatureType.charAt(0).toUpperCase() + active.creatureType.slice(1)
+        : '';
+
+    const lines = [];
+    lines.push(`[${active.name || 'Unnamed'} (${active.creatureName}), ${ctypeLabel} ${meta.label}]`);
+
+    const speedStr = computed.speed || active.speed || '';
+    lines.push(`HP: ${computed.hp} | AC: ${computed.ac} | Speed: ${speedStr} | Size: ${active.size || 'M'}`);
+
+    const ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+    const abilLine = ABILITY_KEYS.map(a => {
+        const score = active[a] ?? 10;
+        const mod = Math.floor((score - 10) / 2);
+        const modS = mod >= 0 ? `+${mod}` : `${mod}`;
+        return `${a.toUpperCase()} ${score}(${modS})`;
+    }).join(' ');
+    lines.push(abilLine);
+
+    if (active.senses) lines.push(`Senses: ${active.senses}`);
+    if (active.skills) lines.push(`Skills: ${active.skills}`);
+
+    const traits = computed.traits || active.traits || [];
+    if (traits.length > 0) {
+        lines.push('Traits:');
+        for (const t of traits) lines.push(`  ${t.name}: ${t.desc}`);
+    }
+
+    const actions = computed.actions || active.actions || [];
+    if (actions.length > 0) {
+        lines.push('Actions:');
+        for (const a of actions) lines.push(`  ${a.name}: ${a.desc}`);
+    }
+
+    if (active.description) lines.push(`Notes: ${active.description}`);
+
+    return `<companion>\n${lines.join('\n')}\n</companion>`;
 }

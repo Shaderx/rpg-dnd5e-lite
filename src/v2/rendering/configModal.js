@@ -22,7 +22,7 @@ import {
 import { getLevelFeatures, getMultiSelectCount, filterByPrereqs, computeCompanionStats, collectLevelChoiceEffects } from '../features/levelFeatures.js';
 import { getSubclassSpells } from '../features/subclassSpells.js';
 import { renderV2Spellbook } from './spellbook.js';
-import { renderV2CompanionPanel } from './companion.js';
+import { renderCompanionCards } from './companionCards.js';
 import { bindTooltipEvents } from '../../rendering/tooltip.js';
 
 const STEPS = ['identity', 'species', 'background', 'class', 'abilities', 'asi', 'proficiencies', 'spells'];
@@ -2614,7 +2614,7 @@ function saveFromWizard() {
     saveCharacterV2(char);
     // TODO: renderV2CharacterPanel()
     renderV2Spellbook();
-    renderV2CompanionPanel();
+    renderCompanionCards();
     closeV2ConfigModal();
 }
 

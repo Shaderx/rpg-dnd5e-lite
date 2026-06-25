@@ -4,7 +4,7 @@
  */
 
 import { chat_metadata, saveChatDebounced } from '../../../../../../../script.js';
-import { setV2Quests, setV2Inventory } from './state.js';
+import { setV2Quests, setV2Inventory, setV2Companions } from './state.js';
 import { normalizeRarity } from '../../features/inventoryRarity.js';
 
 /**
@@ -82,6 +82,40 @@ export function loadV2Inventory() {
         setV2Inventory(stored);
     } else {
         setV2Inventory([]);
+    }
+}
+
+/**
+ * Save V2 companion data to chat metadata.
+ * @param {Array} companionList
+ */
+export function saveV2Companions(companionList) {
+    if (!chat_metadata) return;
+    chat_metadata.dnd5e_v2_companions = companionList;
+    chat_metadata.dnd5e_dataVersion = 2;
+    saveChatDebounced();
+}
+
+/**
+ * Load V2 companion data from chat metadata into runtime state.
+ */
+const VALID_CATEGORIES = new Set(['familiar', 'primal', 'steed']);
+
+export function loadV2Companions() {
+    const stored = chat_metadata?.dnd5e_v2_companions;
+    if (Array.isArray(stored)) {
+        for (const c of stored) {
+            if (!c.id) c.id = crypto.randomUUID();
+            if (!VALID_CATEGORIES.has(c.category)) c.category = 'familiar';
+            if (!c.name) c.name = '';
+            if (!c.creatureName) c.creatureName = '';
+            if (c.enabled === undefined) c.enabled = false;
+            if (!Array.isArray(c.actions)) c.actions = [];
+            if (!Array.isArray(c.traits)) c.traits = [];
+        }
+        setV2Companions(stored);
+    } else {
+        setV2Companions([]);
     }
 }
 

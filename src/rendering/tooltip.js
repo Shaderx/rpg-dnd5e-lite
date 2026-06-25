@@ -5,6 +5,7 @@
 
 import { lookupCreatureByName, lookupSpellByName, lookupItemByName, lookupFeatByName, parseFeatAbility } from '../features/sidekick.js';
 import { lookupSpellSync } from '../v1/features/spells.js';
+import { lookupSpellSync as lookupSpellSyncV2 } from '../v2/features/spells.js';
 
 let activeTooltip = null;
 let tooltipTimer = null;
@@ -331,7 +332,7 @@ export function showCreatureTooltip(anchorEl, creatureName) {
 export function showSpellTooltip(anchorEl, spellName, extraText = '') {
     clearTimeout(tooltipTimer);
     tooltipTimer = setTimeout(() => {
-        const spell = lookupSpellByName(spellName) || lookupSpellSync(spellName);
+        const spell = lookupSpellByName(spellName) || lookupSpellSync(spellName) || lookupSpellSyncV2(spellName);
         let html = buildSpellTooltip(spell);
         if (extraText) {
             html += `<div class="dnd-tt-divider"></div><div class="dnd-tt-field"><strong>${escHtml(extraText)}</strong></div>`;
