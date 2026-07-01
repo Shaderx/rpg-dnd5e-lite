@@ -426,9 +426,12 @@ function openItemInfoModal(idx) {
 
         // Apply base item from search
         if (pendingMatch && selectedType !== 'none') {
+            const oldBase = item.equipmentData?.name || '';
             applyEquipmentMatch(item, selectedType, pendingMatch);
-            item.name = pendingMatch.name;
             invalidateTooltipCache(item.name);
+            if (!item.name || item.name === oldBase) {
+                item.name = pendingMatch.name;
+            }
         } else if (pendingMatch && selectedType === 'none') {
             // Base item for non-equipment (scroll, potion, wondrous)
             const rawType = (pendingMatch.type || '').split('|')[0];
@@ -757,6 +760,10 @@ function bindV2InventoryEvents(container) {
 function refreshEquipmentData(idx) {
     const item = v2Inventory[idx];
     if (!item || item.type === 'none') return;
+
+    // If item already has a base item linked and the custom name differs,
+    // preserve the existing equipmentData (custom name is just a display override)
+    if (item.equipmentData && item.name !== item.equipmentData.name) return;
 
     const matches = searchEquipment(item.name, item.type, item.magic);
     if (matches.length > 0 && matches[0].name.toLowerCase() === item.name.toLowerCase()) {
