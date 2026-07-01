@@ -320,11 +320,14 @@ function resolveBestiaryCopies(sourceKey) {
     const monsters = bestiaryCache.get(sourceKey);
     if (!monsters) return;
 
+    let resolvedCount = 0;
+    let failedCount = 0;
+
     const resolved = monsters.map(m => {
         if (!m._copy) return m;
 
         const base = findBaseCreature(m._copy.name, m._copy.source);
-        if (!base) return m;
+        if (!base) { failedCount++; return m; }
 
         let merged = JSON.parse(JSON.stringify(base));
 
@@ -340,9 +343,16 @@ function resolveBestiaryCopies(sourceKey) {
         }
 
         if (Array.isArray(m._copy._templates)) {
+            if (!_templateData) {
+                console.warn(`[D&D 5e Lite] Template data not loaded — racial traits for "${m.name}" will be missing`);
+            }
             for (const tRef of m._copy._templates) {
                 const tmpl = findTemplate(tRef.name, tRef.source);
-                if (tmpl) applyTemplate(merged, tmpl);
+                if (tmpl) {
+                    applyTemplate(merged, tmpl);
+                } else {
+                    console.warn(`[D&D 5e Lite] Template "${tRef.name}" (${tRef.source}) not found for "${m.name}"`);
+                }
             }
         }
 
@@ -353,9 +363,15 @@ function resolveBestiaryCopies(sourceKey) {
 
         delete merged._copy;
         merged._resolved = true;
+        resolvedCount++;
         return merged;
     });
 
+    if (resolvedCount > 0 || failedCount > 0) {
+        console.log(`[D&D 5e Lite] ${sourceKey}: resolved ${resolvedCount} _copy creatures` +
+            (failedCount > 0 ? `, ${failedCount} failed (base not cached)` : '') +
+            (!_templateData ? ' [WARNING: templates not loaded]' : ''));
+    }
     bestiaryCache.set(sourceKey, resolved);
 }
 
