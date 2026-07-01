@@ -256,7 +256,14 @@ function parseWeapon(item) {
  * @returns {number}
  */
 export function computeAC(armor, shieldAc, dexMod, overrides = {}) {
-    const { unarmoredFormula, defenseBonus = 0, wondrousAcBonus = 0, mediumArmorMaster = false } = overrides;
+    const {
+        unarmoredFormula,
+        defenseBonus = 0,
+        wondrousAcBonus = 0,
+        spellAcBonus = 0,
+        acFloor = null,
+        mediumArmorMaster = false,
+    } = overrides;
 
     let ac;
     if (!armor) {
@@ -276,7 +283,9 @@ export function computeAC(armor, shieldAc, dexMod, overrides = {}) {
 
     ac += defenseBonus;
     ac += wondrousAcBonus;
+    ac += spellAcBonus;
     if (shieldAc) ac += shieldAc;
+    if (acFloor != null) ac = Math.max(ac, acFloor);
     return ac;
 }
 

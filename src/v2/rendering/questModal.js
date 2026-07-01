@@ -7,6 +7,8 @@ import { v2Quests, createDefaultQuest } from '../core/state.js';
 import { extensionSettings } from '../../core/state.js';
 import { saveV2Quests } from '../core/persistence.js';
 import { renderV2Quests } from './quests.js';
+import { parseHeader } from '../../features/headerParser.js';
+import { getContext } from '../../../../../../extensions.js';
 
 const QUEST_TYPES = { 1: 'Reminder', 2: 'Side Quest', 3: 'Main Quest' };
 const QUEST_EMOJIS = { 1: '📌', 2: '🛡️', 3: '👑' };
@@ -66,6 +68,8 @@ export function renderQuestDetail(idx) {
     const meta = [];
     if (quest.giver) meta.push(`<span><strong>Giver:</strong> ${escapeHtml(quest.giver)}</span>`);
     if (quest.location) meta.push(`<span><strong>Location:</strong> ${escapeHtml(quest.location)}</span>`);
+    if (quest.dateCreated) meta.push(`<span><strong>Date:</strong> ${escapeHtml(quest.dateCreated)}</span>`);
+    if (quest.duration) meta.push(`<span><strong>Duration:</strong> ${escapeHtml(quest.duration)}</span>`);
     if (meta.length > 0) {
         sections.push(`<div class="dnd-v2-quest-det-meta">${meta.join(' &middot; ')}</div>`);
     }
@@ -252,6 +256,8 @@ export function openQuestEditModal(idx) {
     document.getElementById('dnd-v2-quest-priority').value = quest.priority;
     document.getElementById('dnd-v2-quest-giver').value = quest.giver;
     document.getElementById('dnd-v2-quest-location').value = quest.location;
+    document.getElementById('dnd-v2-quest-date').value = quest.dateCreated || '';
+    document.getElementById('dnd-v2-quest-duration').value = quest.duration || '';
     const xpHidden = extensionSettings.milestoneXP;
     const xpLabel = document.getElementById('dnd-v2-reward-xp-label');
     const xpInput = document.getElementById('dnd-v2-quest-reward-xp');
@@ -278,6 +284,7 @@ function bindEditModalEvents() {
     const cancelBtn = document.getElementById('dnd-v2-quest-edit-cancel');
     const closeBtn = document.getElementById('dnd-v2-quest-edit-close');
     const addObjBtn = document.getElementById('dnd-v2-quest-add-objective');
+    const dateAutoBtn = document.getElementById('dnd-v2-quest-date-auto');
 
     function cleanup() {
         overlay.style.display = 'none';
@@ -286,6 +293,7 @@ function bindEditModalEvents() {
         cancelBtn?.removeEventListener('click', handleCancel);
         closeBtn?.removeEventListener('click', handleCancel);
         addObjBtn?.removeEventListener('click', handleAddObjective);
+        dateAutoBtn?.removeEventListener('click', handleDateAuto);
     }
 
     function handleSave() {
@@ -304,6 +312,8 @@ function bindEditModalEvents() {
             priority: parseInt(document.getElementById('dnd-v2-quest-priority').value) || 1,
             giver: document.getElementById('dnd-v2-quest-giver').value.trim(),
             location: document.getElementById('dnd-v2-quest-location').value.trim(),
+            dateCreated: document.getElementById('dnd-v2-quest-date').value.trim(),
+            duration: document.getElementById('dnd-v2-quest-duration').value.trim(),
             objectives: objectivesDraft.filter(o => o.text.trim()),
             rewards: {
                 xp: parseInt(document.getElementById('dnd-v2-quest-reward-xp').value) || 0,
@@ -339,9 +349,25 @@ function bindEditModalEvents() {
         renderObjectivesEditor();
     }
 
+    function handleDateAuto() {
+        const context = getContext();
+        const chat = context?.chat;
+        if (!chat) return;
+        for (let i = chat.length - 1; i >= 0; i--) {
+            if (chat[i].is_user) continue;
+            const header = parseHeader(chat[i].mes);
+            if (header?.date) {
+                const dateInput = document.getElementById('dnd-v2-quest-date');
+                if (dateInput) dateInput.value = header.date;
+                return;
+            }
+        }
+    }
+
     saveBtn?.addEventListener('click', handleSave);
     deleteBtn?.addEventListener('click', handleDelete);
     cancelBtn?.addEventListener('click', handleCancel);
     closeBtn?.addEventListener('click', handleCancel);
     addObjBtn?.addEventListener('click', handleAddObjective);
+    dateAutoBtn?.addEventListener('click', handleDateAuto);
 }

@@ -36,6 +36,11 @@ export function buildV2QuestSection() {
             const metaStr = meta.length > 0 ? ` (${meta.join(', ')})` : '';
             lines.push(`[#${globalIdx}] [${p}] ${q.title}${metaStr}`);
 
+            const dateParts = [];
+            if (q.dateCreated) dateParts.push(`Started: ${q.dateCreated}`);
+            if (q.duration) dateParts.push(`Duration: ${q.duration}`);
+            if (dateParts.length > 0) lines.push(`  ${dateParts.join(' | ')}`);
+
             if (q.description) lines.push(`  ${q.description}`);
             if (q.notes?.trim()) lines.push(`  Notes: ${q.notes.trim()}`);
 
@@ -61,7 +66,8 @@ export function buildV2QuestSection() {
         for (const q of done) {
             const p = PRIORITY_LABELS[q.priority] || 'Reminder';
             const tag = q.status === 'failed' ? 'FAILED' : 'done';
-            lines.push(`[#${globalIdx}] [${p}] ${q.title} (${tag})`);
+            const dateTag = q.dateCreated ? `, ${q.dateCreated}` : '';
+            lines.push(`[#${globalIdx}] [${p}] ${q.title} (${tag}${dateTag})`);
             globalIdx++;
         }
     }
@@ -140,9 +146,9 @@ Each object needs "tool" + "action". [#N] from lists above = "index" for existin
 Priority levels: 1=Reminder, 2=Side Quest, 3=Main Quest
 
 add: create a new quest:
-  {"tool":"quest","action":"add","title":"Slay the Manticore","priority":3,"giver":"Liora","location":"Northern Wastes","description":"Hunt the beast threatening the village","objectives":[{"text":"Travel north"},{"text":"Find lair"}],${rewardsEx}}
+  {"tool":"quest","action":"add","title":"Slay the Manticore","priority":3,"giver":"Liora","location":"Northern Wastes","date":"15 Mirtul","duration":"3 days","description":"Hunt the beast threatening the village","objectives":[{"text":"Travel north"},{"text":"Find lair"}],${rewardsEx}}
   Required: title
-  Optional: priority (default 1), giver, location, description, notes, objectives[{text,completed}], ${ms ? 'rewards{gold,items}' : 'rewards{xp,gold,items}'}
+  Optional: priority (default 1), giver, location, date (in-world date when quest was given), duration (e.g. "3 days", "1 month"), description, notes, objectives[{text,completed}], ${ms ? 'rewards{gold,items}' : 'rewards{xp,gold,items}'}
   description = original quest briefing (set once on add). notes = optional initial progress summary.
 
 update: modify fields on an existing quest:
@@ -193,8 +199,7 @@ charges: modify charges on a magic item:
 - Quest description is the original briefing. Never overwrite it on update. Put evolving progress in notes instead.
 - Equipment type auto-resolves stats from D&D database. Only 1 armor + 1 shield can be equipped.
 - No gold/currency in inventory. Track items only.
-- Item notes are permanent (add only, never update). Do not add narrative or usage history to items.
-- [attuned] items are already equipped. Do not re-equip them.
+- Do not add narrative plots or usage history to items.
 </game_state_actions>`;
 }
 

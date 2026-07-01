@@ -6,8 +6,10 @@
 
 import { spellLog, extensionSettings } from '../core/state.js';
 import { saveSpellLog } from '../core/persistence.js';
-import { addManualSpellCast, addManualRest, addManualShortRest, addManualDispel, hardRefreshSpellLog, actionLabels } from '../features/spellTracker.js';
+import { addManualSpellCast, addManualRest, addManualShortRest, addManualDispel, addManualDropConcentration, hardRefreshSpellLog, actionLabels } from '../features/spellTracker.js';
+import { getEffectStatusByLogIndex, formatEffectStatusTag } from '../v2/features/activeEffects.js';
 import { renderV2Spellbook } from '../v2/rendering/spellbook.js';
+import { renderV2CharacterPanel } from '../v2/rendering/character.js';
 
 let dragSrcIdx = null;
 
@@ -37,11 +39,15 @@ export function renderSpellLog() {
 
     if (spellLog.length === 0) {
         container.innerHTML = '<div class="dnd-spell-log-empty">No spells tracked</div>';
-        if (extensionSettings.v2Enabled) renderV2Spellbook();
+        if (extensionSettings.v2Enabled) {
+            renderV2Spellbook();
+            renderV2CharacterPanel();
+        }
         return;
     }
 
     let html = '';
+    const statusByIndex = getEffectStatusByLogIndex();
 
     // Display newest first; data-idx still maps to the original spellLog index
     for (let di = spellLog.length - 1; di >= 0; di--) {
@@ -50,9 +56,16 @@ export function renderSpellLog() {
         const isRest = entry.type === 'rest';
         const isShortRest = entry.type === 'short-rest';
         const isDispel = entry.type === 'dispel';
+        const isDropConc = entry.type === 'drop-concentration';
         const isAnyRest = isRest || isShortRest;
         let typeClass, icon, iconClass, label;
-        if (isDispel) {
+        if (isDropConc) {
+            typeClass = 'dnd-spell-log-dispel';
+            icon = 'fa-link-slash';
+            iconClass = 'dnd-spell-log-icon-dispel';
+            const target = entry.spell ? `concentration on ${escapeHtml(entry.spell)}` : 'all concentration';
+            label = `Ended ${target}`;
+        } else if (isDispel) {
             typeClass = 'dnd-spell-log-dispel';
             icon = 'fa-ban';
             iconClass = 'dnd-spell-log-icon-dispel';
@@ -73,8 +86,19 @@ export function renderSpellLog() {
             icon = action === 'cast' ? 'fa-wand-sparkles' : 'fa-bolt';
             iconClass = 'dnd-spell-log-icon-cast';
             const { present } = actionLabels(action);
+            const elementTag = entry.chosenElement ? ` <span class="dnd-spell-log-details">[${escapeHtml(entry.chosenElement)}]</span>` : '';
             const detailStr = entry.details ? ` <span class="dnd-spell-log-details">(${escapeHtml(entry.details)})</span>` : '';
-            label = `${present} <strong>${escapeHtml(entry.spell)}</strong>${detailStr}`;
+            const resolved = statusByIndex.get(i);
+            let statusBadge = '';
+            if (resolved && resolved.status !== 'instant') {
+                const tag = formatEffectStatusTag(resolved);
+                const badgeClass = resolved.status === 'active' || resolved.status === 'unknown'
+                    ? 'dnd-spell-log-status-active'
+                    : 'dnd-spell-log-status-expired';
+                const shortTag = tag.replace(/^\[|\]$/g, '');
+                statusBadge = ` <span class="dnd-spell-log-status ${badgeClass}">${escapeHtml(shortTag)}</span>`;
+            }
+            label = `${present} <strong>${escapeHtml(entry.spell)}</strong>${elementTag}${detailStr}${statusBadge}`;
         }
         const timestamp = formatTimestamp(entry);
         const manualTag = entry._manual ? '<span class="dnd-spell-log-manual-tag">manual</span>' : '';
@@ -94,7 +118,10 @@ export function renderSpellLog() {
 
     container.innerHTML = html;
     bindSpellLogEvents(container);
-    if (extensionSettings.v2Enabled) renderV2Spellbook();
+    if (extensionSettings.v2Enabled) {
+        renderV2Spellbook();
+        renderV2CharacterPanel();
+    }
 }
 
 function bindSpellLogEvents(container) {
@@ -211,6 +238,14 @@ export function addShortRestFromButton() {
  */
 export function addDispelFromButton() {
     addManualDispel();
+    renderSpellLog();
+}
+
+/**
+ * Drop concentration from the UI button.
+ */
+export function addDropConcFromButton() {
+    addManualDropConcentration();
     renderSpellLog();
 }
 

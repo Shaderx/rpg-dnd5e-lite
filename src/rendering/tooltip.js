@@ -347,7 +347,7 @@ export function showEquipmentTooltip(anchorEl, itemName, extraText = '') {
         const item = lookupItemByName(itemName);
         let html = buildEquipmentTooltip(item);
         if (extraText) {
-            html += `<div class="dnd-tt-divider"></div><div class="dnd-tt-field"><strong>✨ Magic:</strong> ${escHtml(extraText)}</div>`;
+            html += `<div class="dnd-tt-divider"></div><div class="dnd-tt-field">${escHtml(extraText)}</div>`;
         }
         showTooltip(anchorEl, html);
     }, TOOLTIP_DELAY);
@@ -417,17 +417,17 @@ function showFeatTooltip(anchorEl, featName) {
     }, TOOLTIP_DELAY);
 }
 
-function buildTraitTooltip(name, text) {
+function buildTraitTooltip(name, text, sub = 'Creature Trait') {
     return `<div class="dnd-tt-name">${escHtml(name)}</div>
-<div class="dnd-tt-sub">Creature Trait</div>
+<div class="dnd-tt-sub">${escHtml(sub)}</div>
 <div class="dnd-tt-divider"></div>
 <div class="dnd-tt-desc">${escHtml(text)}</div>`;
 }
 
-export function showTraitTooltip(anchorEl, name, text) {
+export function showTraitTooltip(anchorEl, name, text, sub) {
     clearTimeout(tooltipTimer);
     tooltipTimer = setTimeout(() => {
-        showTooltip(anchorEl, buildTraitTooltip(name, text));
+        showTooltip(anchorEl, buildTraitTooltip(name, text, sub));
     }, TOOLTIP_DELAY);
 }
 
@@ -485,7 +485,8 @@ export function bindTooltipEvents(container) {
         else if (type === 'feat') showFeatTooltip(this, name);
         else if (type === 'trait') {
             const text = $(this).data('tt-text') || '';
-            showTraitTooltip(this, name, text);
+            const sub = $(this).data('tt-sub') || 'Creature Trait';
+            showTraitTooltip(this, name, text, sub);
         }
     });
 

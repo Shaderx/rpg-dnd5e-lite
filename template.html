@@ -70,8 +70,8 @@
             <button class="dnd-strip-dice-clear" title="Clear roll" style="display:none;">
                 <i class="fa-solid fa-xmark"></i>
             </button>
-            <span class="dnd-strip-damage-sep" style="display:none;">·</span>
-            <span class="dnd-strip-damage-text" style="display:none;"></span>
+            <span class="dnd-strip-pool-dice-sep" style="display:none;">·</span>
+            <span class="dnd-strip-pool-dice-text" style="display:none;"></span>
         </div>
 
         <!-- Strip quest summary -->
@@ -215,19 +215,19 @@
             <div class="dnd-modifier-results" id="dnd-modifier-results" style="display:none;"></div>
             <div class="dnd-modifier-toggles" id="dnd-modifier-toggles"></div>
 
-            <!-- Damage dice — each click adds one die, supports mixed types -->
-            <div class="dnd-damage-section">
-                <div class="dnd-damage-controls">
-                    <span class="dnd-damage-label">DMG</span>
-                    <button class="dnd-damage-die-btn" data-sides="4" title="Roll d4">d4</button>
-                    <button class="dnd-damage-die-btn" data-sides="6" title="Roll d6">d6</button>
-                    <button class="dnd-damage-die-btn" data-sides="8" title="Roll d8">d8</button>
-                    <button class="dnd-damage-die-btn" data-sides="10" title="Roll d10">d10</button>
-                    <button class="dnd-damage-die-btn" data-sides="12" title="Roll d12">d12</button>
+            <!-- Pool dice — each click adds one die (damage, healing, etc.) -->
+            <div class="dnd-pool-dice-section">
+                <div class="dnd-pool-dice-controls">
+                    <span class="dnd-pool-dice-label">Dice</span>
+                    <button class="dnd-pool-dice-die-btn" data-sides="4" title="Add d4 (damage, healing, etc.)">d4</button>
+                    <button class="dnd-pool-dice-die-btn" data-sides="6" title="Add d6 (damage, healing, etc.)">d6</button>
+                    <button class="dnd-pool-dice-die-btn" data-sides="8" title="Add d8 (damage, healing, etc.)">d8</button>
+                    <button class="dnd-pool-dice-die-btn" data-sides="10" title="Add d10 (damage, healing, etc.)">d10</button>
+                    <button class="dnd-pool-dice-die-btn" data-sides="12" title="Add d12 (damage, healing, etc.)">d12</button>
                 </div>
-                <div class="dnd-damage-result" id="dnd-damage-result" style="display:none;">
-                    <span class="dnd-damage-dice" id="dnd-damage-dice"></span>
-                    <button class="dnd-damage-clear" id="dnd-damage-clear" title="Clear dice">
+                <div class="dnd-pool-dice-result" id="dnd-pool-dice-result" style="display:none;">
+                    <span class="dnd-pool-dice-chips" id="dnd-pool-dice-chips"></span>
+                    <button class="dnd-pool-dice-clear" id="dnd-pool-dice-clear" title="Clear dice">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
@@ -437,6 +437,9 @@
                         </button>
                         <button id="dnd-add-rest-btn" class="dnd-spell-log-action-btn dnd-spell-log-rest-btn" title="Add long rest">
                             <i class="fa-solid fa-bed"></i>
+                        </button>
+                        <button id="dnd-add-drop-conc-btn" class="dnd-spell-log-action-btn dnd-spell-log-drop-conc-btn" title="End concentration">
+                            <i class="fa-solid fa-link-slash"></i>
                         </button>
                         <button id="dnd-add-dispel-btn" class="dnd-spell-log-action-btn dnd-spell-log-dispel-btn" title="Clear/dispel all own effects">
                             <i class="fa-solid fa-ban"></i>
@@ -1252,6 +1255,17 @@
                 <div class="dnd-setting-row">
                     <span>Location:</span>
                     <input type="text" id="dnd-v2-quest-location" placeholder="Quest location" />
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Date:</span>
+                    <input type="text" id="dnd-v2-quest-date" placeholder="In-world date" />
+                    <button type="button" id="dnd-v2-quest-date-auto" class="dnd-btn dnd-btn-sm" title="Fill from current header date">
+                        <i class="fa-solid fa-calendar-day"></i>
+                    </button>
+                </div>
+                <div class="dnd-setting-row">
+                    <span>Duration:</span>
+                    <input type="text" id="dnd-v2-quest-duration" placeholder="e.g. 3 days, 1 month" />
                 </div>
             </div>
 

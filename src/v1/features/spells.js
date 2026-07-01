@@ -17,6 +17,7 @@ import {
     ordinal,
     collectSpellScalingText,
     isPlayerChosenDamageType,
+    hasPrimaryDamage,
 } from '../../features/spellScaling.js';
 
 const V1_SPELL_SOURCES = ['xphb', 'xge'];
@@ -148,7 +149,7 @@ export function getSpellDamageInfo(spellName, characterLevel, bonuses = {}) {
     const spell = lookupSpellSync(spellName);
     if (!spell) return null;
 
-    const { potentMod = 0, empoweredSchool, empoweredMod = 0, healingBonusFn, castLevel = null } = bonuses;
+    const { potentMod = 0, empoweredSchool, empoweredMod = 0, empoweredDamageType, empoweredDamageTypeMod = 0, healingBonusFn, castLevel = null, chosenElement = null } = bonuses;
 
     const dmgTypes = spell.damageInflict || [];
     const dmgType = dmgTypes[0] || '';
@@ -161,11 +162,15 @@ export function getSpellDamageInfo(spellName, characterLevel, bonuses = {}) {
     const conditionInflict = spell.conditionInflict || [];
 
     const entriesStr = collectSpellScalingText(spell);
-    const omitDamageType = isPlayerChosenDamageType(spell, entriesStr);
+    const isChosenType = isPlayerChosenDamageType(spell, entriesStr);
+    const omitDamageType = isChosenType && !chosenElement;
+    const effectiveDmgTypes = chosenElement ? [chosenElement] : dmgTypes;
 
     let baseDice = null;
-    const dmgMatch = entriesStr.match(/\{@damage\s+([^}]+)\}/);
-    if (dmgMatch) baseDice = dmgMatch[1].trim().split('+')[0].trim();
+    if (hasPrimaryDamage(spell)) {
+        const dmgMatch = entriesStr.match(/\{@damage\s+([^}]+)\}/);
+        if (dmgMatch) baseDice = dmgMatch[1].trim().split('+')[0].trim();
+    }
 
     let healDice = null;
     if (isHealing) {
@@ -179,6 +184,9 @@ export function getSpellDamageInfo(spellName, characterLevel, bonuses = {}) {
         bonusMod = potentMod;
     } else if (!isCantrip && empoweredSchool && school === empoweredSchool && empoweredMod) {
         bonusMod = empoweredMod;
+    }
+    if (empoweredDamageType && empoweredDamageTypeMod && effectiveDmgTypes.includes(empoweredDamageType)) {
+        bonusMod = Math.max(bonusMod, empoweredDamageTypeMod);
     }
 
     let dice = baseDice;
@@ -241,7 +249,7 @@ export function getSpellDamageInfo(spellName, characterLevel, bonuses = {}) {
 
     return {
         dice,
-        type: omitDamageType ? '' : dmgType,
+        type: omitDamageType ? '' : (chosenElement || dmgType),
         omitDamageType,
         isCantrip,
         scaling,

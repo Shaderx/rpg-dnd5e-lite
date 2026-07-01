@@ -12,14 +12,14 @@ import { renderSpellbook, hideSpellTooltip } from './src/rendering/spellbook.js'
 import { fetchClassIndex, fetchClassData, listClasses, getSubclasses, saveCharacterConfig, clearCharacter, ensureCharacterData } from './src/features/character.js';
 import { renderCharacter } from './src/rendering/character.js';
 import { renderSidekickCards, renderSidekickDetail } from './src/rendering/sidekick.js';
-import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, CREATURE_TYPES, SPELL_SCHOOLS, fetchBestiaryIndex, fetchBestiarySource, preloadBestiarySources, getAvailableSourceKeys, getLoadedSourceKeys, searchCreatures, findCreatureVersions, getCreatureStats, fetchEquipmentItems, fetchMagicItems, isMagicWeaponsLoaded, extractCreatureActions, extractCreatureTraits, extractCreatureSkillProficiencies, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, preloadSpellData, getSpellsForClass, spellSchoolLabel, searchEquipment, searchMagicItems, weaponFromItem, armorFromItem, computeEquippedAC, DND_LANGUAGES, parseCreatureLanguages, getSpellDamageInfo, fetchFeats, getLoadedFeats, parseFeatAbility, checkFeatPrereqs, lookupFeatByName } from './src/features/sidekick.js';
+import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, CREATURE_TYPES, SPELL_SCHOOLS, fetchBestiaryIndex, fetchBestiarySource, preloadBestiarySources, getAvailableSourceKeys, getLoadedSourceKeys, searchCreatures, findCreatureVersions, getCreatureStats, fetchEquipmentItems, fetchMagicItems, isMagicWeaponsLoaded, extractCreatureActions, extractCreatureTraits, extractCreatureSkillProficiencies, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, preloadSpellData, getSpellsForClass, getAllLoadedSpells, spellSchoolLabel, searchEquipment, searchMagicItems, weaponFromItem, armorFromItem, computeEquippedAC, DND_LANGUAGES, parseCreatureLanguages, getSpellDamageInfo, fetchFeats, getLoadedFeats, parseFeatAbility, checkFeatPrereqs, lookupFeatByName } from './src/features/sidekick.js';
 import { getFeatUIDescriptor, DND_TOOLS } from './src/features/featEffects.js';
 import { bindTooltipEvents, hideTooltip } from './src/rendering/tooltip.js';
 import { onGenerationStarted, clearExtensionPrompts } from './src/generation/injector.js';
 import { DEFAULT_SEVERITY_TIERS, getSeverityTiers } from './src/features/randomEvents.js';
 import { renderQuests, addQuestFromInput } from './src/rendering/quests.js';
 import { renderInventory, addInventoryItemFromInput } from './src/rendering/inventory.js';
-import { renderSpellLog, addSpellFromInput, addRestFromButton, addShortRestFromButton, addDispelFromButton, hardRefreshSpellLogFromButton } from './src/rendering/spellLog.js';
+import { renderSpellLog, addSpellFromInput, addRestFromButton, addShortRestFromButton, addDispelFromButton, addDropConcFromButton, hardRefreshSpellLogFromButton } from './src/rendering/spellLog.js';
 import { refreshSpellLog, hardRefreshSpellLog } from './src/features/spellTracker.js';
 import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, removeDamageDie, updateDamageDisplay, clearDamageRoll, toggleModifier, updateModifierDisplay, clearModifiers, updateAllyCountLabel, updateEnemyCountLabel, renderModifierButtons } from './src/features/dice.js';
 import { refreshHeaderFromChat, updateHeaderFromMessage } from './src/features/headerParser.js';
@@ -54,6 +54,7 @@ import { renderV2CharacterPanel } from './src/v2/rendering/character.js';
 import { renderV2DetailModal } from './src/v2/rendering/detail.js';
 import { openV2ConfigModal } from './src/v2/rendering/configModal.js';
 import { renderV2Spellbook, initV2Spellbook } from './src/v2/rendering/spellbook.js';
+import { openSpellSearchModal } from './src/v2/rendering/spellSearch.js';
 import { renderCompanionCards, renderCompanionDetail, openCompanionEditModal, saveCompanionFromEditModal, openCompanionWizard } from './src/v2/rendering/companionCards.js';
 import { toggleCompanionEnabled, deleteCompanion } from './src/v2/features/companion.js';
 
@@ -404,6 +405,7 @@ async function openSidekickConfigModal(editId) {
     _skTempSpells = [];
     _skTempChosenLanguages = [];
     _skTempItems = [];
+    Object.keys(_skFeatSpellData).forEach(k => delete _skFeatSpellData[k]);
 
     const $popup = $('#dnd-sidekick-config-popup');
     const $error = $('#dnd-sk-config-error');
@@ -682,9 +684,18 @@ function showCreaturePreview(creature) {
         .map(a => `${a.toUpperCase()} ${creature[a] ?? 10}`)
         .join(' | ');
 
+    const speedParts = [];
+    if (creature.speed) {
+        for (const [k, v] of Object.entries(creature.speed)) {
+            if (typeof v === 'number') speedParts.push(`${k} ${v}ft`);
+            else if (v && typeof v === 'object' && typeof v.number === 'number') speedParts.push(`${k} ${v.number}ft`);
+        }
+    }
+    const speedStr = speedParts.join(', ') || '30ft';
+
     $('#dnd-sk-creature-preview')
         .html(`<div class="dnd-sk-preview-line"><strong>${creature.name}</strong> (${creature.source})</div>
-               <div class="dnd-sk-preview-line">HP ${hp} (${formula}) | AC ${ac} | Speed ${creature.speed?.walk ?? 30}ft</div>
+               <div class="dnd-sk-preview-line">HP ${hp} (${formula}) | AC ${ac} | Speed ${speedStr}</div>
                <div class="dnd-sk-preview-line">${abilities}</div>`)
         .show();
 }
@@ -1174,6 +1185,18 @@ async function populateAsiSection(type, savedChoices, savedFeatData) {
         renderFeatAbilityChoice($row, featName);
     });
 
+    $rows.off('change', '.dnd-sk-feat-mi-list').on('change', '.dnd-sk-feat-mi-list', function () {
+        const featName = $(this).data('feat');
+        const newList = $(this).val();
+        if (!featName) return;
+        const store = _skFeatSpellData[featName] || {};
+        store.selectedCantrips = [];
+        store.selectedSpell = '';
+        _skFeatSpellData[featName] = store;
+        const $container = $(this).closest('.dnd-sk-feat-ability-row');
+        populateFeatSpellPickers($container, featName, { spellList: newList });
+    });
+
     $('#dnd-sk-asi-section').show();
 }
 
@@ -1227,6 +1250,10 @@ function renderFeatAbilityChoice($row, featName, savedChoice, savedFeatData) {
     }
 
     $container.html(html || '<em>No ability boost</em>');
+
+    if (uiDesc && (uiDesc.type === 'magicInitiate' || uiDesc.type === 'spellPick' || uiDesc.type === 'ritualCaster')) {
+        populateFeatSpellPickers($container, featName, savedFeatData || {});
+    }
 }
 
 function renderFeatConfigUI(featName, uiDesc, savedData) {
@@ -1305,6 +1332,233 @@ function renderFeatConfigUI(featName, uiDesc, savedData) {
 
     html += '</div>';
     return html;
+}
+
+// ─── Feat Spell Picker UI ────────────────────────────────────
+
+const _skFeatSpellData = {};
+
+async function populateFeatSpellPickers($container, featName, savedData) {
+    const uiDesc = getFeatUIDescriptor(featName);
+    if (!uiDesc) return;
+    const $target = $container.find(`.dnd-sk-feat-mi-spells[data-feat="${featName}"]`);
+    if (!$target.length) return;
+
+    $target.html('<span class="dnd-sk-no-spells">Loading spells...</span>');
+    await preloadSpellData();
+
+    if (!_skFeatSpellData[featName]) _skFeatSpellData[featName] = {};
+    const store = _skFeatSpellData[featName];
+
+    if (uiDesc.type === 'magicInitiate') {
+        const list = $container.find(`.dnd-sk-feat-mi-list[data-feat="${featName}"]`).val() || savedData.spellList || uiDesc.config.lists[0];
+        Object.assign(store, { selectedCantrips: savedData.selectedCantrips?.slice() || store.selectedCantrips || [], selectedSpell: savedData.selectedSpell || store.selectedSpell || '' });
+        buildMagicInitiatePicker($target, featName, list, store);
+    } else if (uiDesc.type === 'spellPick') {
+        Object.assign(store, { selectedSpell: savedData.selectedSpell || store.selectedSpell || '' });
+        const schoolCodes = uiDesc.config.pickSchools || [];
+        buildSchoolSpellPicker($target, featName, schoolCodes, uiDesc.config.pickLevel || 1, store);
+    } else if (uiDesc.type === 'ritualCaster') {
+        Object.assign(store, { selectedSpells: savedData.selectedSpells?.slice() || store.selectedSpells || [] });
+        buildRitualCasterPicker($target, featName, store);
+    }
+}
+
+function buildMagicInitiatePicker($target, featName, classList, store) {
+    $target.empty();
+    const cantrips = getSpellsForClass(classList, 0, true);
+    const spells = getSpellsForClass(classList, 1, false).filter(s => s.level === 1);
+
+    const cantripLabel = $(`<div class="dnd-sk-feat-config-label">Cantrips (${store.selectedCantrips.length}/2):</div>`);
+    $target.append(cantripLabel);
+
+    const $cantripTags = $('<div class="dnd-sk-feat-spell-tags"></div>');
+    $target.append($cantripTags);
+
+    const renderCTags = () => {
+        $cantripTags.empty();
+        if (!store.selectedCantrips.length) {
+            $cantripTags.html('<span class="dnd-sk-no-spells">None selected</span>');
+            return;
+        }
+        for (const name of store.selectedCantrips) {
+            const $tag = $(`<span class="dnd-sk-spell-tag">${escHtml(name)} <button class="dnd-sk-spell-remove">&times;</button></span>`);
+            $tag.find('.dnd-sk-spell-remove').on('click', () => {
+                store.selectedCantrips = store.selectedCantrips.filter(c => c !== name);
+                cantripLabel.text(`Cantrips (${store.selectedCantrips.length}/2):`);
+                renderCTags();
+            });
+            $cantripTags.append($tag);
+        }
+    };
+    renderCTags();
+
+    const $cantripSearch = $('<input type="text" placeholder="Search cantrips..." autocomplete="off" class="dnd-sk-feat-spell-input" />');
+    const $cantripDD = $('<div class="dnd-sk-feat-spell-dd"></div>');
+    $target.append($cantripSearch, $cantripDD);
+
+    $cantripSearch.on('input', function () {
+        const q = /** @type {string} */ ($(this).val()).toLowerCase().trim();
+        if (!q) { $cantripDD.empty().hide(); return; }
+        const chosen = new Set(store.selectedCantrips.map(n => n.toLowerCase()));
+        const matches = cantrips.filter(s => s.name.toLowerCase().includes(q) && !chosen.has(s.name.toLowerCase())).slice(0, 10);
+        if (!matches.length) { $cantripDD.html('<div class="dnd-sk-dd-empty">No cantrips found</div>').show(); return; }
+        $cantripDD.html(matches.map(s => `<div class="dnd-sk-dd-item" data-name="${escHtml(s.name)}">${escHtml(s.name)} <span style="opacity:0.5">${spellSchoolLabel(s.school)}</span></div>`).join('')).show();
+        $cantripDD.find('.dnd-sk-dd-item').on('click', function () {
+            if (store.selectedCantrips.length >= 2) return;
+            store.selectedCantrips.push($(this).data('name'));
+            cantripLabel.text(`Cantrips (${store.selectedCantrips.length}/2):`);
+            renderCTags();
+            $cantripSearch.val('');
+            $cantripDD.empty().hide();
+        });
+    });
+
+    const spellLabel = $(`<div class="dnd-sk-feat-config-label" style="margin-top:0.3rem">1st-Level Spell (1/LR free):</div>`);
+    $target.append(spellLabel);
+
+    const $spellTags = $('<div class="dnd-sk-feat-spell-tags"></div>');
+    $target.append($spellTags);
+
+    const renderSTags = () => {
+        $spellTags.empty();
+        if (!store.selectedSpell) {
+            $spellTags.html('<span class="dnd-sk-no-spells">None selected</span>');
+            return;
+        }
+        const $tag = $(`<span class="dnd-sk-spell-tag">${escHtml(store.selectedSpell)} <button class="dnd-sk-spell-remove">&times;</button></span>`);
+        $tag.find('.dnd-sk-spell-remove').on('click', () => {
+            store.selectedSpell = '';
+            renderSTags();
+        });
+        $spellTags.append($tag);
+    };
+    renderSTags();
+
+    if (!store.selectedSpell) {
+        const $spellSearch = $('<input type="text" placeholder="Search 1st-level spells..." autocomplete="off" class="dnd-sk-feat-spell-input" />');
+        const $spellDD = $('<div class="dnd-sk-feat-spell-dd"></div>');
+        $target.append($spellSearch, $spellDD);
+
+        $spellSearch.on('input', function () {
+            const q = /** @type {string} */ ($(this).val()).toLowerCase().trim();
+            if (!q) { $spellDD.empty().hide(); return; }
+            const matches = spells.filter(s => s.name.toLowerCase().includes(q)).slice(0, 10);
+            if (!matches.length) { $spellDD.html('<div class="dnd-sk-dd-empty">No spells found</div>').show(); return; }
+            $spellDD.html(matches.map(s => `<div class="dnd-sk-dd-item" data-name="${escHtml(s.name)}">${escHtml(s.name)} <span style="opacity:0.5">${spellSchoolLabel(s.school)}</span></div>`).join('')).show();
+            $spellDD.find('.dnd-sk-dd-item').on('click', function () {
+                store.selectedSpell = $(this).data('name');
+                renderSTags();
+                $spellSearch.val('');
+                $spellDD.empty().hide();
+                $spellSearch.hide();
+            });
+        });
+    }
+}
+
+function buildSchoolSpellPicker($target, featName, schoolCodes, level, store) {
+    $target.empty();
+    const schoolSet = new Set(schoolCodes);
+    const allSpells = getAllLoadedSpells().filter(s => s.level === level && schoolSet.has(s.school))
+        .map(s => ({ name: s.name, school: s.school, source: s.source }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    const schoolNames = schoolCodes.map(c => SPELL_SCHOOLS[c] || c).join('/');
+    const $tags = $('<div class="dnd-sk-feat-spell-tags"></div>');
+    $target.append($tags);
+
+    const renderTags = () => {
+        $tags.empty();
+        if (!store.selectedSpell) {
+            $tags.html('<span class="dnd-sk-no-spells">None selected</span>');
+            return;
+        }
+        const $tag = $(`<span class="dnd-sk-spell-tag">${escHtml(store.selectedSpell)} <button class="dnd-sk-spell-remove">&times;</button></span>`);
+        $tag.find('.dnd-sk-spell-remove').on('click', () => {
+            store.selectedSpell = '';
+            buildSchoolSpellPicker($target, featName, schoolCodes, level, store);
+        });
+        $tags.append($tag);
+    };
+    renderTags();
+
+    if (!store.selectedSpell) {
+        const $search = $(`<input type="text" placeholder="Search ${schoolNames} spells..." autocomplete="off" class="dnd-sk-feat-spell-input" />`);
+        const $dd = $('<div class="dnd-sk-feat-spell-dd"></div>');
+        $target.append($search, $dd);
+
+        $search.on('input', function () {
+            const q = /** @type {string} */ ($(this).val()).toLowerCase().trim();
+            if (!q) { $dd.empty().hide(); return; }
+            const matches = allSpells.filter(s => s.name.toLowerCase().includes(q)).slice(0, 10);
+            if (!matches.length) { $dd.html('<div class="dnd-sk-dd-empty">No spells found</div>').show(); return; }
+            $dd.html(matches.map(s => `<div class="dnd-sk-dd-item" data-name="${escHtml(s.name)}">${escHtml(s.name)} <span style="opacity:0.5">(${SPELL_SCHOOLS[s.school] || s.school})</span></div>`).join('')).show();
+            $dd.find('.dnd-sk-dd-item').on('click', function () {
+                store.selectedSpell = $(this).data('name');
+                renderTags();
+                $search.val('');
+                $dd.empty().hide();
+                $search.hide();
+            });
+        });
+    }
+}
+
+function buildRitualCasterPicker($target, featName, store) {
+    $target.empty();
+    const allSpells = getAllLoadedSpells().filter(s => s.level >= 1 && s.meta?.ritual)
+        .map(s => ({ name: s.name, level: s.level, school: s.school, source: s.source }))
+        .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+
+    const level = getSidekickLevel();
+    const profBonus = Math.floor((level - 1) / 4) + 2;
+    const maxPicks = profBonus;
+
+    const countLabel = $(`<div class="dnd-sk-feat-config-label">Ritual Spells (${store.selectedSpells.length}/${maxPicks}):</div>`);
+    $target.append(countLabel);
+
+    const $tags = $('<div class="dnd-sk-feat-spell-tags"></div>');
+    $target.append($tags);
+
+    const renderTags = () => {
+        $tags.empty();
+        if (!store.selectedSpells.length) {
+            $tags.html('<span class="dnd-sk-no-spells">None selected</span>');
+            return;
+        }
+        for (const name of store.selectedSpells) {
+            const $tag = $(`<span class="dnd-sk-spell-tag">${escHtml(name)} <button class="dnd-sk-spell-remove">&times;</button></span>`);
+            $tag.find('.dnd-sk-spell-remove').on('click', () => {
+                store.selectedSpells = store.selectedSpells.filter(s => s !== name);
+                countLabel.text(`Ritual Spells (${store.selectedSpells.length}/${maxPicks}):`);
+                renderTags();
+            });
+            $tags.append($tag);
+        }
+    };
+    renderTags();
+
+    const $search = $('<input type="text" placeholder="Search ritual spells..." autocomplete="off" class="dnd-sk-feat-spell-input" />');
+    const $dd = $('<div class="dnd-sk-feat-spell-dd"></div>');
+    $target.append($search, $dd);
+
+    $search.on('input', function () {
+        const q = /** @type {string} */ ($(this).val()).toLowerCase().trim();
+        if (!q) { $dd.empty().hide(); return; }
+        const chosen = new Set(store.selectedSpells.map(n => n.toLowerCase()));
+        const matches = allSpells.filter(s => s.name.toLowerCase().includes(q) && !chosen.has(s.name.toLowerCase())).slice(0, 10);
+        if (!matches.length) { $dd.html('<div class="dnd-sk-dd-empty">No spells found</div>').show(); return; }
+        $dd.html(matches.map(s => `<div class="dnd-sk-dd-item" data-name="${escHtml(s.name)}">${escHtml(s.name)} <span style="opacity:0.5">Lv${s.level} ${spellSchoolLabel(s.school)}</span></div>`).join('')).show();
+        $dd.find('.dnd-sk-dd-item').on('click', function () {
+            if (store.selectedSpells.length >= maxPicks) return;
+            store.selectedSpells.push($(this).data('name'));
+            countLabel.text(`Ritual Spells (${store.selectedSpells.length}/${maxPicks}):`);
+            renderTags();
+            $search.val('');
+            $dd.empty().hide();
+        });
+    });
 }
 
 function populateClassFeatureChoices(type, existingSk) {
@@ -1550,6 +1804,13 @@ function saveSidekickFromModal() {
         const $dmgType = $cfg.find('.dnd-sk-feat-dmgtype-pick');
         if ($dmgType.length) data.damageType = $dmgType.val() || null;
 
+        const spellStore = _skFeatSpellData[featName];
+        if (spellStore) {
+            if (spellStore.selectedCantrips?.length) data.selectedCantrips = spellStore.selectedCantrips.slice();
+            if (spellStore.selectedSpell) data.selectedSpell = spellStore.selectedSpell;
+            if (spellStore.selectedSpells?.length) data.selectedSpells = spellStore.selectedSpells.slice();
+        }
+
         featData[featName] = data;
     });
 
@@ -1663,8 +1924,11 @@ function buildCreatureFields(creature) {
     if (creature.speed) {
         for (const [k, v] of Object.entries(creature.speed)) {
             if (typeof v === 'number') speedParts.push(`${k} ${v} ft.`);
+            else if (v && typeof v === 'object' && typeof v.number === 'number') speedParts.push(`${k} ${v.number} ft.`);
         }
     }
+    const walkRaw = creature.speed?.walk;
+    const walkSpeed = typeof walkRaw === 'number' ? walkRaw : (walkRaw?.number ?? 30);
     const langRaw = Array.isArray(creature.languages) ? creature.languages.join(', ') : (creature.languages || '');
     const langParsed = parseCreatureLanguages(langRaw);
     return {
@@ -1672,7 +1936,7 @@ function buildCreatureFields(creature) {
         creatureSource: creature.source,
         baseHp: creature.hp || { average: 10, formula: '2d8' },
         baseAc: typeof creature.ac?.[0] === 'number' ? creature.ac[0] : creature.ac?.[0]?.ac ?? 10,
-        baseSpeed: creature.speed?.walk ?? 30,
+        baseSpeed: walkSpeed,
         speedFull: speedParts.join(', ') || '30 ft.',
         baseSize: Array.isArray(creature.size) ? creature.size[0] : creature.size || 'M',
         baseStr: creature.str ?? 10,
@@ -2643,19 +2907,19 @@ async function initUI() {
     });
     updateEnemyCountLabel();
 
-    // Damage dice — each click adds one die to the pool
-    $('.dnd-damage-die-btn').on('click', function () {
+    // Pool dice — each click adds one die to the pool
+    $('.dnd-pool-dice-die-btn').on('click', function () {
         const sides = parseInt($(this).data('sides'));
         addDamageDie(sides);
         updateStripWidgets();
     });
-    $('#dnd-damage-dice').on('click', '.dnd-damage-chip', function () {
+    $('#dnd-pool-dice-chips').on('click', '.dnd-pool-dice-chip', function () {
         const index = parseInt($(this).data('index'), 10);
         if (Number.isNaN(index)) return;
         removeDamageDie(index);
         updateStripWidgets();
     });
-    $('#dnd-damage-clear').on('click', () => {
+    $('#dnd-pool-dice-clear').on('click', () => {
         clearDamageRoll();
         updateStripWidgets();
     });
@@ -2674,6 +2938,7 @@ async function initUI() {
         if (e.shiftKey) {
             if (section === 'character') { openCharacterConfigModal(); return; }
             if (section === 'spellbook') { openSpellbookImportModal(); return; }
+            if (section === 'v1-spellbook' && extensionSettings.mode === 'v2') { openSpellSearchModal(); return; }
         }
         $(this).closest('.dnd-collapsible').toggleClass('dnd-collapsed');
     });
@@ -2733,6 +2998,9 @@ async function initUI() {
     });
     $('#dnd-add-rest-btn').on('click', () => {
         addRestFromButton();
+    });
+    $('#dnd-add-drop-conc-btn').on('click', () => {
+        addDropConcFromButton();
     });
     $('#dnd-add-dispel-btn').on('click', () => {
         addDispelFromButton();

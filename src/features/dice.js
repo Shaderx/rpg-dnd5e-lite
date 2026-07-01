@@ -3,7 +3,7 @@
  * Crypto-secure d20 rolling with inline display
  */
 
-import { extensionSettings, pendingDiceRoll, setPendingDiceRoll } from '../core/state.js';
+import { extensionSettings, pendingDiceRoll, setPendingDiceRoll, setLastNonCombatRoll } from '../core/state.js';
 import { saveSettings } from '../core/persistence.js';
 import { MODIFIER_DEFS } from './modifiers.js';
 
@@ -38,9 +38,9 @@ export function executeRoll(count, sides) {
 
 export const COMBAT_DAMAGE_SIDES = [4, 6, 8, 10, 12];
 
-export function formatDmgTooltip(dmg) {
-    if (!dmg) return '';
-    return COMBAT_DAMAGE_SIDES.map(s => `d${s}:${dmg[`d${s}`]}`).join(' ');
+export function formatDiceSetTooltip(diceSet) {
+    if (!diceSet) return '';
+    return COMBAT_DAMAGE_SIDES.map(s => `d${s}:${diceSet[`d${s}`]}`).join(' ');
 }
 
 function rollCombatDamageDice() {
@@ -88,6 +88,7 @@ export function rollD20() {
     };
     setPendingDiceRoll(rollData);
     extensionSettings.lastDiceRoll = { ...rollData };
+    setLastNonCombatRoll(null);
 
     saveSettings();
     updateDiceDisplay();
@@ -129,8 +130,8 @@ export function updateDiceDisplay() {
         for (let i = 0; i < allies.length; i++) {
             const a = allies[i];
             const label = allies.length === 1 ? 'Ally' : `A${i + 1}`;
-            const dmgTip = a.dmg ? `\nDmg: ${formatDmgTooltip(a.dmg)}` : '';
-            allyHtml += `<div class="dnd-roll-chip dnd-roll-chip-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${dmgTip}">`
+            const diceTip = a.dmg ? `\nDice: ${formatDiceSetTooltip(a.dmg)}` : '';
+            allyHtml += `<div class="dnd-roll-chip dnd-roll-chip-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${diceTip}">`
                 + `<span class="dnd-roll-chip-label">${label}</span>`
                 + `<span class="dnd-roll-chip-val">${a.roll1}</span>`
                 + `<span class="dnd-roll-chip-sep">/</span>`
@@ -145,8 +146,8 @@ export function updateDiceDisplay() {
         for (let i = 0; i < enemies.length; i++) {
             const e = enemies[i];
             const label = enemies.length === 1 ? 'Foe' : `F${i + 1}`;
-            const dmgTip = e.dmg ? `\nDmg: ${formatDmgTooltip(e.dmg)}` : '';
-            enemyHtml += `<div class="dnd-roll-chip dnd-roll-chip-enemy" title="${label}: d20 ${e.roll1} / ${e.roll2}${dmgTip}">`
+            const diceTip = e.dmg ? `\nDice: ${formatDiceSetTooltip(e.dmg)}` : '';
+            enemyHtml += `<div class="dnd-roll-chip dnd-roll-chip-enemy" title="${label}: d20 ${e.roll1} / ${e.roll2}${diceTip}">`
                 + `<span class="dnd-roll-chip-label">${label}</span>`
                 + `<span class="dnd-roll-chip-val">${e.roll1}</span>`
                 + `<span class="dnd-roll-chip-sep">/</span>`
@@ -211,7 +212,7 @@ function buildDamageFormula(dice) {
 }
 
 /**
- * Add a single damage die, accumulating with any previous dice.
+ * Add a single pool die, accumulating with any previous dice.
  * Supports mixing different die types (e.g. d8 + d8 + d6).
  */
 export function addDamageDie(sides) {
@@ -243,9 +244,9 @@ function rollBrightness(result, sides) {
 
 function dieChipHtml(sides, result, index) {
     const opacity = rollBrightness(result, sides).toFixed(2);
-    return `<span class="dnd-damage-chip" data-sides="${sides}" data-index="${index}" title="d${sides} — click to remove" role="button" tabindex="0">`
-        + `<span class="dnd-damage-chip-val" style="opacity:${opacity}">${result}</span>`
-        + `<span class="dnd-damage-chip-die">d${sides}</span>`
+    return `<span class="dnd-pool-dice-chip" data-sides="${sides}" data-index="${index}" title="d${sides} — click to remove" role="button" tabindex="0">`
+        + `<span class="dnd-pool-dice-chip-val" style="opacity:${opacity}">${result}</span>`
+        + `<span class="dnd-pool-dice-chip-die">d${sides}</span>`
         + `</span>`;
 }
 
@@ -259,7 +260,7 @@ function normalizeDamageRoll(roll) {
 }
 
 /**
- * Remove a single damage die by index from the accumulated pool.
+ * Remove a single pool die by index from the accumulated pool.
  */
 export function removeDamageDie(index) {
     const roll = extensionSettings.lastDamageRoll;
@@ -285,19 +286,19 @@ export function removeDamageDie(index) {
 }
 
 /**
- * Update the inline damage display in the expanded panel.
+ * Update the inline pool dice display in the expanded panel.
  * Renders individual dice as compact chips — no sum, since each die may
- * serve a different purpose (damage, save penalty, healing, etc.).
+ * serve a different purpose (damage, healing, save penalty, etc.).
  */
 export function updateDamageDisplay() {
     const roll = extensionSettings.lastDamageRoll;
-    const $result = $('#dnd-damage-result');
+    const $result = $('#dnd-pool-dice-result');
     if (!$result.length) return;
 
     normalizeDamageRoll(roll);
     const dice = roll?.dice;
     if (dice && dice.length > 0) {
-        $('#dnd-damage-dice').html(dice.map((d, i) => dieChipHtml(d.sides, d.result, i)).join(''));
+        $('#dnd-pool-dice-chips').html(dice.map((d, i) => dieChipHtml(d.sides, d.result, i)).join(''));
         $result.show();
     } else {
         $result.hide();
@@ -305,7 +306,7 @@ export function updateDamageDisplay() {
 }
 
 /**
- * Clear the last damage roll.
+ * Clear the pool dice roll.
  */
 export function clearDamageRoll() {
     extensionSettings.lastDamageRoll = null;

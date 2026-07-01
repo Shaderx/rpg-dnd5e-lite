@@ -67,10 +67,17 @@ function buildStatCard(stats) {
     lines.push(`<div class="v1-row"><span class="v1-label">Species:</span><span class="v1-value">${esc(stats.speciesName)}</span></div>`);
     lines.push(`<div class="v1-row"><span class="v1-label">Background:</span><span class="v1-value">${esc(stats.backgroundName)}</span></div>`);
 
-    // Core stats
+    // Core stats — AC with breakdown tooltip
+    const acTooltipLines = (stats.acBreakdown || []).map(b => {
+        const val = b.isBase ? `${b.value}` : (b.value >= 0 ? `+${b.value}` : `${b.value}`);
+        return `${b.label}: ${val}`;
+    });
+    const acTooltip = acTooltipLines.length > 0
+        ? ` class="dnd-tt-hover dnd-ac-hover" data-tt-type="trait" data-tt-name="AC ${stats.ac}" data-tt-sub="Breakdown" data-tt-text="${esc(acTooltipLines.join('\n'))}"`
+        : '';
     lines.push(`<div class="v1-row">
         <span>HP: <b>${stats.hp}</b></span>
-        <span>AC: <b>${stats.ac}</b></span>
+        <span${acTooltip}>AC: <b>${stats.ac}</b></span>
         <span>Speed: <b>${stats.speed}ft</b></span>
         <span>Prof: <b>+${stats.proficiency}</b></span>
         <span>Hit Die: <b>d${stats.hitDie}</b></span>
@@ -105,13 +112,23 @@ function buildStatCard(stats) {
 
     lines.push('<hr class="v1-divider" />');
 
-    // Saves
+    // Saves — with breakdown tooltip
+    const saveTooltipLines = ABILITY_KEYS.map(ab => {
+        const s = stats.saves[ab];
+        const parts = [`${ABILITY_LABELS[ab]}: ${stats.mods[ab] >= 0 ? '+' : ''}${stats.mods[ab]}`];
+        if (s.proficient) parts.push(`Prof +${stats.proficiency}`);
+        if (stats.saveBonusSources?.length > 0) {
+            for (const src of stats.saveBonusSources) parts.push(src);
+        }
+        return `${parts.join(', ')} = ${s.mod >= 0 ? '+' : ''}${s.mod}`;
+    });
+    const saveTooltip = ` class="dnd-tt-hover" data-tt-type="trait" data-tt-name="Saving Throws" data-tt-sub="Breakdown" data-tt-text="${esc(saveTooltipLines.join('\n'))}"`;
     const saveParts = ABILITY_KEYS.map(ab => {
         const s = stats.saves[ab];
         const mark = s.proficient ? '<b>*</b>' : '';
         return `${ABILITY_LABELS[ab]} ${s.mod >= 0 ? '+' : ''}${s.mod}${mark}`;
     });
-    lines.push(`<div class="v1-row"><span class="v1-label">Saves:</span><span>${saveParts.join(', ')}</span></div>`);
+    lines.push(`<div class="v1-row"><span class="v1-label">Saves:</span><span${saveTooltip}>${saveParts.join(', ')}</span></div>`);
 
     // Proficient skills
     const profSkills = Object.entries(stats.skills)
@@ -269,7 +286,12 @@ function buildDetailContent(stats) {
     lines.push(`<h4>${esc(stats.name || 'Unnamed')}</h4>`);
     lines.push(`<p>${esc(stats.speciesName)} ${esc(stats.className)}${esc(sub)} — Level ${stats.level}</p>`);
     lines.push(`<p>Background: ${esc(stats.backgroundName)}</p>`);
-    lines.push(`<p><b>HP:</b> ${stats.hp} | <b>AC:</b> ${stats.ac} | <b>Speed:</b> ${stats.speed}ft | <b>Prof:</b> +${stats.proficiency} | <b>Hit Die:</b> d${stats.hitDie}</p>`);
+    const detailAcParts = (stats.acBreakdown || []).map(b => {
+        const val = b.isBase ? `${b.value}` : (b.value >= 0 ? `+${b.value}` : `${b.value}`);
+        return `${b.label} ${val}`;
+    });
+    const detailAcNote = detailAcParts.length > 0 ? ` (${detailAcParts.join(', ')})` : '';
+    lines.push(`<p><b>HP:</b> ${stats.hp} | <b>AC:</b> ${stats.ac}${detailAcNote} | <b>Speed:</b> ${stats.speed}ft | <b>Prof:</b> +${stats.proficiency} | <b>Hit Die:</b> d${stats.hitDie}</p>`);
 
     // Abilities
     lines.push('<table style="width:100%;text-align:center;margin:0.5em 0;"><tr>');
@@ -284,7 +306,10 @@ function buildDetailContent(stats) {
         const s = stats.saves[ab];
         return `${ABILITY_LABELS[ab]} ${s.mod >= 0 ? '+' : ''}${s.mod}${s.proficient ? ' *' : ''}`;
     }).join(' | ');
-    lines.push(`<p><b>Saves:</b> ${saveStr}</p>`);
+    const detailSaveSuffix = stats.saveBonusSources?.length > 0
+        ? ` <em>(includes ${esc(stats.saveBonusSources.join(', '))})</em>`
+        : '';
+    lines.push(`<p><b>Saves:</b> ${saveStr}${detailSaveSuffix}</p>`);
 
     // All skills
     lines.push('<p><b>Skills:</b></p><ul>');

@@ -33,6 +33,8 @@ export function loadV2Quests() {
             if (!q.priority || q.priority < 1 || q.priority > 3) q.priority = 1;
             if (!q.giver) q.giver = '';
             if (!q.location) q.location = '';
+            if (q.dateCreated === undefined || q.dateCreated === null) q.dateCreated = '';
+            if (q.duration === undefined || q.duration === null) q.duration = '';
             if (!Array.isArray(q.objectives)) q.objectives = [];
             if (!q.rewards) q.rewards = { xp: 0, gold: 0, items: [] };
             if (!q.rewards.items) q.rewards.items = [];

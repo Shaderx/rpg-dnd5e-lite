@@ -6,7 +6,7 @@
 import { extension_prompt_types, extension_prompt_roles, setExtensionPrompt } from '../../../../../../script.js';
 import { extensionSettings, spellTrackerDisabled, setLastNonCombatRoll } from '../core/state.js';
 import { saveSettings } from '../core/persistence.js';
-import { buildQuestSection, buildInventorySection, buildCombatDiceSection, buildNonCombatDiceSection, buildSpellLogSection, buildActiveSpellsSection, buildSidekickSection, buildRandomEventSection } from './promptBuilder.js';
+import { buildQuestSection, buildInventorySection, buildCombatDiceSection, buildNonCombatDiceSection, buildSpellLogSection, buildActiveEffectsSection, buildActiveSpellsSection, buildSidekickSection, buildRandomEventSection } from './promptBuilder.js';
 import { refreshHeaderFromChat } from '../features/headerParser.js';
 import { refreshSpellLog } from '../features/spellTracker.js';
 import { rollRandomEvent, getLastEventRoll } from '../features/randomEvents.js';
@@ -79,17 +79,19 @@ function buildConsolidatedPrompt(options) {
         if (questSection) sections.push(questSection);
     }
 
-    // 5. Spell Log
+    // 5. Spell Log + active effects (spell tracker)
     if (!spellTrackerDisabled) {
         const spellLogSection = buildSpellLogSection();
         if (spellLogSection) sections.push(spellLogSection);
+        const activeEffectsSection = buildActiveEffectsSection();
+        if (activeEffectsSection) sections.push(activeEffectsSection);
     }
 
-    // 6. Active Spells (precalculated)
+    // 6. Active Spells + Concentration (concentration always; spell details when inject enabled)
     const activeSpellsSection = buildActiveSpellsSection();
     if (activeSpellsSection) sections.push(activeSpellsSection);
 
-    // 7. Dice (combat OR non-combat, mutually exclusive)
+    // 7. Dice (combat always shown if active; otherwise non-combat)
     if (combatDice) {
         sections.push(combatDice);
     } else if (nonCombatDice) {
@@ -125,31 +127,45 @@ export function onGenerationStarted(type) {
         return;
     }
 
-    if (type === 'swipe' || type === 'regenerate') {
+    const isRegenerate = type === 'swipe' || type === 'regenerate';
+    if (isRegenerate) {
         refreshHeaderFromChat({ skipLastAssistant: true });
         if (!spellTrackerDisabled) refreshSpellLog({ skipLastAssistant: true });
+    } else {
+        if (!spellTrackerDisabled) refreshSpellLog();
     }
 
     const depth = extensionSettings.injectionDepth ?? 0;
 
-    // Prepare combat dice (one-shot: auto-clear after injection)
+    // Prepare combat dice — only when the big yellow d20 was rolled
     const combatDice = buildCombatDiceSection();
     if (combatDice) {
         extensionSettings.lastDiceRoll = null;
         extensionSettings.lastDamageRoll = null;
         extensionSettings.lastModifierRolls = {};
+        setLastNonCombatRoll(null);
         saveSettings();
     }
 
-    // Prepare non-combat dice (auto-roll each generation when enabled, skip if combat roll)
+    // Non-combat path: auto-roll d20s when enabled, and always include pool
+    // dice (d4-d12) + modifiers (Guide, Bless, etc.) when present.
     let nonCombatDice = '';
-    if (extensionSettings.nonCombatDiceEnabled && !combatDice) {
-        const isReroll = type === 'swipe' || type === 'regenerate';
-        if (!isReroll) {
-            const roll1 = () => Math.floor(Math.random() * 20) + 1;
-            setLastNonCombatRoll({ user: { roll1: roll1(), roll2: roll1() }, npc: { roll1: roll1(), roll2: roll1() } });
+    if (!combatDice) {
+        if (extensionSettings.nonCombatDiceEnabled) {
+            const isReroll = type === 'swipe' || type === 'regenerate';
+            if (!isReroll) {
+                const roll1 = () => Math.floor(Math.random() * 20) + 1;
+                setLastNonCombatRoll({ user: { roll1: roll1(), roll2: roll1() }, npc: { roll1: roll1(), roll2: roll1() } });
+                extensionSettings.lastDiceRoll = null;
+                saveSettings();
+            }
         }
         nonCombatDice = buildNonCombatDiceSection();
+        if (nonCombatDice && (extensionSettings.lastDamageRoll || Object.keys(extensionSettings.lastModifierRolls || {}).length > 0)) {
+            extensionSettings.lastDamageRoll = null;
+            extensionSettings.lastModifierRolls = {};
+            saveSettings();
+        }
     }
 
     // Prepare random event

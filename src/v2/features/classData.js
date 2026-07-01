@@ -77,6 +77,7 @@ export async function getClassData(filename, className, classSource) {
         .map(sc => parseSubclass(sc));
 
     const features = extractClassFeatures(data.classFeature || [], className, classSource);
+    const subclassFeaturePool = data.subclassFeature || [];
 
     return {
         name: cls.name,
@@ -92,6 +93,7 @@ export async function getClassData(filename, className, classSource) {
         casterType: CASTER_TYPE[key] || null,
         subclasses,
         features,
+        subclassFeaturePool,
         classTableGroups: cls.classTableGroups || [],
         _raw: cls,
     };
@@ -105,12 +107,6 @@ function parseSubclass(sc) {
         name: sc.name,
         shortName: sc.shortName || sc.name,
         source: sc.source,
-        subclassFeatures: (sc.subclassFeatures || []).map(level => {
-            if (Array.isArray(level)) {
-                return level.map(parseFeatureEntry).filter(Boolean);
-            }
-            return [];
-        }),
         _raw: sc,
     };
 }
@@ -213,17 +209,17 @@ export function getSubclassFeatures(classData, subclassName, maxLevel) {
     if (!classData?.subclasses) return [];
 
     const sc = classData.subclasses.find(s => s.name === subclassName || s.shortName === subclassName);
-    if (!sc?._raw?.subclassFeatures) return [];
+    if (!sc) return [];
 
+    const pool = classData.subclassFeaturePool || [];
     const features = [];
-    for (const group of sc._raw.subclassFeatures) {
-        if (!Array.isArray(group)) continue;
-        for (const feat of group) {
-            if (!feat?.name || !feat.level) continue;
-            if (feat.level > maxLevel) continue;
-            const parsed = parseFeatureEntry(feat);
-            if (parsed) features.push(parsed);
-        }
+    for (const feat of pool) {
+        if (!feat?.name || !feat.level) continue;
+        if (feat.level > maxLevel) continue;
+        if (feat.subclassShortName !== sc.shortName && feat.subclassShortName !== sc.name) continue;
+        if (sc.source && feat.subclassSource && feat.subclassSource !== sc.source) continue;
+        const parsed = parseFeatureEntry(feat);
+        if (parsed) features.push(parsed);
     }
     return features;
 }
@@ -308,7 +304,8 @@ function buildClassDataFromCache(data, className, classSource) {
         .map(sc => parseSubclass(sc));
 
     const features = extractClassFeatures(data.classFeature || [], className, classSource);
-    return { features, subclasses };
+    const subclassFeaturePool = data.subclassFeature || [];
+    return { features, subclasses, subclassFeaturePool };
 }
 
 /**

@@ -145,6 +145,22 @@ export function collectSpellScalingText(spell) {
 }
 
 /**
+ * Whether the spell's {@damage} tag represents primary damage dealt by casting,
+ * as opposed to secondary/environmental damage (e.g. Web's "burn webs" clause).
+ * Primary damage appears in the first entries; secondary appears only late.
+ */
+export function hasPrimaryDamage(spell) {
+    const entries = spell?.entries;
+    if (!entries?.length) return false;
+    const threshold = Math.max(2, Math.ceil(entries.length / 2));
+    for (let i = 0; i < threshold; i++) {
+        const text = entryToPlain(entries[i]);
+        if (text && /\{@damage\s+[^}]+\}/.test(text)) return true;
+    }
+    return false;
+}
+
+/**
  * Spells where the caster picks damage type (e.g. Sorcerous Burst).
  * Do not annotate a default element from damageInflict[0].
  */

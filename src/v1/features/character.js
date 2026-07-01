@@ -349,6 +349,8 @@ export function computeCharacterStats(char) {
     let potentMod = 0;
     let empoweredSchool = null;
     let empoweredMod = 0;
+    let empoweredDamageType = null;
+    let empoweredDamageTypeMod = 0;
     let healingBonusFn = null;
 
     for (const fn of classEffects.spellDamageBonus) {
@@ -359,9 +361,8 @@ export function computeCharacterStats(char) {
             empoweredSchool = bonus.filter.school;
             empoweredMod = bonus.flatBonus;
         } else if (bonus.filter?.damageType) {
-            // Element-specific (Draconic Sorcerer) — stored for annotation
-            empoweredSchool = null;
-            empoweredMod = bonus.flatBonus;
+            empoweredDamageType = bonus.filter.damageType;
+            empoweredDamageTypeMod = bonus.flatBonus;
         }
     }
 
@@ -402,7 +403,7 @@ export function computeCharacterStats(char) {
     });
 
     // --- Spell Annotations ---
-    const spellBonuses = { potentMod, empoweredSchool, empoweredMod, healingBonusFn };
+    const spellBonuses = { potentMod, empoweredSchool, empoweredMod, empoweredDamageType, empoweredDamageTypeMod, healingBonusFn };
 
     const annotatedCantrips = (char.knownCantrips || []).map(name => {
         const info = getSpellDamageInfo(name, level, spellBonuses);
@@ -528,6 +529,8 @@ export function computeCharacterStats(char) {
         potentMod,
         empoweredSchool,
         empoweredMod,
+        empoweredDamageType,
+        empoweredDamageTypeMod,
 
         // Species
         speciesTraits: char.speciesTraits || [],

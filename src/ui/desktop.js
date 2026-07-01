@@ -5,7 +5,7 @@
 
 import { extensionSettings, quests, headerInfo } from '../core/state.js';
 import { hasCurrency, formatCurrencyStrip, formatCurrencyTitle } from '../features/currencyParser.js';
-import { rollD20, updateDiceDisplay, clearDiceRoll, formatDmgTooltip } from '../features/dice.js';
+import { rollD20, updateDiceDisplay, clearDiceRoll, formatDiceSetTooltip } from '../features/dice.js';
 import { applyWeatherVisuals } from '../features/weatherVisuals.js';
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -650,8 +650,8 @@ function renderStripDice($container) {
         for (let i = 0; i < allies.length; i++) {
             const a = allies[i];
             const label = allies.length === 1 ? 'Ally' : `A${i + 1}`;
-            const dmgTip = a.dmg ? `\nDmg: ${formatDmgTooltip(a.dmg)}` : '';
-            allyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${dmgTip}">`
+            const diceTip = a.dmg ? `\nDice: ${formatDiceSetTooltip(a.dmg)}` : '';
+            allyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${diceTip}">`
                 + `<span class="dnd-strip-dice-row-label">${label}</span>`
                 + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">${a.roll1}</span>`
                 + `<span class="dnd-strip-dice-sep">/</span>`
@@ -666,8 +666,8 @@ function renderStripDice($container) {
         for (let i = 0; i < enemies.length; i++) {
             const e = enemies[i];
             const label = enemies.length === 1 ? 'Foe' : `F${i + 1}`;
-            const dmgTip = e.dmg ? `\nDmg: ${formatDmgTooltip(e.dmg)}` : '';
-            enemyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-enemy" title="${label}: d20 ${e.roll1} / ${e.roll2}${dmgTip}">`
+            const diceTip = e.dmg ? `\nDice: ${formatDiceSetTooltip(e.dmg)}` : '';
+            enemyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-enemy" title="${label}: d20 ${e.roll1} / ${e.roll2}${diceTip}">`
                 + `<span class="dnd-strip-dice-row-label">${label}</span>`
                 + `<span class="dnd-strip-dice-result dnd-strip-dice-npc">${e.roll1}</span>`
                 + `<span class="dnd-strip-dice-sep">/</span>`
@@ -706,18 +706,18 @@ function renderStripDice($container) {
         updateStripWidgets();
     });
 
-    const dmg = extensionSettings.lastDamageRoll;
-    const $dmgSep = $widget.find('.dnd-strip-damage-sep');
-    const $dmgText = $widget.find('.dnd-strip-damage-text');
-    if (dmg && (dmg.dice?.length || dmg.rolls?.length)) {
-        const chips = dmg.dice
-            ? dmg.dice.map(d => `d${d.sides}:${d.result}`)
-            : dmg.rolls.map(r => `d${dmg.sides}:${r}`);
-        $dmgSep.show();
-        $dmgText.text(chips.join(' ')).attr('title', chips.join(', ')).show();
+    const poolDice = extensionSettings.lastDamageRoll;
+    const $poolSep = $widget.find('.dnd-strip-pool-dice-sep');
+    const $poolText = $widget.find('.dnd-strip-pool-dice-text');
+    if (poolDice && (poolDice.dice?.length || poolDice.rolls?.length)) {
+        const chips = poolDice.dice
+            ? poolDice.dice.map(d => `d${d.sides}:${d.result}`)
+            : poolDice.rolls.map(r => `d${poolDice.sides}:${r}`);
+        $poolSep.show();
+        $poolText.text(chips.join(' ')).attr('title', chips.join(', ')).show();
     } else {
-        $dmgSep.hide();
-        $dmgText.hide();
+        $poolSep.hide();
+        $poolText.hide();
     }
 }
 

@@ -1370,6 +1370,21 @@ export async function preloadSpellData() {
     ]);
 }
 
+export function getAllLoadedSpells() {
+    const allSpells = [];
+    const seen = new Set();
+    for (const src of SPELL_SOURCES) {
+        const spells = _spellSourceCache.get(src) || [];
+        for (const s of spells) {
+            const key = s.name.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            allSpells.push(s);
+        }
+    }
+    return allSpells;
+}
+
 export function getSpellsForClass(classList, maxSpellLevel, isCantrip) {
     const allSpells = [];
     const seen = new Set();
@@ -1549,8 +1564,11 @@ export function createSidekickFromCreature(creature, config) {
     if (creature.speed) {
         for (const [k, v] of Object.entries(creature.speed)) {
             if (typeof v === 'number') speedParts.push(`${k} ${v} ft.`);
+            else if (v && typeof v === 'object' && typeof v.number === 'number') speedParts.push(`${k} ${v.number} ft.`);
         }
     }
+    const walkRaw = creature.speed?.walk;
+    const walkSpeed = typeof walkRaw === 'number' ? walkRaw : (walkRaw?.number ?? 30);
 
     return {
         id: `sk_${Date.now()}`,
@@ -1562,7 +1580,7 @@ export function createSidekickFromCreature(creature, config) {
         creatureSource: creature.source,
         baseHp: creature.hp || { average: 10, formula: '2d8' },
         baseAc: typeof creature.ac?.[0] === 'number' ? creature.ac[0] : creature.ac?.[0]?.ac ?? 10,
-        baseSpeed: creature.speed?.walk ?? 30,
+        baseSpeed: walkSpeed,
         speedFull: speedParts.join(', ') || '30 ft.',
         baseSize: Array.isArray(creature.size) ? creature.size[0] : creature.size || 'M',
         baseStr: creature.str ?? 10,

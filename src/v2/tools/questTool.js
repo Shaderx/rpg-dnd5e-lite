@@ -42,6 +42,8 @@ function handleAdd(args) {
         status: args.status || 'not_started',
         giver: args.giver?.trim() || '',
         location: args.location?.trim() || '',
+        dateCreated: args.date?.trim() || '',
+        duration: args.duration?.trim() || '',
     });
 
     if (Array.isArray(args.objectives)) {
@@ -74,6 +76,8 @@ function handleUpdate(args) {
     if (args.status !== undefined) quest.status = args.status;
     if (args.giver !== undefined) quest.giver = args.giver.trim();
     if (args.location !== undefined) quest.location = args.location.trim();
+    if (args.date !== undefined) quest.dateCreated = args.date.trim();
+    if (args.duration !== undefined) quest.duration = args.duration.trim();
 
     // Replace objectives entirely if provided
     if (Array.isArray(args.objectives)) {

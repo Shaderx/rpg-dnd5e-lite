@@ -518,17 +518,22 @@ function bindV2InventoryEvents(container) {
         });
     });
 
-    // Tooltip on hover: base item tooltip + magic notes + charges appended
+    // Tooltip on hover: base item tooltip + notes/magic info appended
     container.querySelectorAll('.dnd-inventory-item[data-tt-name]').forEach(row => {
         row.addEventListener('mouseenter', () => {
             const name = row.dataset.ttName;
             if (!name) return;
             const idx = parseInt(row.dataset.idx);
             const item = v2Inventory[idx];
-            const parts = [];
-            if (item?.magicNotes) parts.push(item.magicNotes);
-            if (item?.magic && item?.charges !== null && item?.charges !== undefined) parts.push(`Charges: ${item.charges}`);
-            const extra = parts.join(' | ');
+            let extra = '';
+            if (item) {
+                const parts = [];
+                if (item.magic && item.charges !== null && item.charges !== undefined) parts.push(`Charges: ${item.charges}`);
+                if (item.magicNotes) parts.push(item.magicNotes);
+                if (parts.length > 0) {
+                    extra = item.magic ? `✨ Magic: ${parts.join(' | ')}` : parts.join(' | ');
+                }
+            }
             showEquipmentTooltip(row, name, extra);
         });
         row.addEventListener('mouseleave', () => { hideTooltip(); });

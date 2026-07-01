@@ -32,6 +32,8 @@ export function createDefaultQuest(overrides = {}) {
         priority: 1,
         giver: '',
         location: '',
+        dateCreated: '',
+        duration: '',
         objectives: [],
         rewards: { xp: 0, gold: 0, items: [] },
         ...overrides,

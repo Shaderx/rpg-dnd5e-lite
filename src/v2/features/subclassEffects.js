@@ -1400,7 +1400,7 @@ register('wizard', 'Power Surge', 6, {
 
 register('wizard', 'Durable Magic', 10, {
     promptNote: () => 'Durable Magic: While concentrating on a spell, +2 AC and +2 to all saves',
-    acBonus: () => 0,
+    acBonus: (stats) => stats.hasActiveConcentration ? 2 : 0,
 }, { subclass: 'War Magic' });
 
 register('wizard', 'Deflecting Shroud', 14, {
