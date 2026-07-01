@@ -22,6 +22,7 @@ import { getResolvedClassFeaturesSync } from './classData.js';
 import { computeAC, computeWeaponStats } from './equipment.js';
 import { collectWondrousEffects } from './wondrousEffects.js';
 import { getSpellDamageInfo, buildSpellAnnotation, getMaxSpellLevel, formatSlots } from './spells.js';
+import { getActiveSpellAcEffects, hasActiveConcentration } from './activeEffects.js';
 import { v2Inventory, isItemEquipped } from '../core/state.js';
 
 /**
@@ -226,7 +227,10 @@ export function computeV2CharacterStats(char) {
         equippedWeaponCount: weaponDataList.length,
         draconicElement: effectiveDraconicElement,
         levelChoiceEffects,
+        hasActiveConcentration: hasActiveConcentration(),
     };
+
+    const spellAcEffects = getActiveSpellAcEffects(mods, !!armorData);
 
     // --- HP ---
     const hitDie = HIT_DICE[classKey] || 8;
@@ -265,6 +269,12 @@ export function computeV2CharacterStats(char) {
         }
     }
 
+    if (!armorData && spellAcEffects.unarmoredFormula != null) {
+        unarmoredFormula = unarmoredFormula != null
+            ? Math.max(unarmoredFormula, spellAcEffects.unarmoredFormula)
+            : spellAcEffects.unarmoredFormula;
+    }
+
     let defenseBonus = 0;
     for (const fn of classEffects.acBonus) {
         defenseBonus += fn(statsCtx);
@@ -281,9 +291,52 @@ export function computeV2CharacterStats(char) {
             unarmoredFormula,
             defenseBonus,
             wondrousAcBonus: wondrousEffects.acBonus,
+            spellAcBonus: spellAcEffects.bonus,
+            acFloor: spellAcEffects.floor,
             mediumArmorMaster: !!featEffects.meta.mediumArmorMaster,
         }
     );
+
+    // --- AC Breakdown ---
+    const acBreakdown = [];
+    if (!armorData) {
+        const spellOverride = spellAcEffects.breakdown.find(b => b.isOverride);
+        if (spellOverride) {
+            acBreakdown.push({ label: spellOverride.label, value: spellOverride.value, isBase: true });
+        } else if (unarmoredFormula != null) {
+            acBreakdown.push({ label: 'Unarmored Defense', value: unarmoredFormula, isBase: true });
+        } else {
+            acBreakdown.push({ label: 'Base', value: 10, isBase: true });
+            if (mods.dex) acBreakdown.push({ label: 'DEX', value: mods.dex });
+        }
+    } else {
+        const armorLabel = armorData.name || 'Armor';
+        if (armorData.type === 'LA') {
+            acBreakdown.push({ label: armorLabel, value: armorData.ac, isBase: true });
+            if (mods.dex) acBreakdown.push({ label: 'DEX', value: mods.dex });
+        } else if (armorData.type === 'MA') {
+            const cap = featEffects.meta.mediumArmorMaster ? 3 : 2;
+            acBreakdown.push({ label: armorLabel, value: armorData.ac, isBase: true });
+            const dexContrib = Math.min(mods.dex, cap);
+            if (dexContrib) acBreakdown.push({ label: 'DEX', value: dexContrib });
+        } else {
+            acBreakdown.push({ label: armorLabel, value: armorData.ac, isBase: true });
+        }
+        if (armorData.bonusAc) acBreakdown.push({ label: 'Enhancement', value: armorData.bonusAc });
+    }
+    if (defenseBonus) acBreakdown.push({ label: 'Features', value: defenseBonus });
+    for (const wi of spellAcEffects.breakdown) {
+        if (wi.isOverride) continue;
+        if (wi.isFloor) {
+            acBreakdown.push({ label: `${wi.label} (min)`, value: wi.value });
+        } else {
+            acBreakdown.push({ label: wi.label, value: wi.value });
+        }
+    }
+    for (const wi of wondrousEffects.items) {
+        if (wi.acBonus) acBreakdown.push({ label: wi.name, value: wi.acBonus });
+    }
+    if (shieldAc) acBreakdown.push({ label: 'Shield', value: shieldAc });
 
     // --- Saves ---
     const saves = {};
@@ -297,6 +350,10 @@ export function computeV2CharacterStats(char) {
             proficient: isProficient,
         };
     }
+
+    const saveBonusSources = wondrousEffects.items
+        .filter(wi => wi.saveBonus)
+        .map(wi => `+${wi.saveBonus} ${wi.name}`);
 
     // --- Skills ---
     const allSkillProfs = new Set([
@@ -350,6 +407,8 @@ export function computeV2CharacterStats(char) {
     let potentMod = 0;
     let empoweredSchool = null;
     let empoweredMod = 0;
+    let empoweredDamageType = null;
+    let empoweredDamageTypeMod = 0;
     let healingBonusFn = null;
 
     for (const fn of classEffects.spellDamageBonus) {
@@ -360,8 +419,8 @@ export function computeV2CharacterStats(char) {
             empoweredSchool = bonus.filter.school;
             empoweredMod = bonus.flatBonus;
         } else if (bonus.filter?.damageType) {
-            empoweredSchool = null;
-            empoweredMod = bonus.flatBonus;
+            empoweredDamageType = bonus.filter.damageType;
+            empoweredDamageTypeMod = bonus.flatBonus;
         }
     }
 
@@ -402,7 +461,7 @@ export function computeV2CharacterStats(char) {
     });
 
     // --- Spell Annotations ---
-    const spellBonuses = { potentMod, empoweredSchool, empoweredMod, healingBonusFn };
+    const spellBonuses = { potentMod, empoweredSchool, empoweredMod, empoweredDamageType, empoweredDamageTypeMod, healingBonusFn };
 
     const annotatedCantrips = (char.knownCantrips || []).map(name => {
         const info = getSpellDamageInfo(name, level, spellBonuses);
@@ -521,6 +580,8 @@ export function computeV2CharacterStats(char) {
         potentMod,
         empoweredSchool,
         empoweredMod,
+        empoweredDamageType,
+        empoweredDamageTypeMod,
 
         // Species
         speciesTraits: char.speciesTraits || [],
@@ -533,6 +594,8 @@ export function computeV2CharacterStats(char) {
         // Equipment (from inventory)
         equippedArmor: armorData,
         hasShield,
+        acBreakdown,
+        saveBonusSources,
 
         // Feats
         chosenFeats: getChosenFeatNames(char),
@@ -545,6 +608,7 @@ export function computeV2CharacterStats(char) {
         featBonusSpells: [
             ...(featEffects.bonusSpells || []),
             ...levelChoiceEffects.bonusSpells,
+            ...(classEffects.bonusSpells || []),
         ],
 
         // Subclass spells

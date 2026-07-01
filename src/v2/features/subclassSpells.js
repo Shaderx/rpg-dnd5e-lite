@@ -264,9 +264,17 @@ export const SUBCLASS_SPELL_LISTS = {
     ],
 
     'sorcerer|Draconic Bloodline': [
-        { minLevel: 3, spells: ['Alter Self', 'Chromatic Orb', 'Command'] },
-        { minLevel: 3, spells: ['Fear', 'Fly'] },
-        { minLevel: 5, spells: ['Arcane Eye', 'Legend Lore'] },
+        { minLevel: 3, spells: ['Alter Self', 'Chromatic Orb', 'Command', "Dragon's Breath"] },
+        { minLevel: 5, spells: ['Fear', 'Fly'] },
+        { minLevel: 7, spells: ['Arcane Eye', 'Charm Monster'] },
+        { minLevel: 9, spells: ['Legend Lore', 'Summon Dragon'] },
+    ],
+
+    'sorcerer|Draconic Sorcery': [
+        { minLevel: 3, spells: ['Alter Self', 'Chromatic Orb', 'Command', "Dragon's Breath"] },
+        { minLevel: 5, spells: ['Fear', 'Fly'] },
+        { minLevel: 7, spells: ['Arcane Eye', 'Charm Monster'] },
+        { minLevel: 9, spells: ['Legend Lore', 'Summon Dragon'] },
     ],
 
     'sorcerer|Wild Magic': [],

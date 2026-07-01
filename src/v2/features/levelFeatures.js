@@ -681,6 +681,12 @@ export const SUBCLASS_LEVEL_FEATURES = {
           options: DRACONIC_ELEMENTS },
     ],
 
+    'sorcerer|Draconic Sorcery': [
+        { level: 3, id: 'draconic-element', type: 'single-select', label: 'Draconic Ancestry Element',
+          description: 'Choose the damage type associated with your draconic ancestry.',
+          options: DRACONIC_ELEMENTS },
+    ],
+
     // ----------------------------------------------------------
     // WARLOCK
     // ----------------------------------------------------------

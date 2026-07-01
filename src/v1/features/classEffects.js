@@ -794,15 +794,18 @@ register('sorcerer', 'Arcane Apotheosis', 20, {
     promptNote: () => 'Arcane Apotheosis: While Innate Sorcery is active, spend 1 sorcery point when casting a sorcerer spell of Lv1-4 to cast it without expending a spell slot',
 });
 
-// Subclass: Draconic Bloodline
+// Subclass: Draconic Sorcery (PHB'24) / Draconic Bloodline (PHB'14)
 register('sorcerer', 'Draconic Resilience', 3, {
     acOverride: (stats) => ({
-        formula: 13 + (stats.mods.dex || 0),
+        formula: 10 + (stats.mods.dex || 0) + (stats.mods.cha || 0),
         requiresNoArmor: true,
         allowsShield: true,
     }),
     hpBonus: (level) => level,
-    promptNote: (stats) => `Draconic Resilience: AC = ${13 + (stats.mods.dex || 0)} (13+DEX) without armor; +${stats.level} HP from bonus per level`,
+    promptNote: (stats) => {
+        const draconicAC = 10 + (stats.mods.dex || 0) + (stats.mods.cha || 0);
+        return `Draconic Resilience: AC = ${draconicAC} (10+DEX+CHA) without armor; +${stats.level} HP from bonus per level`;
+    },
 }, { subclass: 'Draconic' });
 
 // Subclass: Divine Soul
@@ -831,6 +834,14 @@ register('sorcerer', 'Elemental Affinity', 6, {
         const el = stats.draconicElement || 'chosen element';
         return `Elemental Affinity: +${stats.mods.cha || 0} (CHA mod) to ${el} spell damage; spend 1 sorcery point for ${el} resistance for 1 hour`;
     },
+}, { subclass: 'Draconic' });
+
+register('sorcerer', 'Dragon Wings', 14, {
+    promptNote: () => 'Dragon Wings: Bonus Action to sprout draconic wings for 1 hour (or dismiss, no action), Fly Speed 60ft. 1/LR or spend 3 Sorcery Points to restore use',
+}, { subclass: 'Draconic' });
+
+register('sorcerer', 'Dragon Companion', 18, {
+    promptNote: () => 'Dragon Companion: Cast Summon Dragon without a material component. 1/LR cast without a spell slot. Can modify to remove Concentration (duration becomes 1 minute)',
 }, { subclass: 'Draconic' });
 
 // =============================================================================
