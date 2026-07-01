@@ -474,27 +474,53 @@
 .dnd-strip-event-tag {
     font-size: 0.55rem;
     font-variant-numeric: tabular-nums;
-    opacity: 0.35;
+    opacity: 0.5;
+    color: #999;
     cursor: default;
     padding: 1px 4px;
     border-radius: 3px;
     text-align: center;
-    transition: opacity 0.2s, background 0.2s;
+    transition: opacity 0.2s, background 0.2s, color 0.2s;
     white-space: nowrap;
     user-select: none;
     letter-spacing: 0.02em;
 }
 .dnd-strip-event-tag:hover {
-    opacity: 0.7;
+    opacity: 0.8;
     background: rgba(255,255,255,0.04);
 }
-.dnd-strip-event-tag.dnd-event-triggered {
+.dnd-strip-event-tag.dnd-event-minor {
     opacity: 0.85;
-    color: var(--dnd-accent, #e8a926);
+    color: #66bb6a;
 }
-.dnd-strip-event-tag.dnd-event-triggered:hover {
+.dnd-strip-event-tag.dnd-event-minor:hover {
     opacity: 1;
-    background: rgba(232, 169, 38, 0.08);
+    background: rgba(102, 187, 106, 0.1);
+}
+.dnd-strip-event-tag.dnd-event-moderate {
+    opacity: 0.9;
+    color: #ffa726;
+}
+.dnd-strip-event-tag.dnd-event-moderate:hover {
+    opacity: 1;
+    background: rgba(255, 167, 38, 0.1);
+}
+.dnd-strip-event-tag.dnd-event-major {
+    opacity: 0.9;
+    color: #ef5350;
+}
+.dnd-strip-event-tag.dnd-event-major:hover {
+    opacity: 1;
+    background: rgba(239, 83, 80, 0.1);
+}
+.dnd-strip-event-tag.dnd-event-critical {
+    opacity: 1;
+    color: #d32f2f;
+    font-weight: 700;
+    text-shadow: 0 0 6px rgba(211, 47, 47, 0.4);
+}
+.dnd-strip-event-tag.dnd-event-critical:hover {
+    background: rgba(211, 47, 47, 0.12);
 }
 
 /* Strip: non-combat d20 tag (combat-roll colors, subdued) */
@@ -562,26 +588,52 @@
 .dnd-panel-event-tag {
     font-size: 0.7rem;
     font-variant-numeric: tabular-nums;
-    opacity: 0.3;
+    opacity: 0.5;
+    color: #999;
     cursor: default;
     padding: 2px 6px;
     border-radius: 3px;
-    transition: opacity 0.2s, background 0.2s;
+    transition: opacity 0.2s, background 0.2s, color 0.2s;
     white-space: nowrap;
     user-select: none;
     letter-spacing: 0.02em;
 }
 .dnd-panel-event-tag:hover {
-    opacity: 0.65;
+    opacity: 0.8;
     background: rgba(255,255,255,0.04);
 }
-.dnd-panel-event-tag.dnd-event-triggered {
+.dnd-panel-event-tag.dnd-event-minor {
     opacity: 0.85;
-    color: var(--dnd-accent, #e8a926);
+    color: #66bb6a;
 }
-.dnd-panel-event-tag.dnd-event-triggered:hover {
+.dnd-panel-event-tag.dnd-event-minor:hover {
     opacity: 1;
-    background: rgba(232, 169, 38, 0.08);
+    background: rgba(102, 187, 106, 0.1);
+}
+.dnd-panel-event-tag.dnd-event-moderate {
+    opacity: 0.9;
+    color: #ffa726;
+}
+.dnd-panel-event-tag.dnd-event-moderate:hover {
+    opacity: 1;
+    background: rgba(255, 167, 38, 0.1);
+}
+.dnd-panel-event-tag.dnd-event-major {
+    opacity: 0.9;
+    color: #ef5350;
+}
+.dnd-panel-event-tag.dnd-event-major:hover {
+    opacity: 1;
+    background: rgba(239, 83, 80, 0.1);
+}
+.dnd-panel-event-tag.dnd-event-critical {
+    opacity: 1;
+    color: #d32f2f;
+    font-weight: 700;
+    text-shadow: 0 0 6px rgba(211, 47, 47, 0.4);
+}
+.dnd-panel-event-tag.dnd-event-critical:hover {
+    background: rgba(211, 47, 47, 0.12);
 }
 
 /* Settings popup: random event sub-options */

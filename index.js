@@ -14,7 +14,7 @@ import { renderCharacter } from './src/rendering/character.js';
 import { renderSidekickCards, renderSidekickDetail } from './src/rendering/sidekick.js';
 import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, CREATURE_TYPES, SPELL_SCHOOLS, fetchBestiaryIndex, fetchBestiarySource, preloadBestiarySources, getAvailableSourceKeys, getLoadedSourceKeys, searchCreatures, findCreatureVersions, getCreatureStats, fetchEquipmentItems, fetchMagicItems, isMagicWeaponsLoaded, extractCreatureActions, extractCreatureTraits, extractCreatureSkillProficiencies, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, preloadSpellData, getSpellsForClass, getAllLoadedSpells, spellSchoolLabel, searchEquipment, searchMagicItems, weaponFromItem, armorFromItem, computeEquippedAC, DND_LANGUAGES, parseCreatureLanguages, getSpellDamageInfo, fetchFeats, getLoadedFeats, parseFeatAbility, checkFeatPrereqs, lookupFeatByName } from './src/features/sidekick.js';
 import { getFeatUIDescriptor, DND_TOOLS } from './src/features/featEffects.js';
-import { bindTooltipEvents, hideTooltip } from './src/rendering/tooltip.js';
+import { bindTooltipEvents, hideTooltip, showEventTooltip } from './src/rendering/tooltip.js';
 import { onGenerationStarted, clearExtensionPrompts } from './src/generation/injector.js';
 import { DEFAULT_SEVERITY_TIERS, getSeverityTiers } from './src/features/randomEvents.js';
 import { renderQuests, addQuestFromInput } from './src/rendering/quests.js';
@@ -2194,6 +2194,8 @@ function preloadV2Assets() {
 
 // ─── Random event display ───────────────────────────────────
 
+const EVENT_SEVERITY_CLASSES = ['dnd-event-triggered', 'dnd-event-minor', 'dnd-event-moderate', 'dnd-event-major', 'dnd-event-critical'];
+
 function updateRandomEventDisplay() {
     const enabled = extensionSettings.randomEventsEnabled;
     const roll = lastEventRoll;
@@ -2210,26 +2212,24 @@ function updateRandomEventDisplay() {
     }
 
     const hasSeverity = !!roll.severity;
-    let label;
-    let tooltip;
+    const label = `${roll.roll}`;
+    const severityClass = hasSeverity ? `dnd-event-${roll.severity.id}` : '';
 
-    if (hasSeverity) {
-        const cat = roll.categoryMeta?.label || roll.category;
-        label = `${roll.roll}`;
-        tooltip = `d100: ${roll.roll} | ${roll.severity.label}: ${cat}\nShift-click to edit thresholds`;
-    } else if (roll.cooldownActive) {
-        label = `${roll.roll}`;
-        tooltip = `d100: ${roll.roll} | No Event (cooldown ${roll.cooldownRemaining})\nShift-click to edit thresholds`;
-    } else {
-        label = `${roll.roll}`;
-        tooltip = `d100: ${roll.roll} | No Event\nShift-click to edit thresholds`;
+    for (const $tag of [$stripTag, $panelTag]) {
+        $tag.text(label).removeAttr('title').show();
+        $tag.removeClass(EVENT_SEVERITY_CLASSES.join(' '));
+        if (severityClass) $tag.addClass(severityClass);
     }
 
-    $stripTag.text(label).attr('title', tooltip).show();
-    $stripTag.toggleClass('dnd-event-triggered', hasSeverity);
+    bindEventTagTooltip($stripTag, roll);
+    bindEventTagTooltip($panelTag, roll);
+}
 
-    $panelTag.text(label).attr('title', tooltip).show();
-    $panelTag.toggleClass('dnd-event-triggered', hasSeverity);
+function bindEventTagTooltip($el, eventRoll) {
+    const NS = '.dndEventTip';
+    $el.off(NS);
+    $el.on('mouseenter' + NS, function () { showEventTooltip(this, eventRoll); });
+    $el.on('mouseleave' + NS, function () { hideTooltip(); });
 }
 
 // ─── Non-combat dice display ────────────────────────────────

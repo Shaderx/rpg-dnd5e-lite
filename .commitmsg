@@ -1,0 +1,11 @@
+fix: inject event table entries into prompt, add hover tooltip, severity color spectrum
+
+- Wrap event table examples in event_table_entries tags with instructions
+  to merge/combine seeds into the ongoing narrative
+- Add event_instructions block directing LLM to connect events to existing
+  story threads and scale narrative weight by severity
+- Replace native title tooltip with rich hover tooltip showing d100 result,
+  severity, category, rolled event seeds, and category directive
+- Replace single gold highlight with readable severity color spectrum:
+  grey (no event) -> green (minor) -> orange (moderate) -> red (major)
+  -> deep red with glow (critical)

@@ -809,18 +809,28 @@ export function buildRandomEventSection(eventResult) {
     const lines = [];
     lines.push('<random_world_event>');
     lines.push(`[d100: ${roll} | ${severity.label} | ${categoryMeta.label}]`);
-    lines.push(categoryMeta.directive);
+    lines.push('');
+    lines.push(`<event_directive>${categoryMeta.directive}</event_directive>`);
 
     if (examples.length > 0) {
         lines.push('');
-        lines.push('Examples for inspiration (adapt to current context):');
+        lines.push('<event_table_entries>');
+        lines.push('The following are rolled event seeds from the world event table. Use one or combine elements from several to create the event. Adapt details to fit the current location, NPCs present, time of day, and ongoing narrative threads:');
         for (const ex of examples) {
             lines.push(`- ${ex}`);
         }
+        lines.push('</event_table_entries>');
     }
 
     lines.push('');
-    lines.push('Weave world event naturally into narrative. Party reacts. No meta-game references.');
+    lines.push(`<event_instructions severity="${severity.id}">`);
+    lines.push('IMPORTANT: Merge this event organically into the ongoing narrative. Do not treat it as a disconnected interruption.');
+    lines.push('- Connect the event to existing story threads, active quests, or the current scene whenever possible.');
+    lines.push('- If a direct connection exists, weave the event as a natural consequence or escalation of current events.');
+    lines.push('- If no direct connection fits, introduce the event as an emerging situation the party encounters naturally.');
+    lines.push('- The party and NPCs react in-character. No meta-game references, no announcing dice rolls or mechanics.');
+    lines.push('- Scale the narrative weight to match the severity: minor events are passing moments, critical events reshape the scene.');
+    lines.push('</event_instructions>');
     lines.push('</random_world_event>');
 
     return lines.join('\n');

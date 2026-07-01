@@ -431,6 +431,57 @@ export function showTraitTooltip(anchorEl, name, text, sub) {
     }, TOOLTIP_DELAY);
 }
 
+const SEVERITY_COLORS = {
+    minor: '#66bb6a',
+    moderate: '#ffa726',
+    major: '#ef5350',
+    critical: '#d32f2f',
+};
+
+function buildEventTooltip(eventRoll) {
+    if (!eventRoll) return '<div class="dnd-tt-name">No Event Data</div>';
+
+    const { roll, severity, categoryMeta, examples, cooldownActive, cooldownRemaining } = eventRoll;
+
+    if (!severity) {
+        const cdNote = cooldownActive
+            ? `<div class="dnd-tt-field" style="color:rgba(255,255,255,0.5)">Cooldown: ${cooldownRemaining} turn${cooldownRemaining !== 1 ? 's' : ''} remaining</div>`
+            : '';
+        return `<div class="dnd-tt-name" style="color:#999">d100: ${roll}</div>
+<div class="dnd-tt-sub">No Event</div>${cdNote}
+<div class="dnd-tt-divider"></div>
+<div class="dnd-tt-desc" style="color:rgba(255,255,255,0.45)">Roll below event threshold. Narrative continues normally.</div>`;
+    }
+
+    const color = SEVERITY_COLORS[severity.id] || '#ffd700';
+    const cat = categoryMeta?.label || 'Unknown';
+
+    let examplesHtml = '';
+    if (examples?.length > 0) {
+        const items = examples.map(ex => `<div class="dnd-tt-field" style="padding-left:0.5em;border-left:2px solid ${color}33;margin-bottom:0.35em">${escHtml(ex)}</div>`).join('');
+        examplesHtml = `<div class="dnd-tt-divider"></div>
+<div class="dnd-tt-field"><strong>Event Seeds:</strong></div>${items}`;
+    }
+
+    let directiveHtml = '';
+    if (categoryMeta?.directive) {
+        directiveHtml = `<div class="dnd-tt-divider"></div><div class="dnd-tt-desc" style="font-style:italic;color:rgba(255,255,255,0.55)">${escHtml(categoryMeta.directive)}</div>`;
+    }
+
+    return `<div class="dnd-tt-name" style="color:${color}">d100: ${roll} &mdash; ${escHtml(severity.label)}</div>
+<div class="dnd-tt-sub">${escHtml(cat)} Event</div>
+<div class="dnd-tt-divider"></div>
+<div class="dnd-tt-field"><strong>Severity:</strong> <span style="color:${color}">${escHtml(severity.label)}</span> (${severity.min}\u2013${severity.max})</div>
+<div class="dnd-tt-field"><strong>Category:</strong> ${escHtml(cat)}</div>${examplesHtml}${directiveHtml}`;
+}
+
+export function showEventTooltip(anchorEl, eventRoll) {
+    clearTimeout(tooltipTimer);
+    tooltipTimer = setTimeout(() => {
+        showTooltip(anchorEl, buildEventTooltip(eventRoll));
+    }, TOOLTIP_DELAY);
+}
+
 /**
  * Wire up delegated hover events on a container for all hoverable elements.
  * Safe to call multiple times; old bindings are removed first via namespace.
