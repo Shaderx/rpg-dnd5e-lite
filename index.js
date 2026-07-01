@@ -6,7 +6,7 @@
 import { getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { eventSource, event_types, saveSettingsDebounced } from '../../../../script.js';
 import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, autoLongRestEnabled, setAutoLongRestEnabled, character, sidekicks, headerInfo, lastEventRoll, lastNonCombatRoll, migrateSettingsToMode, syncModeFlags } from './src/core/state.js';
-import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled, saveSendAttributesOnRoll, loadSendAttributesOnRoll, saveSpellInjectEnabled, loadSpellInjectEnabled, saveAutoLongRest, loadAutoLongRest, loadSpellbook, loadCharacter, saveSidekicks, loadSidekicks, loadRandomEventState, saveRandomEventState } from './src/core/persistence.js';
+import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled, saveSendAttributesOnRoll, loadSendAttributesOnRoll, saveSpellInjectEnabled, loadSpellInjectEnabled, saveAutoLongRest, loadAutoLongRest, loadSpellbook, loadCharacter, saveSidekicks, loadSidekicks, loadRandomEventState, saveRandomEventState, loadAutoBackgrounds } from './src/core/persistence.js';
 import { importSpellbook, clearSpellbook, ensureSpellData } from './src/features/spellbook.js';
 import { renderSpellbook, hideSpellTooltip } from './src/rendering/spellbook.js';
 import { fetchClassIndex, fetchClassData, listClasses, getSubclasses, saveCharacterConfig, clearCharacter, ensureCharacterData } from './src/features/character.js';
@@ -27,6 +27,7 @@ import { updateStripWidgets, updateHeaderWidgets, getOmniWidgetSizes, DEFAULT_OM
 import { setupMobileFab } from './src/ui/mobile.js';
 import { setupCollapseToggle, applyPanelPosition, updatePanelVisibility, updateStripWidgetClass } from './src/ui/layout.js';
 import { applyWeatherVisuals, destroyWeatherVisuals, rebuildWeatherParticles, refreshLightingOverlay } from './src/features/weatherVisuals.js';
+import { evaluateAutoBackground, resetAutoBackgroundState, openAutoBackgroundModal, saveAutoBackgroundModal, addAutoBackgroundEntry, removeAutoBackgroundEntry } from './src/features/autoBackground.js';
 import { loadCharacterV1, saveCharacterV1 } from './src/v1/core/persistence.js';
 import { characterV1, setCharacterV1 } from './src/v1/core/state.js';
 import { renderV1CharacterPanel } from './src/v1/rendering/character.js';
@@ -2024,6 +2025,8 @@ function handleRefreshFromChat() {
     updateDamageDisplay();
     updateModifierDisplay();
 
+    evaluateAutoBackground();
+
     if (headerResult) {
         toastr.success('Refreshed from chat');
     } else {
@@ -2049,6 +2052,7 @@ function onMessageReceived(messageIndex) {
     if (result) {
         updateHeaderWidgets();
         updateStripWidgets();
+        evaluateAutoBackground();
     }
 
     if (!spellTrackerDisabled) {
@@ -2086,6 +2090,7 @@ function onMessageSwiped(messageIndex) {
     updateStripWidgets();
     if (!spellTrackerDisabled) renderSpellLog();
     applyWeatherVisuals();
+    evaluateAutoBackground();
 
     // V2: re-parse inline game_actions from the new swipe
     if (extensionSettings.v2Enabled) {
@@ -2108,8 +2113,11 @@ function onChatChanged() {
     loadAutoLongRest();
     loadSpellLog();
     loadSpellbook();
+    loadAutoBackgrounds();
+    resetAutoBackgroundState();
     refreshHeaderFromChat();
     if (!spellTrackerDisabled) refreshSpellLog();
+    evaluateAutoBackground();
 
     renderQuests();
     renderInventory();
@@ -2747,8 +2755,10 @@ async function initUI() {
     loadSpellInjectEnabled();
     loadAutoLongRest();
     loadSpellLog();
+    loadAutoBackgrounds();
     refreshHeaderFromChat();
     if (!spellTrackerDisabled) refreshSpellLog();
+    evaluateAutoBackground();
 
     renderQuests();
     renderInventory();
@@ -3508,6 +3518,37 @@ async function initUI() {
             saveSettings();
             refreshLightingOverlay();
         });
+
+    // Auto background switching modal
+    $('#dnd-open-auto-bg').on('click', () => {
+        openAutoBackgroundModal();
+    });
+    $('#dnd-auto-bg-close').on('click', () => {
+        saveAutoBackgroundModal();
+        $('#dnd-auto-bg-modal').hide();
+        evaluateAutoBackground();
+    });
+    $('#dnd-auto-bg-modal').on('click', function (e) {
+        if (e.target === this) {
+            saveAutoBackgroundModal();
+            $(this).hide();
+            evaluateAutoBackground();
+        }
+    });
+    $('#dnd-auto-bg-enabled').on('change', function () {
+        saveAutoBackgroundModal();
+    });
+    $('#dnd-auto-bg-add').on('click', () => {
+        addAutoBackgroundEntry();
+    });
+    $(document).on('click', '.dnd-auto-bg-delete', function () {
+        const idx = parseInt($(this).data('idx'), 10);
+        removeAutoBackgroundEntry(idx);
+        saveAutoBackgroundModal();
+    });
+    $(document).on('change', '.dnd-auto-bg-day, .dnd-auto-bg-night, .dnd-auto-bg-name-input', function () {
+        saveAutoBackgroundModal();
+    });
 }
 
 function populateDebugModules() {
@@ -3538,6 +3579,7 @@ function populateDebugModules() {
             'src/features/sidekick.js', 'src/features/spellbook.js',
             'src/features/character.js', 'src/features/inventoryRarity.js',
             'src/features/spellScaling.js', 'src/features/featEffects.js',
+            'src/features/autoBackground.js',
             'src/rendering/character.js', 'src/rendering/spellbook.js',
             'src/rendering/sidekick.js', 'src/rendering/tooltip.js',
             'src/rendering/spellbookLevelFilter.js',
@@ -3587,6 +3629,7 @@ function destroyUI() {
     $('#dnd-mobile-toggle').remove();
     $('#dnd-attr-editor-popup').remove();
     $('#dnd-settings-popup').remove();
+    $('#dnd-auto-bg-modal').remove();
     $('#dnd-spellbook-import-popup').remove();
     $('#dnd-character-config-popup').remove();
     $('#dnd-sidekick-detail-popup').remove();

@@ -7686,3 +7686,111 @@
     font-size: 0.88em;
     line-height: 1.5;
 }
+
+/* ─── Auto Background Switching Modal ────────────────────── */
+
+.dnd-btn-block {
+    display: block;
+    width: 100%;
+    text-align: center;
+    cursor: pointer;
+    font-size: 0.88em;
+}
+
+.dnd-modal-auto-bg {
+    min-width: 300px;
+    max-width: 420px;
+}
+
+.dnd-modal-auto-bg .dnd-modal-body {
+    max-height: 65vh;
+    overflow-y: auto;
+}
+
+.dnd-auto-bg-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6em;
+}
+
+.dnd-auto-bg-entry {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--dnd-border, rgba(255,255,255,0.08));
+    border-radius: 0.4em;
+    padding: 0.5em 0.6em;
+}
+
+.dnd-auto-bg-entry-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.4em;
+}
+
+.dnd-auto-bg-entry-name {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--dnd-highlight, #5cd6b8);
+}
+
+.dnd-auto-bg-name-input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--dnd-border, rgba(255,255,255,0.08));
+    border-radius: 0.3em;
+    color: var(--dnd-text, #ddd);
+    padding: 0.2em 0.4em;
+    font-size: 0.85em;
+}
+
+.dnd-auto-bg-name-input:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
+}
+
+.dnd-auto-bg-delete {
+    background: none;
+    border: none;
+    color: rgba(255, 100, 100, 0.6);
+    cursor: pointer;
+    padding: 0.2em 0.4em;
+    font-size: 0.85em;
+}
+
+.dnd-auto-bg-delete:hover {
+    color: rgba(255, 100, 100, 1);
+}
+
+.dnd-auto-bg-selectors {
+    display: flex;
+    gap: 0.6em;
+}
+
+.dnd-auto-bg-selectors label {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2em;
+    font-size: 0.8em;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.dnd-auto-bg-selectors select {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--dnd-border, rgba(255,255,255,0.08));
+    border-radius: 0.3em;
+    color: var(--dnd-text, #ddd);
+    padding: 0.25em 0.3em;
+    font-size: 0.95em;
+}
+
+.dnd-auto-bg-selectors select:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
+}
+
+.dnd-auto-bg-selectors select option {
+    background: #1a1a2e;
+    color: #ddd;
+}

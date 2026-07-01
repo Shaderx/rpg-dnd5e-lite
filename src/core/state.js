@@ -181,6 +181,10 @@ export function setLastNonCombatRoll(val) { lastNonCombatRoll = val; }
 export let eventLog = [];
 export function setEventLog(val) { eventLog = val; }
 
+// Auto background switching: per-chat config { enabled, entries: [{ name, day, night }] }
+export let autoBackgrounds = null;
+export function setAutoBackgrounds(val) { autoBackgrounds = val; }
+
 // Header info parsed from LLM messages
 export let headerInfo = {
     time: null,         // "7:02 PM"

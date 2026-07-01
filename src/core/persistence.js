@@ -5,7 +5,7 @@
 
 import { getContext } from '../../../../../extensions.js';
 import { saveSettingsDebounced, chat_metadata, saveChatDebounced } from '../../../../../../script.js';
-import { extensionName, extensionSettings, defaultAttributeSchema, buildDefaultAttributes, setChatAttributes, setChatAttributeSchema, setQuests, setInventory, setSpellLog, setSpellTrackerDisabled, setSendAttributesOnRoll, setSpellInjectEnabled, setAutoLongRestEnabled, setSpellbook, setCharacter, setSidekicks, eventCooldown, lastEventRoll, eventLog, setEventCooldown, setLastEventRoll, setEventLog } from './state.js';
+import { extensionName, extensionSettings, defaultAttributeSchema, buildDefaultAttributes, setChatAttributes, setChatAttributeSchema, setQuests, setInventory, setSpellLog, setSpellTrackerDisabled, setSendAttributesOnRoll, setSpellInjectEnabled, setAutoLongRestEnabled, setSpellbook, setCharacter, setSidekicks, eventCooldown, lastEventRoll, eventLog, setEventCooldown, setLastEventRoll, setEventLog, setAutoBackgrounds } from './state.js';
 import { migrateInventoryRarity, INVENTORY_RARITY_VERSION, normalizeRarity } from '../features/inventoryRarity.js';
 
 /**
@@ -332,4 +332,22 @@ export function loadRandomEventState() {
     setLastEventRoll(chat_metadata?.dnd5e_lastEventRoll ?? null);
     const storedLog = chat_metadata?.dnd5e_eventLog;
     setEventLog(Array.isArray(storedLog) ? storedLog : []);
+}
+
+/**
+ * Save auto-background switching config to chat metadata.
+ * @param {object|null} data - { enabled, entries: [{ name, day, night }] }
+ */
+export function saveAutoBackgrounds(data) {
+    if (!chat_metadata) return;
+    chat_metadata.dnd5e_autoBackgrounds = data;
+    saveChatDebounced();
+}
+
+/**
+ * Load auto-background switching config from chat metadata into runtime state.
+ */
+export function loadAutoBackgrounds() {
+    const stored = chat_metadata?.dnd5e_autoBackgrounds;
+    setAutoBackgrounds(stored || null);
 }
