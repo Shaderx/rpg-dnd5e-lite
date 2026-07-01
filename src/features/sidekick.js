@@ -133,13 +133,67 @@ export async function fetchBestiarySource(sourceKey) {
         .then(data => {
             const monsters = data?.monster || [];
             bestiaryCache.set(sourceKey, monsters);
-            return monsters;
+            resolveBestiaryCopies(sourceKey);
+            return bestiaryCache.get(sourceKey);
         })
         .catch(err => { console.warn(`[D&D 5e Lite] Bestiary fetch failed for "${sourceKey}":`, err); return null; })
         .finally(() => { _bestiaryInflight.delete(sourceKey); });
 
     _bestiaryInflight.set(sourceKey, promise);
     return promise;
+}
+
+function findBaseCreature(name, source) {
+    for (const [, monsters] of bestiaryCache) {
+        const found = monsters.find(m => m.name === name && m.source === source && !m._copy);
+        if (found) return found;
+    }
+    return null;
+}
+
+function applyTextMod(obj, replace, withStr) {
+    if (typeof obj === 'string') {
+        return obj.replace(new RegExp(replace, 'gi'), withStr);
+    }
+    if (Array.isArray(obj)) return obj.map(item => applyTextMod(item, replace, withStr));
+    if (obj && typeof obj === 'object') {
+        const result = {};
+        for (const [k, v] of Object.entries(obj)) {
+            result[k] = applyTextMod(v, replace, withStr);
+        }
+        return result;
+    }
+    return obj;
+}
+
+function resolveBestiaryCopies(sourceKey) {
+    const monsters = bestiaryCache.get(sourceKey);
+    if (!monsters) return;
+
+    const resolved = monsters.map(m => {
+        if (!m._copy) return m;
+
+        const base = findBaseCreature(m._copy.name, m._copy.source);
+        if (!base) return m;
+
+        let merged = JSON.parse(JSON.stringify(base));
+
+        const mod = m._copy._mod;
+        if (mod?.['*']?.mode === 'replaceTxt' && mod['*'].replace && mod['*'].with) {
+            merged = applyTextMod(merged, mod['*'].replace, mod['*'].with);
+        }
+
+        for (const [key, val] of Object.entries(m)) {
+            if (key === '_copy') continue;
+            merged[key] = val;
+        }
+
+        delete merged._copy;
+        merged._resolved = true;
+        return merged;
+    });
+
+    bestiaryCache.set(sourceKey, resolved);
 }
 
 const DEFAULT_BESTIARY_SOURCES = ['ESK', 'MM', 'XMM'];
@@ -152,6 +206,9 @@ export async function preloadBestiarySources() {
             .filter(k => index[k])
             .map(k => fetchBestiarySource(k)),
     );
+    for (const key of DEFAULT_BESTIARY_SOURCES) {
+        if (bestiaryCache.has(key)) resolveBestiaryCopies(key);
+    }
 }
 
 export function getLoadedSourceKeys() {
