@@ -128,9 +128,11 @@ export async function fetchBestiarySource(sourceKey) {
     const filename = index[sourceKey];
     if (!filename) return null;
 
-    const promise = fetch(`${CDN_DATA}/bestiary/${filename}`, { signal: AbortSignal.timeout(30000) })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
+    const promise = Promise.all([
+        fetch(`${CDN_DATA}/bestiary/${filename}`, { signal: AbortSignal.timeout(30000) }).then(r => r.ok ? r.json() : null),
+        fetchTemplateData(),
+    ])
+        .then(([data]) => {
             const monsters = data?.monster || [];
             bestiaryCache.set(sourceKey, monsters);
             resolveBestiaryCopies(sourceKey);
@@ -151,15 +153,163 @@ function findBaseCreature(name, source) {
     return null;
 }
 
-function applyTextMod(obj, replace, withStr) {
+// ─── Creature Template Engine ───────────────────────────────
+
+let _templateData = null;
+let _templateInflight = null;
+
+async function fetchTemplateData() {
+    if (_templateData) return _templateData;
+    if (_templateInflight) return _templateInflight;
+    _templateInflight = fetch(`${CDN_DATA}/bestiary/template.json`, { signal: AbortSignal.timeout(15000) })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { _templateData = data; return data; })
+        .catch(err => { console.warn('[D&D 5e Lite] Template fetch failed:', err); return null; })
+        .finally(() => { _templateInflight = null; });
+    return _templateInflight;
+}
+
+function findTemplate(name, source) {
+    if (!_templateData?.monsterTemplate) return null;
+    return _templateData.monsterTemplate.find(t => t.name === name && t.source === source) || null;
+}
+
+function replaceTemplatePlaceholders(obj, creatureName) {
+    if (typeof obj !== 'string') {
+        if (Array.isArray(obj)) return obj.map(item => replaceTemplatePlaceholders(item, creatureName));
+        if (obj && typeof obj === 'object') {
+            const result = {};
+            for (const [k, v] of Object.entries(obj)) {
+                result[k] = replaceTemplatePlaceholders(v, creatureName);
+            }
+            return result;
+        }
+        return obj;
+    }
+    const titleName = creatureName.replace(/\b\w/g, c => c.toUpperCase());
+    return obj
+        .replace(/<\$title_short_name\$>/g, titleName)
+        .replace(/<\$short_name\$>/g, creatureName.toLowerCase())
+        .replace(/<\$title_name\$>/g, titleName)
+        .replace(/<\$name\$>/g, creatureName);
+}
+
+function applyModOperation(target, field, op) {
+    if (!op || !op.mode) return;
+
+    switch (op.mode) {
+        case 'appendArr': {
+            const items = Array.isArray(op.items) ? op.items : [op.items];
+            if (!Array.isArray(target[field])) target[field] = [];
+            target[field].push(...items);
+            break;
+        }
+        case 'appendIfNotExistsArr': {
+            const items = Array.isArray(op.items) ? op.items : [op.items];
+            if (!Array.isArray(target[field])) target[field] = [];
+            for (const item of items) {
+                if (!target[field].includes(item)) target[field].push(item);
+            }
+            break;
+        }
+        case 'prependArr': {
+            const items = Array.isArray(op.items) ? op.items : [op.items];
+            if (!Array.isArray(target[field])) target[field] = [];
+            target[field].unshift(...items);
+            break;
+        }
+        case 'replaceArr': {
+            const { replace, items } = op;
+            if (Array.isArray(target[field]) && replace) {
+                const idx = target[field].findIndex(e =>
+                    (typeof e === 'object' && e?.name === replace) || e === replace,
+                );
+                if (idx >= 0) {
+                    const arr = Array.isArray(items) ? items : [items];
+                    target[field].splice(idx, 1, ...arr);
+                }
+            }
+            break;
+        }
+        case 'replaceTxt': {
+            if (op.replace && op.with) {
+                target[field] = applyTextReplace(target[field], op.replace, op.with);
+            }
+            break;
+        }
+    }
+}
+
+function applySpecialMods(target, mods) {
+    if (!Array.isArray(mods)) return;
+    for (const mod of mods) {
+        if (!mod?.mode) continue;
+        if (mod.mode === 'addSenses') {
+            const s = mod.senses;
+            if (!s) continue;
+            if (!Array.isArray(target.senses)) target.senses = [];
+            const entry = typeof s === 'string' ? s : `${s.type} ${s.range} ft.`;
+            if (!target.senses.some(e => e.includes?.(s.type || s))) {
+                target.senses.push(entry);
+            }
+        } else if (mod.mode === 'addSkills') {
+            if (!mod.skills) continue;
+            if (!target.skill) target.skill = {};
+            for (const [sk, bonus] of Object.entries(mod.skills)) {
+                const existing = parseInt(target.skill[sk]) || 0;
+                target.skill[sk] = `+${existing + bonus}`;
+            }
+        }
+    }
+}
+
+function applyTemplate(creature, template) {
+    if (!template?.apply) return;
+
+    const { _root, _mod } = template.apply;
+
+    if (_root) {
+        for (const [key, val] of Object.entries(_root)) {
+            if (key === 'speed' && creature.speed && typeof creature.speed === 'object' && typeof val === 'object') {
+                Object.assign(creature.speed, val);
+            } else {
+                creature[key] = JSON.parse(JSON.stringify(val));
+            }
+        }
+    }
+
+    if (_mod) {
+        for (const [field, op] of Object.entries(_mod)) {
+            if (field === '_') {
+                applySpecialMods(creature, op);
+            } else {
+                applyModOperation(creature, field, op);
+            }
+        }
+    }
+
+    replaceTemplatePlaceholdersInPlace(creature);
+}
+
+function replaceTemplatePlaceholdersInPlace(creature) {
+    const name = creature.name;
+    if (!name) return;
+    for (const field of ['trait', 'action', 'reaction', 'legendary', 'spellcasting']) {
+        if (Array.isArray(creature[field])) {
+            creature[field] = replaceTemplatePlaceholders(creature[field], name);
+        }
+    }
+}
+
+function applyTextReplace(obj, replace, withStr) {
     if (typeof obj === 'string') {
         return obj.replace(new RegExp(replace, 'gi'), withStr);
     }
-    if (Array.isArray(obj)) return obj.map(item => applyTextMod(item, replace, withStr));
+    if (Array.isArray(obj)) return obj.map(item => applyTextReplace(item, replace, withStr));
     if (obj && typeof obj === 'object') {
         const result = {};
         for (const [k, v] of Object.entries(obj)) {
-            result[k] = applyTextMod(v, replace, withStr);
+            result[k] = applyTextReplace(v, replace, withStr);
         }
         return result;
     }
@@ -179,8 +329,21 @@ function resolveBestiaryCopies(sourceKey) {
         let merged = JSON.parse(JSON.stringify(base));
 
         const mod = m._copy._mod;
-        if (mod?.['*']?.mode === 'replaceTxt' && mod['*'].replace && mod['*'].with) {
-            merged = applyTextMod(merged, mod['*'].replace, mod['*'].with);
+        if (mod) {
+            for (const [field, op] of Object.entries(mod)) {
+                if (field === '*' && op.mode === 'replaceTxt' && op.replace && op.with) {
+                    merged = applyTextReplace(merged, op.replace, op.with);
+                } else if (field !== '*') {
+                    applyModOperation(merged, field, op);
+                }
+            }
+        }
+
+        if (Array.isArray(m._copy._templates)) {
+            for (const tRef of m._copy._templates) {
+                const tmpl = findTemplate(tRef.name, tRef.source);
+                if (tmpl) applyTemplate(merged, tmpl);
+            }
         }
 
         for (const [key, val] of Object.entries(m)) {
@@ -199,7 +362,7 @@ function resolveBestiaryCopies(sourceKey) {
 const DEFAULT_BESTIARY_SOURCES = ['ESK', 'MM', 'XMM'];
 
 export async function preloadBestiarySources() {
-    const index = await fetchBestiaryIndex();
+    const [index] = await Promise.all([fetchBestiaryIndex(), fetchTemplateData()]);
     if (!index) return;
     await Promise.all(
         DEFAULT_BESTIARY_SOURCES
