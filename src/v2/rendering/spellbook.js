@@ -4,15 +4,39 @@
  */
 
 import { characterV2 } from '../core/characterState.js';
+import { saveCharacterV2 } from '../core/characterPersist.js';
 import { lookupSpellSync } from '../features/spells.js';
 import { computeV2CharacterStats } from '../features/character.js';
 import { computeFreeCastUsage, getFreeCastUsage } from '../features/freeCastTracker.js';
 import { spellLog } from '../../core/state.js';
+import { addManualSpellCast } from '../../features/spellTracker.js';
 import { SPELL_SCHOOLS } from '../core/constants.js';
 import { renderSpellbookLevelFilters, matchesSpellbookLevelFilter } from '../../rendering/spellbookLevelFilter.js';
+import { isPlayerChosenDamageType, collectSpellScalingText } from '../../features/spellScaling.js';
 
 let activeTooltip = null;
 let levelFilter = 'all';
+let activeMetamagic = [];
+
+function isReactionSpell(spellData) {
+    return spellData?.time?.[0]?.unit === 'reaction';
+}
+
+function isReactionArmed(spellName) {
+    return (characterV2?.preparedReactions || []).includes(spellName);
+}
+
+function togglePreparedReaction(spellName) {
+    if (!characterV2) return;
+    if (!Array.isArray(characterV2.preparedReactions)) characterV2.preparedReactions = [];
+    const idx = characterV2.preparedReactions.indexOf(spellName);
+    if (idx >= 0) {
+        characterV2.preparedReactions.splice(idx, 1);
+    } else {
+        characterV2.preparedReactions.push(spellName);
+    }
+    saveCharacterV2(characterV2);
+}
 
 const SCHOOL_NAMES = { ...SPELL_SCHOOLS };
 
@@ -186,16 +210,23 @@ function gatherCharacterSpells() {
     }
     if (stats?.featBonusSpells?.length) {
         for (const s of stats.featBonusSpells) {
-            if (!spells.some(sp => sp.name === s.name)) {
-                const freeCast = s.freeCast ? '1/LR' : '';
-                spells.push({
-                    name: s.name,
-                    level: s.level || 1,
-                    source: `feat:${s.source}`,
-                    freeCast,
-                    ritualOnly: s.ritualOnly || false,
-                });
+            const existing = spells.find(sp => sp.name === s.name);
+            if (existing) {
+                if (s.freeCast && !existing.freeCast) existing.freeCast = s.freeCast;
+                continue;
             }
+            const baseName = s.noConc ? s.name.replace(/\s*\(No Conc\)\s*$/i, '') : s.name;
+            const spell = lookupSpellSync(baseName);
+            const freeCast = s.freeCast ? '1/LR' : '';
+            spells.push({
+                name: s.name,
+                level: s.level || spell?.level || 1,
+                source: `feat:${s.source}`,
+                freeCast,
+                ritualOnly: s.ritualOnly || false,
+                noConc: s.noConc || false,
+                baseName: s.noConc ? baseName : undefined,
+            });
         }
     }
 
@@ -204,7 +235,86 @@ function gatherCharacterSpells() {
 }
 
 /**
- * Render the V1 spellbook panel.
+ * Determine how many metamagic options can be active simultaneously.
+ * Sorcery Incarnate (Lv7 sorcerer) allows 2; otherwise max 1.
+ */
+function getMetamagicMaxActive(stats) {
+    if (!stats || stats.className?.toLowerCase() !== 'sorcerer') return 1;
+    return stats.level >= 7 ? 2 : 1;
+}
+
+/**
+ * Render metamagic toggle buttons into a container.
+ * @param {HTMLElement} container
+ * @param {Array<{ id: string, label: string, desc: string }>} options
+ * @param {number} maxActive
+ */
+function renderMetamagicToggles(container, options, maxActive) {
+    if (!container) return;
+    if (!options?.length) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    activeMetamagic = activeMetamagic.filter(id => options.some(o => o.id === id));
+
+    container.style.display = '';
+    let html = '';
+    for (const opt of options) {
+        const active = activeMetamagic.includes(opt.id) ? ' active' : '';
+        html += `<button type="button" class="dnd-metamagic-toggle${active}" data-mm-id="${esc(opt.id)}" title="${esc(opt.desc)}">${esc(opt.label)}</button>`;
+    }
+    container.innerHTML = html;
+
+    container.querySelectorAll('.dnd-metamagic-toggle').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.mmId;
+            const idx = activeMetamagic.indexOf(id);
+            if (idx >= 0) {
+                activeMetamagic.splice(idx, 1);
+            } else {
+                if (activeMetamagic.length >= maxActive) activeMetamagic.shift();
+                activeMetamagic.push(id);
+            }
+            renderV2Spellbook();
+        });
+    });
+}
+
+/**
+ * Extract SP cost string from a metamagic desc field.
+ * Handles "(1 SP)", "(2 SP)", and "(SP = spell level, min 1)".
+ */
+function extractSpCost(desc) {
+    if (!desc) return '';
+    const m = desc.match(/\((\d+)\s*SP\)/i);
+    if (m) return m[1] + 'SP';
+    if (/SP\s*=\s*spell level/i.test(desc)) return 'SP=LV';
+    return '';
+}
+
+/**
+ * Build the metamagic suffix for clipboard text, including SP cost.
+ * @param {Array<{ id: string, label: string, desc: string }>} options
+ * @returns {string} e.g. ", Quickened Spell 2SP" or ", Quickened Spell 2SP, Subtle Spell 1SP"
+ */
+function buildMetamagicClipboardSuffix(options) {
+    if (!activeMetamagic.length || !options?.length) return '';
+    const parts = activeMetamagic
+        .map(id => {
+            const opt = options.find(o => o.id === id);
+            if (!opt) return null;
+            const cost = extractSpCost(opt.desc);
+            return cost ? `${opt.label} ${cost}` : opt.label;
+        })
+        .filter(Boolean);
+    return parts.length ? ', ' + parts.join(', ') : '';
+}
+
+/**
+ * Render the V2 spellbook panel.
  */
 export function renderV2Spellbook() {
     const container = document.getElementById('dnd-v1-spellbook-container');
@@ -222,6 +332,8 @@ export function renderV2Spellbook() {
     const spells = gatherCharacterSpells();
     const stats = computeV2CharacterStats(characterV2);
     const freeCastUsage = computeFreeCastUsage(characterV2, stats, spellLog);
+    const metamagicOptions = stats?.levelChoiceDetails?.metamagic || [];
+    const metamagicMaxActive = getMetamagicMaxActive(stats);
 
     if (!spells.length) {
         list.innerHTML = '<div class="dnd-empty-state">No spells configured</div>';
@@ -250,6 +362,10 @@ export function renderV2Spellbook() {
     for (const spell of filtered) {
         const lvlChar = shortLevel(spell.level);
         const badgeClass = levelBadgeClass(spell.level);
+        const spellData = lookupSpellSync(spell.baseName || spell.name);
+        const reaction = isReactionSpell(spellData);
+        const armed = reaction && isReactionArmed(spell.name);
+
         let sourceTag = '';
         if (spell.source.startsWith('feat:')) sourceTag = `<span class="dnd-v1-spell-source-tag">${esc(spell.source.replace('feat:', ''))}</span>`;
         else if (spell.source.startsWith('extra:')) sourceTag = `<span class="dnd-v1-spell-source-tag">${esc(spell.source.replace('extra:', ''))}</span>`;
@@ -263,34 +379,95 @@ export function renderV2Spellbook() {
             : '';
         const ritualTag = spell.ritualOnly ? '<span class="dnd-v1-spell-freecast-tag">Ritual</span>' : '';
 
-        html += `<div class="dnd-spellbook-item" data-spell="${esc(spell.name)}" data-source="${esc(spell.source)}" data-freecast="${esc(spell.freeCast || '')}">` +
+        const reactionClasses = reaction ? ` dnd-reaction-spell${armed ? ' dnd-reaction-armed' : ''}` : '';
+        const reactionAttr = reaction ? ' data-reaction="true"' : '';
+        const reactionTag = reaction
+            ? `<span class="dnd-reaction-tag${armed ? ' dnd-reaction-tag--armed' : ''}" title="Reaction — click to ${armed ? 'disarm' : 'arm'}">⚡</span>`
+            : '';
+
+        const nocAttr = spell.noConc ? ` data-noconc="true" data-basename="${esc(spell.baseName || '')}"` : '';
+        html += `<div class="dnd-spellbook-item${reactionClasses}" data-spell="${esc(spell.name)}" data-source="${esc(spell.source)}" data-freecast="${esc(spell.freeCast || '')}"${reactionAttr}${nocAttr}>` +
             `<span class="dnd-spellbook-lvl ${badgeClass}">${lvlChar}</span>` +
             `<span class="dnd-spellbook-name">${esc(spell.name)}</span>` +
-            freeCastTag + ritualTag + sourceTag +
+            reactionTag + freeCastTag + ritualTag + sourceTag +
             `</div>`;
     }
 
     list.innerHTML = html;
-    bindSpellbookEvents(list, freeCastUsage);
+
+    let metamagicBar = container.querySelector('.dnd-metamagic-bar');
+    if (metamagicOptions.length) {
+        if (!metamagicBar) {
+            metamagicBar = document.createElement('div');
+            metamagicBar.className = 'dnd-metamagic-bar';
+        }
+        const body = container.querySelector('.dnd-collapsible-body');
+        if (body) body.appendChild(metamagicBar);
+        renderMetamagicToggles(metamagicBar, metamagicOptions, metamagicMaxActive);
+    } else if (metamagicBar) {
+        metamagicBar.style.display = 'none';
+        metamagicBar.innerHTML = '';
+    }
+
+    bindSpellbookEvents(list, freeCastUsage, metamagicOptions);
 }
 
-function bindSpellbookEvents(container, freeCastUsage) {
+function bindSpellbookEvents(container, freeCastUsage, metamagicOptions) {
     container.querySelectorAll('.dnd-spellbook-item').forEach(el => {
         el.addEventListener('mouseenter', () => {
-            const spellData = lookupSpellSync(el.dataset.spell);
+            const lookupName = el.dataset.basename || el.dataset.spell;
+            const spellData = lookupSpellSync(lookupName);
             if (spellData) showSpellTooltip(el, spellData);
         });
 
         el.addEventListener('mouseleave', () => hideSpellTooltip());
 
-        el.addEventListener('click', () => {
+        el.addEventListener('click', (e) => {
             const name = el.dataset.spell;
-            const spellData = lookupSpellSync(name);
+
+            if (el.dataset.reaction === 'true') {
+                if (e.shiftKey) {
+                    const lookupName = el.dataset.basename || name;
+                    const sd = lookupSpellSync(lookupName);
+                    const lvl = sd?.level ? formatLevel(sd.level) : '';
+                    addManualSpellCast(name, lvl);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(`Logged reaction: ${name}`, '', { timeOut: 1500 });
+                    }
+                    return;
+                }
+                const wasArmed = isReactionArmed(name);
+                togglePreparedReaction(name);
+                if (typeof toastr !== 'undefined') {
+                    const msg = wasArmed ? `⚡ ${name} disarmed` : `⚡ ${name} armed`;
+                    toastr.info(msg, '', { timeOut: 1500 });
+                }
+                renderV2Spellbook();
+                return;
+            }
+
+            const noConc = el.dataset.noconc === 'true';
+            const lookupName = noConc ? (el.dataset.basename || name) : name;
+            const spellData = lookupSpellSync(lookupName);
             const level = spellData?.level !== undefined ? formatLevel(spellData.level) : '?';
             const freeCast = el.dataset.freecast;
             const usage = freeCast ? getFreeCastUsage(freeCastUsage, name) : null;
             const includeFree = freeCast && freeCast !== 'at will' && usage?.available !== false;
-            const text = includeFree ? `[${name}, ${level}, Free]` : `[${name}, ${level}]`;
+            const isConcentration = !noConc && !!spellData?.duration?.[0]?.concentration;
+            const mmSuffix = buildMetamagicClipboardSuffix(metamagicOptions);
+
+            let elementToken = '';
+            if (spellData && isPlayerChosenDamageType(spellData, collectSpellScalingText(spellData))) {
+                const stats = computeV2CharacterStats(characterV2);
+                const draconicEl = stats?.empoweredDamageType;
+                const defaultEl = draconicEl || (spellData.damageInflict?.[0]) || null;
+                if (defaultEl) elementToken = `, ${defaultEl.charAt(0).toUpperCase() + defaultEl.slice(1)}`;
+            }
+
+            let text = `[${name}, ${level}`;
+            if (includeFree) text += ', Free';
+            if (isConcentration) text += ', Conc';
+            text += elementToken + mmSuffix + ']';
             navigator.clipboard.writeText(text).then(() => {
                 if (typeof toastr !== 'undefined') {
                     toastr.success(`Copied: ${text}`, '', { timeOut: 1500 });

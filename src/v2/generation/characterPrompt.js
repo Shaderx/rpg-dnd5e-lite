@@ -31,7 +31,12 @@ export function buildV2CharacterSection() {
     lines.push(`[${stats.name || 'Unnamed'}, Lv${stats.level} ${stats.speciesName || ''} ${stats.className}${subLabel}]`.trim());
     if (stats.backgroundName) lines.push(`Background: ${stats.backgroundName}`);
 
-    lines.push(`HP: ${stats.hp} | AC: ${stats.ac} | Speed: ${stats.speed}ft | Prof: +${stats.proficiency}`);
+    const acParts = (stats.acBreakdown || []).map(b => {
+        const val = b.isBase ? `${b.value}` : (b.value >= 0 ? `+${b.value}` : `${b.value}`);
+        return `${b.label} ${val}`;
+    });
+    const acDetail = acParts.length > 0 ? ` (${acParts.join(', ')})` : '';
+    lines.push(`HP: ${stats.hp} | AC: ${stats.ac}${acDetail} | Speed: ${stats.speed}ft | Prof: +${stats.proficiency}`);
 
     const abLine = ABILITY_KEYS.map(ab => {
         const score = stats.abilities[ab];
@@ -45,7 +50,10 @@ export function buildV2CharacterSection() {
         const mark = s.proficient ? '*' : '';
         return `${ABILITY_LABELS[ab]} ${s.mod >= 0 ? '+' : ''}${s.mod}${mark}`;
     });
-    lines.push(`Saves: ${saveParts.join(', ')}`);
+    const saveSuffix = stats.saveBonusSources?.length > 0
+        ? ` [includes ${stats.saveBonusSources.join(', ')}]`
+        : '';
+    lines.push(`Saves: ${saveParts.join(', ')}${saveSuffix}`);
 
     const skillParts = [];
     for (const [key, skill] of Object.entries(stats.skills)) {

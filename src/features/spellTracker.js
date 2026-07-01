@@ -12,8 +12,14 @@ import { parseHeader } from './headerParser.js';
 
 // Any bracketed content: [Fireball, 3rd], [Shield], [Charm Person, 1st, Subtle, target]
 const BRACKET_REGEX = /\[([^\[\]]+)\]/g;
+const DAMAGE_TYPES = new Set([
+    'acid', 'bludgeoning', 'cold', 'fire', 'force', 'lightning',
+    'necrotic', 'piercing', 'poison', 'psychic', 'radiant', 'slashing', 'thunder',
+]);
 // Short rest: "short rest", "takes a short rest", "short rested", "short resting"
 const SHORT_REST_REGEX = /\bshort\s+rest(?:s|ed|ing)?\b/i;
+// End/stop/drop/break concentration: "end concentration [Detect Magic]", "stop concentrating [Shield of Faith]"
+const DROP_CONC_REGEX = /(?:end|stop|drop|break|lose|cancel)\s+(?:concentrat(?:ion|ing)|conc)\s+(?:on\s+)?\[([^\[\]]+)\]/gi;
 
 /**
  * Maps conjugated forms of action keywords back to their base verb.
@@ -132,16 +138,27 @@ export function parseCastLevel(token) {
 }
 
 /**
- * Scan detail tokens for cast level; return level and remaining extras.
+ * Scan detail tokens for cast level and concentration flag; return level,
+ * conc flag, and remaining extras.
  * @param {string[]} detailTokens - tokens after spell name
- * @returns {{ castLevel: number|null, extras: string }}
+ * @returns {{ castLevel: number|null, conc: boolean, extras: string }}
  */
 export function parseCastLevelFromTokens(detailTokens) {
     const extras = [];
     let castLevel = null;
+    let conc = false;
+    let chosenElement = null;
     for (const raw of detailTokens) {
         const token = raw.trim();
         if (!token) continue;
+        if (/^conc(?:entration)?$/i.test(token)) {
+            conc = true;
+            continue;
+        }
+        if (!chosenElement && DAMAGE_TYPES.has(token.toLowerCase())) {
+            chosenElement = token.toLowerCase();
+            continue;
+        }
         if (castLevel == null) {
             const lvl = parseCastLevel(token);
             if (lvl != null) {
@@ -151,13 +168,13 @@ export function parseCastLevelFromTokens(detailTokens) {
         }
         extras.push(token);
     }
-    return { castLevel, extras: extras.join(', ') };
+    return { castLevel, conc, chosenElement, extras: extras.join(', ') };
 }
 
 /**
  * Extract spell casts from a user message.
  * Finds any [...] brackets. Format: [SpellName, Level, ...extras]
- * @returns {{ spell: string, details: string, castLevel: number|null, extras: string, action: string }[]}
+ * @returns {{ spell: string, details: string, castLevel: number|null, conc: boolean, extras: string, action: string }[]}
  */
 export function extractSpellCasts(text) {
     if (!text) return [];
@@ -169,26 +186,31 @@ export function extractSpellCasts(text) {
         if (tokens.length === 0 || tokens[0].length < 2) continue;
         const spell = tokens[0];
         const detailTokens = tokens.slice(1);
-        const { castLevel, extras } = parseCastLevelFromTokens(detailTokens);
-        const details = detailTokens.join(', ');
+        const { castLevel, conc, chosenElement, extras } = parseCastLevelFromTokens(detailTokens);
+        const details = detailTokens.filter(t => {
+            const tt = t.trim().toLowerCase();
+            if (/^conc(?:entration)?$/i.test(tt)) return false;
+            if (chosenElement && DAMAGE_TYPES.has(tt)) return false;
+            return true;
+        }).join(', ');
         const action = detectActionKeyword(text, m.index);
-        results.push({ spell, details, castLevel, extras, action });
+        results.push({ spell, details, castLevel, conc, chosenElement, extras, action });
     }
     return results;
 }
 
 /**
- * Trim entries to only those after the 2nd-to-last long rest.
- * Keeps everything from the current rest period plus one prior rest period,
+ * Trim entries to only those after the last long rest.
+ * Keeps everything from the current rest period,
  * regardless of date string formatting. Much more robust than date comparison.
  */
-function trimToTwoLongRests(entries) {
+function trimToOneLongRest(entries) {
     const restIndices = [];
     for (let i = 0; i < entries.length; i++) {
         if (entries[i].type === 'rest') restIndices.push(i);
     }
-    if (restIndices.length <= 1) return entries;
-    const cutoff = restIndices[restIndices.length - 2];
+    if (restIndices.length === 0) return entries;
+    const cutoff = restIndices[restIndices.length - 1];
     return entries.slice(cutoff);
 }
 
@@ -314,16 +336,33 @@ function scanChatForSpells({ skipLastAssistant = false } = {}) {
         }
 
         const casts = extractSpellCasts(msg.mes);
-        for (const { spell, details, action } of casts) {
+        for (const { spell, details, conc, chosenElement, action } of casts) {
             parsed.push({
                 type: 'cast',
                 spell,
                 action,
+                conc,
+                chosenElement: chosenElement || null,
                 details: details || '',
                 time: useTime,
                 date: useDate,
                 msgIndex: i,
             });
+        }
+
+        DROP_CONC_REGEX.lastIndex = 0;
+        let dcm;
+        while ((dcm = DROP_CONC_REGEX.exec(msg.mes)) !== null) {
+            const spellName = dcm[1].split(',')[0].trim();
+            if (spellName.length >= 2) {
+                parsed.push({
+                    type: 'drop-concentration',
+                    spell: spellName,
+                    time: useTime,
+                    date: useDate,
+                    msgIndex: i,
+                });
+            }
         }
 
         if (SHORT_REST_REGEX.test(msg.mes)) {
@@ -361,7 +400,7 @@ export function refreshSpellLog({ skipLastAssistant = false } = {}) {
     const parsed = scanChatForSpells({ skipLastAssistant });
     interleaveManualEntries(parsed, manualEntries);
 
-    const trimmed = trimToTwoLongRests(parsed);
+    const trimmed = trimToOneLongRest(parsed);
     setSpellLog(trimmed);
     saveSpellLog(trimmed);
 }
@@ -378,8 +417,9 @@ export function hardRefreshSpellLog() {
 /**
  * Manually add a spell cast entry at the current header date/time.
  * @param {string} spellName
+ * @param {string} [details] - optional details string (e.g. "1st Level")
  */
-export function addManualSpellCast(spellName) {
+export function addManualSpellCast(spellName, details = '') {
     if (!spellName) return;
     const context = getContext();
 
@@ -394,7 +434,7 @@ export function addManualSpellCast(spellName) {
         }
     }
 
-    spellLog.push({
+    const entry = {
         type: 'cast',
         spell: spellName,
         time: currentTime,
@@ -402,9 +442,12 @@ export function addManualSpellCast(spellName) {
         msgIndex: null,
         _edited: true,
         _manual: true,
-    });
+    };
+    if (details) entry.details = details;
 
-    const trimmed = trimToTwoLongRests(spellLog);
+    spellLog.push(entry);
+
+    const trimmed = trimToOneLongRest(spellLog);
     setSpellLog(trimmed);
     saveSpellLog(trimmed);
 }
@@ -434,7 +477,7 @@ export function addManualRest() {
         _manual: true,
     });
 
-    const trimmed = trimToTwoLongRests(spellLog);
+    const trimmed = trimToOneLongRest(spellLog);
     setSpellLog(trimmed);
     saveSpellLog(trimmed);
 }
@@ -470,7 +513,7 @@ export function addManualShortRest() {
         _manual: true,
     });
 
-    const trimmed = trimToTwoLongRests(spellLog);
+    const trimmed = trimToOneLongRest(spellLog);
     setSpellLog(trimmed);
     saveSpellLog(trimmed);
 }
@@ -506,7 +549,41 @@ export function addManualDispel() {
         _manual: true,
     });
 
-    const trimmed = trimToTwoLongRests(spellLog);
+    const trimmed = trimToOneLongRest(spellLog);
+    setSpellLog(trimmed);
+    saveSpellLog(trimmed);
+}
+
+/**
+ * Manually add a drop-concentration entry at the current header date/time.
+ * @param {string} [spellName] - Specific spell to drop. If omitted, drops all concentration.
+ */
+export function addManualDropConcentration(spellName) {
+    let currentDate = null;
+    let currentTime = null;
+    const chat = getContext().chat;
+    if (chat) {
+        for (let i = chat.length - 1; i >= 0; i--) {
+            if (chat[i].is_user) continue;
+            const header = parseHeader(chat[i].mes);
+            if (header?.date) {
+                currentDate = header.date;
+                currentTime = header.time;
+                break;
+            }
+        }
+    }
+
+    spellLog.push({
+        type: 'drop-concentration',
+        spell: spellName || null,
+        time: currentTime,
+        date: currentDate,
+        _edited: true,
+        _manual: true,
+    });
+
+    const trimmed = trimToOneLongRest(spellLog);
     setSpellLog(trimmed);
     saveSpellLog(trimmed);
 }

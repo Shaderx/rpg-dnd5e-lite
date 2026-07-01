@@ -11,6 +11,33 @@ import { extractSpellCasts, actionLabels } from '../features/spellTracker.js';
 import { MODIFIER_DEFS } from '../features/modifiers.js';
 import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, lookupFeatByName, strip5eMarkup, lookupSpellByName } from '../features/sidekick.js';
 import { getSpellDamageInfo as getV1SpellDamageInfo, lookupSpellSync, ordinal } from '../v1/features/spells.js';
+import {
+    getActiveEffectsList,
+    getActiveConcentrationSpell,
+    getEffectStatusByLogIndex,
+    formatEffectStatusTag,
+    formatDurationLabel,
+    formatRemainingMinutes,
+} from '../v2/features/activeEffects.js';
+import { characterV2 } from '../v2/core/characterState.js';
+import { computeV2CharacterStats } from '../v2/features/character.js';
+
+/**
+ * Get spell damage bonuses from the active characterV2, if any.
+ * Returns an object suitable for spreading into getSpellDamageInfo's bonuses param.
+ */
+function getCharacterSpellBonuses() {
+    if (!characterV2) return null;
+    const stats = computeV2CharacterStats(characterV2);
+    if (!stats) return null;
+    return {
+        potentMod: stats.potentMod || 0,
+        empoweredSchool: stats.empoweredSchool || null,
+        empoweredMod: stats.empoweredMod || 0,
+        empoweredDamageType: stats.empoweredDamageType || null,
+        empoweredDamageTypeMod: stats.empoweredDamageTypeMod || 0,
+    };
+}
 
 export function getModifier(score) {
     const mod = Math.floor((score - 10) / 2);
@@ -128,58 +155,135 @@ export function buildSpellLogSection() {
     if (!spellLog || spellLog.length === 0) return '';
 
     const lastUserIdx = getLastUserMsgIndex();
+    const statusByIndex = getEffectStatusByLogIndex();
 
-    const prior = spellLog.filter(e =>
-        e.type === 'rest' || e.type === 'short-rest' || e.type === 'dispel' || e.msgIndex === null || e.msgIndex !== lastUserIdx
-    );
-
-    if (prior.length === 0) return '';
-
-    const userName = getContext().name1 || 'User';
     const lines = [
         '<spell_log>',
         '[Chronological, does not include current message]',
     ];
 
-    for (const entry of prior) {
+    let hasEntries = false;
+    for (let i = 0; i < spellLog.length; i++) {
+        const entry = spellLog[i];
+        const include = entry.type === 'rest' || entry.type === 'short-rest'
+            || entry.type === 'dispel' || entry.type === 'drop-concentration'
+            || entry.msgIndex === null || entry.msgIndex !== lastUserIdx;
+        if (!include) continue;
+
+        hasEntries = true;
         if (entry.type === 'rest') {
             const datePart = entry.date ? `, ${entry.date}` : '';
             lines.push(`- ${entry.text}${datePart}`);
+        } else if (entry.type === 'drop-concentration') {
+            const target = entry.spell ? `concentration on ${entry.spell}` : 'all concentration';
+            const timePart = entry.time ? ` at ${entry.time}` : '';
+            const datePart = entry.date ? `, ${entry.date}` : '';
+            lines.push(`- Ended ${target}${timePart}${datePart}`);
         } else if (entry.type === 'short-rest' || entry.type === 'dispel') {
             const timePart = entry.time ? ` at ${entry.time}` : '';
             const datePart = entry.date ? `, ${entry.date}` : '';
             lines.push(`- ${entry.text}${timePart}${datePart}`);
         } else {
             const { past } = actionLabels(entry.action);
+            const statusTag = formatEffectStatusTag(statusByIndex.get(i));
+            const statusPart = statusTag ? ` ${statusTag}` : '';
+            const elementPart = entry.chosenElement ? ` [${entry.chosenElement}]` : '';
             const detailsPart = entry.details ? ` (${entry.details})` : '';
             const timePart = entry.time ? ` at ${entry.time}` : '';
             const datePart = entry.date ? `, ${entry.date}` : '';
-            lines.push(`- ${past} ${entry.spell}${detailsPart}${timePart}${datePart}`);
+            lines.push(`- ${past} ${entry.spell}${elementPart}${detailsPart}${statusPart}${timePart}${datePart}`);
         }
     }
+
+    if (!hasEntries) return '';
 
     lines.push('</spell_log>');
     return lines.join('\n');
 }
 
 /**
- * Format a dmg object { d4, d6, d8, d10, d12 } into a compact prompt string.
+ * Build the <active_effects> section from spell log duration tracking.
+ * Always available when spell tracker is enabled (not gated on spell_reference inject).
+ * Concentration callout is handled in buildActiveSpellsSection() instead.
  */
-function fmtDmgDice(dmg) {
-    if (!dmg) return '';
-    return ['d4', 'd6', 'd8', 'd10', 'd12'].map(k => `${k}→${dmg[k]}`).join(', ');
+export function buildActiveEffectsSection() {
+    const active = getActiveEffectsList();
+    const armedReactions = buildArmedReactionsList();
+
+    if (active.length === 0 && armedReactions.length === 0) return '';
+
+    const lines = [
+        '<active_effects>',
+        '[Computed from spell log and header time; only listed effects are currently active]',
+    ];
+
+    for (const effect of active) {
+        const name = effect.logEntry.spell;
+        const elPart = effect.logEntry.chosenElement ? ` [${effect.logEntry.chosenElement}]` : '';
+        const dur = effect.spell?.duration?.[0];
+        const durLabel = formatDurationLabel(dur);
+        const rem = formatRemainingMinutes(effect.remainingMinutes);
+        let statusLine = 'ACTIVE';
+        if (effect.concentration) statusLine += ' (concentration)';
+        if (rem) statusLine += ` (${rem} remaining)`;
+        else if (effect.status === 'unknown') statusLine += ' (duration unknown)';
+
+        lines.push(`- ${name}${elPart}: ${statusLine} — ${durLabel}`);
+    }
+
+    if (armedReactions.length > 0) {
+        lines.push('');
+        lines.push('Prepared Reactions (ARMED — auto-trigger when conditions met, apply without asking player):');
+        for (const r of armedReactions) {
+            const triggerStr = r.trigger ? `: ${r.trigger}` : '';
+            lines.push(`- ${r.name} [${r.level}]${triggerStr}`);
+        }
+    }
+
+    lines.push('</active_effects>');
+    return lines.join('\n');
+}
+
+function buildArmedReactionsList() {
+    const armed = characterV2?.preparedReactions;
+    if (!Array.isArray(armed) || armed.length === 0) return [];
+    return armed.map(name => {
+        const spell = lookupSpellSync(name);
+        if (!spell) return null;
+        const condition = spell.time?.[0]?.condition;
+        const trigger = condition
+            ? strip5eMarkup(condition).replace(/^which you take\s*/i, '')
+            : '';
+        const lvl = spell.level === 0
+            ? 'cantrip'
+            : `${ordinal(spell.level)} level`;
+        return { name, level: lvl, trigger };
+    }).filter(Boolean);
+}
+
+/**
+ * Format a pre-rolled d4-d12 set into a compact prompt string.
+ * @param {object} diceSet
+ * @param {string} prefix - e.g. "ally1_" or "enemy2_"
+ */
+function fmtDiceSet(diceSet, prefix = '') {
+    if (!diceSet) return '';
+    return ['d4', 'd6', 'd8', 'd10', 'd12'].map(k => `${prefix}${k}=${diceSet[k]}`).join(', ');
 }
 
 /**
  * Build the <dice> section for combat rolls.
- * Returns empty string if no roll is active.
+ * Only activates when the big yellow d20 button was pressed (lastDiceRoll).
+ * Pool dice and modifiers are included here when a combat d20 is active,
+ * but on their own they flow through the non-combat path instead.
  */
 export function buildCombatDiceSection() {
     const roll = extensionSettings.lastDiceRoll;
-    const dmg = extensionSettings.lastDamageRoll;
+    if (!roll) return '';
+
+    const poolDice = extensionSettings.lastDamageRoll;
     const mods = extensionSettings.lastModifierRolls || {};
     const hasModifiers = Object.keys(mods).length > 0;
-    if (!roll && !dmg && !hasModifiers) return '';
 
     const userName = getContext().name1 || 'User';
     const includeAttrs = sendAttributesOnRoll;
@@ -190,7 +294,7 @@ export function buildCombatDiceSection() {
     }
 
     if (roll) {
-        lines.push(`d20: d20_1=${roll.roll1}, d20_2=${roll.roll2}`);
+        lines.push(`${userName}: user_d20_1=${roll.roll1}, user_d20_2=${roll.roll2}`);
         if (includeAttrs) {
             lines.push('Attack = d20 + ability mod + proficiency. Apply all proficiencies/expertise where applicable.');
         }
@@ -201,8 +305,9 @@ export function buildCombatDiceSection() {
                 const a = allies[i];
                 const n = i + 1;
                 const tag = allies.length === 1 ? 'Ally' : `Ally ${n}`;
-                let line = `${tag}: d20_1=${a.roll1}, d20_2=${a.roll2}`;
-                if (a.dmg) line += ` | dmg: ${fmtDmgDice(a.dmg)}`;
+                const prefix = `ally${n}_`;
+                let line = `${tag}: ${prefix}d20_1=${a.roll1}, ${prefix}d20_2=${a.roll2}`;
+                if (a.dmg) line += ` | dice: ${fmtDiceSet(a.dmg, prefix)}`;
                 lines.push(line);
             }
         }
@@ -213,18 +318,19 @@ export function buildCombatDiceSection() {
                 const e = enemies[i];
                 const n = i + 1;
                 const tag = enemies.length === 1 ? 'Enemy' : `Enemy ${n}`;
-                let line = `${tag}: d20_1=${e.roll1}, d20_2=${e.roll2}`;
-                if (e.dmg) line += ` | dmg: ${fmtDmgDice(e.dmg)}`;
+                const prefix = `enemy${n}_`;
+                let line = `${tag}: ${prefix}d20_1=${e.roll1}, ${prefix}d20_2=${e.roll2}`;
+                if (e.dmg) line += ` | dice: ${fmtDiceSet(e.dmg, prefix)}`;
                 lines.push(line);
             }
         }
     }
 
-    if (dmg) {
-        const diceList = dmg.dice
-            ? dmg.dice.map(d => `d${d.sides}→${d.result}`).join(', ')
-            : dmg.rolls.map(r => `d${dmg.sides}→${r}`).join(', ');
-        lines.push(`Damage: ${diceList}`);
+    if (poolDice) {
+        const diceList = poolDice.dice
+            ? poolDice.dice.map((d, i) => `user_dice_${i + 1}_d${d.sides}=${d.result}`).join(', ')
+            : poolDice.rolls.map((r, i) => `user_dice_${i + 1}_d${poolDice.sides}=${r}`).join(', ');
+        lines.push(`Dice: ${diceList} (use for damage, healing, or other effects)`);
     }
 
     if (hasModifiers) {
@@ -243,108 +349,137 @@ export function buildCombatDiceSection() {
 
 /**
  * Build the <dice> section for non-combat checks.
- * Returns empty string if non-combat dice are disabled or no roll exists.
+ * Includes auto-rolled non-combat d20s (when enabled) plus any active pool
+ * dice (d4-d12) and buff/debuff modifiers (Guidance, Bless, etc.).
+ * Returns empty string if nothing is available to inject.
  */
 export function buildNonCombatDiceSection() {
-    if (!extensionSettings.nonCombatDiceEnabled || !lastNonCombatRoll) return '';
+    const hasNonCombatD20 = extensionSettings.nonCombatDiceEnabled && !!lastNonCombatRoll;
+    const poolDice = extensionSettings.lastDamageRoll;
+    const mods = extensionSettings.lastModifierRolls || {};
+    const hasModifiers = Object.keys(mods).length > 0;
+
+    if (!hasNonCombatD20 && !poolDice && !hasModifiers) return '';
 
     const userName = getContext().name1 || 'User';
-    const { user, npc } = lastNonCombatRoll;
+    const lines = ['<dice>'];
 
-    const lines = [
-        '<dice>',
-        '[Non-combat: skill checks, ability checks, saving throws only. Use for non-trivial checks vs DC.]',
-        'Pick one d20 per check: use higher if advantage, lower if disadvantage, either if straight roll.',
-        `${userName}: user_d20_1=${user.roll1}, user_d20_2=${user.roll2}`,
-        `NPC: npc_d20_1=${npc.roll1}, npc_d20_2=${npc.roll2}`,
-        '</dice>',
-    ];
+    if (hasNonCombatD20) {
+        const { user, npc } = lastNonCombatRoll;
+        lines.push(
+            '[Non-combat: skill checks, ability checks, saving throws only. Use for non-trivial checks vs DC.]',
+            'Pick one d20 per check: use higher if advantage, lower if disadvantage, sequentially if straight roll.',
+            `${userName}: user_d20_1=${user.roll1}, user_d20_2=${user.roll2}`,
+            `NPC: npc_d20_1=${npc.roll1}, npc_d20_2=${npc.roll2}`,
+        );
+    }
 
+    if (poolDice) {
+        const diceList = poolDice.dice
+            ? poolDice.dice.map((d, i) => `user_dice_${i + 1}_d${d.sides}=${d.result}`).join(', ')
+            : poolDice.rolls.map((r, i) => `user_dice_${i + 1}_d${poolDice.sides}=${r}`).join(', ');
+        lines.push(`Dice: ${diceList} (use for damage, healing, or other effects)`);
+    }
+
+    if (hasModifiers) {
+        lines.push('Modifiers:');
+        for (const [id, modRoll] of Object.entries(mods)) {
+            const def = MODIFIER_DEFS.find(m => m.id === id);
+            if (!def || !modRoll) continue;
+            const desc = def.prompt.replace(/\{user\}/g, userName);
+            lines.push(`- ${desc} Rolled ${modRoll.formula}: ${modRoll.rolls.join(' + ')} = ${modRoll.total}.`);
+        }
+    }
+
+    lines.push('</dice>');
     return lines.join('\n');
 }
 
 /**
- * Build the <active_spells> section with precalculated spell stats.
- * Returns empty string if spell inject is disabled or no spells matched.
+ * Build the <spell_reference> section with precalculated spell stats.
+ * Only includes spells that are currently active (from active effects) or
+ * cast in the current user message. Spell detail blocks are gated on
+ * spellInjectEnabled, but the CONCENTRATING ON line always displays.
  */
 export function buildActiveSpellsSection() {
-    if (!spellInjectEnabled) return '';
+    const concEffect = getActiveConcentrationSpell();
+    const activeEffects = getActiveEffectsList();
 
     const chat = getContext().chat;
-    if (!chat?.length) return '';
-
     const characterLevel = getSidekickLevel();
+    const charSpellBonuses = getCharacterSpellBonuses();
     const seen = new Set();
     const matched = [];
 
-    if (spellLog && spellLog.length > 0) {
-        let startIdx = 0;
-        for (let i = spellLog.length - 1; i >= 0; i--) {
-            if (spellLog[i].type === 'rest' || spellLog[i].type === 'short-rest') {
-                startIdx = i + 1;
-                break;
-            }
-        }
-        for (let i = startIdx; i < spellLog.length; i++) {
-            const entry = spellLog[i];
-            if (entry.type !== 'cast') continue;
+    if (spellInjectEnabled) {
+        for (const effect of activeEffects) {
+            const entry = effect.logEntry;
             const spell = findSpellForInject(entry.spell);
             if (!spell) continue;
             const castLevel = entry.details ? parseCastLevelFromDetails(entry.details) : null;
             const key = `${spell.name.toLowerCase()}|${castLevel ?? 'base'}`;
             if (seen.has(key)) continue;
             seen.add(key);
-            matched.push({ spell, cast: { spell: entry.spell, castLevel, extras: entry.details || '' } });
+            matched.push({ spell, cast: { spell: entry.spell, castLevel, chosenElement: entry.chosenElement || null, extras: entry.details || '' } });
+        }
+
+        if (chat?.length) {
+            let lastUserMsg = null;
+            for (let i = chat.length - 1; i >= 0; i--) {
+                if (chat[i].is_user) { lastUserMsg = chat[i].mes; break; }
+            }
+            if (lastUserMsg) {
+                const casts = extractSpellCasts(lastUserMsg);
+                for (const cast of casts) {
+                    const spell = findSpellForInject(cast.spell);
+                    if (!spell) continue;
+                    const key = `${spell.name.toLowerCase()}|${cast.castLevel ?? 'base'}`;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    matched.push({ spell, cast });
+                }
+            }
         }
     }
 
-    let lastUserMsg = null;
-    for (let i = chat.length - 1; i >= 0; i--) {
-        if (chat[i].is_user) { lastUserMsg = chat[i].mes; break; }
-    }
-    if (lastUserMsg) {
-        const casts = extractSpellCasts(lastUserMsg);
-        for (const cast of casts) {
-            const spell = findSpellForInject(cast.spell);
-            if (!spell) continue;
-            const key = `${spell.name.toLowerCase()}|${cast.castLevel ?? 'base'}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            matched.push({ spell, cast });
-        }
+    if (matched.length === 0 && !concEffect) return '';
+
+    const lines = ['<spell_reference>'];
+
+    if (concEffect) {
+        const concRem = formatRemainingMinutes(concEffect.remainingMinutes);
+        const concDetail = concRem ? ` (${concRem} remaining)` : '';
+        lines.push(`CONCENTRATING ON: ${concEffect.logEntry.spell}${concDetail}`);
     }
 
-    if (matched.length === 0) return '';
+    if (matched.length > 0) {
+        lines.push('[Active and current-turn spells — precalculated values, do not recalculate]');
 
-    const lines = [
-        '<spell_reference>',
-        '[Precalculated values, do not recalculate]',
-    ];
+        for (const { spell, cast } of matched) {
+            const levelSchool = spell.level === 0
+                ? `${schoolName(spell.school)} cantrip`
+                : `${formatLevel(spell.level)} ${schoolName(spell.school)}`;
 
-    for (const { spell, cast } of matched) {
-        const levelSchool = spell.level === 0
-            ? `${schoolName(spell.school)} cantrip`
-            : `${formatLevel(spell.level)} ${schoolName(spell.school)}`;
+            lines.push('');
+            lines.push(`► ${spell.name} (${levelSchool})`);
 
-        lines.push('');
-        lines.push(`► ${spell.name} (${levelSchool})`);
+            if (cast.castLevel != null) {
+                lines.push(`  Slot: ${ordinal(cast.castLevel)}-level${cast.extras ? ` | ${cast.extras}` : ''}`);
+            } else if (cast.extras) {
+                lines.push(`  Notes: ${cast.extras}`);
+            }
 
-        if (cast.castLevel != null) {
-            lines.push(`  Slot: ${ordinal(cast.castLevel)}-level${cast.extras ? ` | ${cast.extras}` : ''}`);
-        } else if (cast.extras) {
-            lines.push(`  Notes: ${cast.extras}`);
-        }
+            const statsBlock = buildPrecalculatedStats(spell, characterLevel, cast.castLevel, charSpellBonuses, cast.chosenElement);
+            if (statsBlock) lines.push(statsBlock);
 
-        const statsBlock = buildPrecalculatedStats(spell, characterLevel, cast.castLevel);
-        if (statsBlock) lines.push(statsBlock);
+            lines.push(`  Time: ${fmtTime(spell.time)} | Range: ${fmtRange(spell.range)} | Duration: ${fmtDuration(spell.duration)}`);
 
-        lines.push(`  Time: ${fmtTime(spell.time)} | Range: ${fmtRange(spell.range)} | Duration: ${fmtDuration(spell.duration)}`);
-
-        if (!statsBlock) {
-            const desc = plainTextEntries(spell.entries);
-            if (desc) {
-                const truncated = desc.length > 200 ? desc.slice(0, 200) + '...' : desc;
-                lines.push(`  Effect: ${truncated}`);
+            if (!statsBlock) {
+                const desc = plainTextEntries(spell.entries);
+                if (desc) {
+                    const truncated = desc.length > 200 ? desc.slice(0, 200) + '...' : desc;
+                    lines.push(`  Effect: ${truncated}`);
+                }
             }
         }
     }
@@ -379,9 +514,12 @@ function findSpellForInject(name) {
 
 /**
  * Build precalculated stats block for a spell (indented lines, no section tags).
+ * @param {object} [spellBonuses] - Class/subclass spell damage bonuses from character stats
+ * @param {string} [chosenElement] - Player-chosen damage type override (e.g. 'fire')
  */
-function buildPrecalculatedStats(spell, characterLevel, castLevel) {
-    const info = getV1SpellDamageInfo(spell.name, characterLevel, { castLevel })
+function buildPrecalculatedStats(spell, characterLevel, castLevel, spellBonuses, chosenElement) {
+    const bonusObj = { castLevel, chosenElement, ...spellBonuses };
+    const info = getV1SpellDamageInfo(spell.name, characterLevel, bonusObj)
         || getSpellDamageInfo(spell.name, characterLevel, 0, null, 0, castLevel);
     if (!info) return '';
 
