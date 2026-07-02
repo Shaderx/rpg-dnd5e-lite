@@ -872,10 +872,6 @@
                     <span id="dnd-sk-armor-current" class="dnd-sk-armor-current">None</span>
                     <button id="dnd-sk-armor-clear" class="dnd-btn-sm" title="Remove armor" style="margin-left:0.3em;">✕</button>
                     <span style="flex:1;"></span>
-                    <label class="dnd-sk-check">
-                        <input type="checkbox" id="dnd-sk-shield-check" />
-                        Shield
-                    </label>
                     <span id="dnd-sk-ac-preview" class="dnd-sk-ac-preview"></span>
                 </div>
                 <div class="dnd-sk-filter-row">
@@ -889,6 +885,24 @@
                     <label class="dnd-sk-check dnd-sk-attune-label">
                         <input type="checkbox" id="dnd-sk-armor-attune-check" />
                         <i class="fa-solid fa-sun"></i> Attune armor
+                    </label>
+                </div>
+                <div class="dnd-setting-row" style="margin-top:0.3em;">
+                    <span>Shield:</span>
+                    <span id="dnd-sk-shield-current" class="dnd-sk-armor-current">None</span>
+                    <button id="dnd-sk-shield-clear" class="dnd-btn-sm" title="Remove shield" style="margin-left:0.3em;">✕</button>
+                </div>
+                <div class="dnd-sk-filter-row">
+                    <input type="text" id="dnd-sk-shield-search" placeholder="Search shields..." style="flex:1;" />
+                    <label class="dnd-sk-magic-toggle" title="Include magic shields from CDN">
+                        <input type="checkbox" id="dnd-sk-magic-shield-check" /> <span>Magic</span>
+                    </label>
+                </div>
+                <div id="dnd-sk-shield-results" class="dnd-sk-spell-dropdown"></div>
+                <div class="dnd-sk-shield-attune-row" style="display:none;">
+                    <label class="dnd-sk-check dnd-sk-attune-label">
+                        <input type="checkbox" id="dnd-sk-shield-attune-check" />
+                        <i class="fa-solid fa-sun"></i> Attune shield
                     </label>
                 </div>
                 <div class="dnd-sk-equip-sub-title">Creature Traits</div>

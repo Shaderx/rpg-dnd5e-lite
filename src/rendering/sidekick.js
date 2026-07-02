@@ -60,7 +60,7 @@ export function renderSidekickCards() {
 
         // Compact stat pills
         const armorLabel = sk.equippedArmor ? sk.equippedArmor.name : '';
-        const shieldLabel = sk.hasShield ? '+Shld' : '';
+        const shieldLabel = sk.equippedShield ? `+${sk.equippedShield.name || 'Shld'}` : '';
         const acTitle = [armorLabel, shieldLabel].filter(Boolean).join(', ') || 'Unarmored';
         const statPills = `<div class="dnd-sk-card-stats">
             <span class="dnd-sk-pill dnd-sk-pill-hp">HP ${stats.hp}</span>
@@ -129,7 +129,8 @@ export function renderSidekickDetail(sidekickId) {
         <div class="dnd-sk-det-meta">${escHtml(sk.race || '')} <span class="dnd-tt-hover" data-tt-type="creature" data-tt-name="${escHtml(sk.creatureName || '')}">${escHtml(sk.creatureName || '')}</span> &mdash; ${typeLabel}${subLabel} (Lv ${level})</div>
     </div>`);
 
-    const armorNote = sk.equippedArmor ? `(${sk.equippedArmor.name}${sk.hasShield ? ' + Shield' : ''})` : (sk.hasShield ? '(Shield)' : '');
+    const shieldNote = sk.equippedShield ? ` + ${sk.equippedShield.name || 'Shield'}` : '';
+    const armorNote = sk.equippedArmor ? `(${sk.equippedArmor.name}${shieldNote})` : (sk.equippedShield ? `(${sk.equippedShield.name || 'Shield'})` : '');
     sections.push(`<div class="dnd-sk-det-row dnd-sk-det-combat">
         <span>HP <strong>${stats.hp}</strong></span>
         <span>AC <strong>${stats.ac}</strong> ${armorNote}</span>
@@ -183,7 +184,12 @@ export function renderSidekickDetail(sidekickId) {
         const armorAttuneTag = sk.equippedArmor.attuned ? ' <span class="dnd-sk-det-attune-tag"><i class="fa-solid fa-sun"></i> attuned</span>' : '';
         equipParts.push(`<span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${escHtml(sk.equippedArmor.name)}">${escHtml(sk.equippedArmor.name)}</span> (${escHtml(sk.equippedArmor.type)})${armorAttuneTag}`);
     }
-    if (sk.hasShield) equipParts.push(`<span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="Shield">Shield</span> (+2 AC)`);
+    if (sk.equippedShield) {
+        const shieldName = sk.equippedShield.name || 'Shield';
+        const shieldAcStr = `+${sk.equippedShield.ac ?? 2} AC`;
+        const shieldAttuneTag = sk.equippedShield.attuned ? ' <span class="dnd-sk-det-attune-tag"><i class="fa-solid fa-sun"></i> attuned</span>' : '';
+        equipParts.push(`<span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${escHtml(shieldName)}">${escHtml(shieldName)}</span> (${shieldAcStr})${shieldAttuneTag}`);
+    }
     if (equipParts.length > 0) {
         sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Armor</div><div>${equipParts.join(', ')}</div></div>`);
     }

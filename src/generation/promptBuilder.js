@@ -594,7 +594,8 @@ export function buildSidekickSection() {
         const subLabel = subInfo ? ` (${subInfo.label})` : '';
         const raceStr = sk.race ? `${sk.race} ` : '';
         const creatureStr = sk.creatureName || '';
-        const armorNote = sk.equippedArmor ? ` (${sk.equippedArmor.name}${sk.hasShield ? '+Shield' : ''})` : (sk.hasShield ? ' (Shield)' : '');
+        const shieldSuffix = sk.equippedShield ? `+${sk.equippedShield.name || 'Shield'}` : '';
+        const armorNote = sk.equippedArmor ? ` (${sk.equippedArmor.name}${shieldSuffix})` : (sk.equippedShield ? ` (${sk.equippedShield.name || 'Shield'})` : '');
 
         lines.push(`\n[Hireling: ${sk.name} (${raceStr}${creatureStr}, ${typeLabel}${subLabel}) Lv ${level}]`);
         lines.push(`HP ${stats.hp} | AC ${stats.ac}${armorNote} | SPD ${sk.speedFull || sk.baseSpeed + 'ft'} | Prof +${stats.proficiency}`);
@@ -645,7 +646,10 @@ export function buildSidekickSection() {
             const armorTag = sk.equippedArmor.attuned ? ' [attuned]' : '';
             equipParts.push(`${sk.equippedArmor.name}${armorTag}`);
         }
-        if (sk.hasShield) equipParts.push('Shield');
+        if (sk.equippedShield) {
+            const shieldTag = sk.equippedShield.attuned ? ' [attuned]' : '';
+            equipParts.push(`${sk.equippedShield.name || 'Shield'} (+${sk.equippedShield.ac ?? 2} AC)${shieldTag}`);
+        }
         if (equipParts.length > 0) lines.push(`Armor: ${equipParts.join(', ')}`);
 
         const cWeapons = stats.computedWeapons || [];

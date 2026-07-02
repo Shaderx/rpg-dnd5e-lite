@@ -12,7 +12,7 @@ import { renderSpellbook, hideSpellTooltip } from './src/rendering/spellbook.js'
 import { fetchClassIndex, fetchClassData, listClasses, getSubclasses, saveCharacterConfig, clearCharacter, ensureCharacterData } from './src/features/character.js';
 import { renderCharacter } from './src/rendering/character.js';
 import { renderSidekickCards, renderSidekickDetail } from './src/rendering/sidekick.js';
-import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, CREATURE_TYPES, SPELL_SCHOOLS, SIDEKICK_MAX_ATTUNEMENT, getSidekickAttunedCount, fetchBestiaryIndex, fetchBestiarySource, preloadBestiarySources, getAvailableSourceKeys, getLoadedSourceKeys, searchCreatures, findCreatureVersions, getCreatureStats, fetchEquipmentItems, fetchMagicItems, isMagicWeaponsLoaded, extractCreatureActions, extractCreatureTraits, extractCreatureSkillProficiencies, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, preloadSpellData, getSpellsForClass, getAllLoadedSpells, spellSchoolLabel, searchEquipment, searchMagicItems, weaponFromItem, armorFromItem, computeEquippedAC, DND_LANGUAGES, parseCreatureLanguages, getSpellDamageInfo, fetchFeats, getLoadedFeats, parseFeatAbility, checkFeatPrereqs, lookupFeatByName, lookupItemByName } from './src/features/sidekick.js';
+import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, CREATURE_TYPES, SPELL_SCHOOLS, SIDEKICK_MAX_ATTUNEMENT, getSidekickAttunedCount, fetchBestiaryIndex, fetchBestiarySource, preloadBestiarySources, getAvailableSourceKeys, getLoadedSourceKeys, searchCreatures, findCreatureVersions, getCreatureStats, fetchEquipmentItems, fetchMagicItems, isMagicWeaponsLoaded, extractCreatureActions, extractCreatureTraits, extractCreatureSkillProficiencies, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, preloadSpellData, getSpellsForClass, getAllLoadedSpells, spellSchoolLabel, searchEquipment, searchMagicItems, weaponFromItem, armorFromItem, shieldFromItem, computeEquippedAC, DND_LANGUAGES, parseCreatureLanguages, getSpellDamageInfo, fetchFeats, getLoadedFeats, parseFeatAbility, checkFeatPrereqs, lookupFeatByName, lookupItemByName } from './src/features/sidekick.js';
 import { getFeatUIDescriptor, DND_TOOLS } from './src/features/featEffects.js';
 import { bindTooltipEvents, hideTooltip, showEventTooltip } from './src/rendering/tooltip.js';
 import { onGenerationStarted, clearExtensionPrompts } from './src/generation/injector.js';
@@ -368,10 +368,13 @@ let _skTempCantrips = [];
 let _skTempSpells = [];
 let _skTempItems = [];
 let _skTempArmorAttuned = false;
+let _skSelectedShieldName = null;
+let _skTempShieldAttuned = false;
 
 function getTempAttunedCount() {
     let count = 0;
     if (_skTempArmorAttuned) count++;
+    if (_skTempShieldAttuned) count++;
     count += _skTempWeapons.filter(w => w.attuned).length;
     count += _skTempItems.filter(it => it.attuned).length;
     return count;
@@ -451,13 +454,20 @@ async function openSidekickConfigModal(editId) {
     $('#dnd-sk-hire-date').val('');
     _skSelectedArmorName = null;
     _skTempArmorAttuned = false;
+    _skSelectedShieldName = null;
+    _skTempShieldAttuned = false;
     $('#dnd-sk-armor-current').text('None');
     $('#dnd-sk-armor-clear').hide();
     $('#dnd-sk-armor-search').val('');
     $('#dnd-sk-armor-results').html('');
     $('#dnd-sk-magic-armor-check').prop('checked', false);
     $('#dnd-sk-armor-attune-check').prop('checked', false).closest('.dnd-sk-armor-attune-row').hide();
-    $('#dnd-sk-shield-check').prop('checked', false);
+    $('#dnd-sk-shield-current').text('None');
+    $('#dnd-sk-shield-clear').hide();
+    $('#dnd-sk-shield-search').val('');
+    $('#dnd-sk-shield-results').html('');
+    $('#dnd-sk-magic-shield-check').prop('checked', false);
+    $('#dnd-sk-shield-attune-check').prop('checked', false).closest('.dnd-sk-shield-attune-row').hide();
     $('#dnd-sk-equip-search').val('');
     $('#dnd-sk-equip-results').html('');
     $('#dnd-sk-magic-check').prop('checked', false);
@@ -526,7 +536,16 @@ async function openSidekickConfigModal(editId) {
                 }
                 updateArmorAttuneVisibility();
             }
-            $('#dnd-sk-shield-check').prop('checked', !!sk.hasShield);
+            if (sk.equippedShield) {
+                setSelectedShield(sk.equippedShield.name);
+                _skTempShieldAttuned = !!sk.equippedShield.attuned;
+                if (_skTempShieldAttuned) {
+                    $('#dnd-sk-shield-attune-check').prop('checked', true);
+                }
+                updateShieldAttuneVisibility();
+            } else if (sk.hasShield) {
+                setSelectedShield('Shield');
+            }
             showEquipmentSection();
 
             populateProfSection(sk.type, sk.saveProficiency, sk.skillProficiencies, sk.skillExpertise, sk.toolProficiencies);
@@ -753,6 +772,63 @@ function onSkArmorSearch() {
     }, 250);
 }
 
+// ─── Shield Search & Selection ──────────────────────────────
+
+let _skShieldSearchDebounce = null;
+
+function setSelectedShield(name) {
+    _skSelectedShieldName = name || null;
+    if (!name) {
+        _skTempShieldAttuned = false;
+        $('#dnd-sk-shield-attune-check').prop('checked', false);
+    }
+    $('#dnd-sk-shield-current').text(name || 'None');
+    $('#dnd-sk-shield-clear').toggle(!!name);
+    updateAcPreview();
+    updateShieldAttuneVisibility();
+}
+
+function onSkShieldSearch() {
+    clearTimeout(_skShieldSearchDebounce);
+    _skShieldSearchDebounce = setTimeout(() => {
+        const query = /** @type {string} */ ($('#dnd-sk-shield-search').val());
+        if (!query || query.length < 2) { $('#dnd-sk-shield-results').html(''); return; }
+        const useMagic = !!$('#dnd-sk-magic-shield-check').prop('checked');
+        const results = searchEquipment(query, 'shield', useMagic);
+        const $results = $('#dnd-sk-shield-results');
+        if (results.length === 0) { $results.html('<em>No results</em>'); return; }
+        const items = results.map(item => {
+            const bonusAc = item.bonusAc ? ` (+${item.bonusAc})` : '';
+            const rarity = item._magic && item.rarity && !RARITY_HIDDEN.has(item.rarity) ? ` · ${item.rarity}` : '';
+            const src = item._magic ? ` · ${item.source || '?'}` : '';
+            return `<div class="dnd-sk-dd-item dnd-sk-shield-result" data-item-name="${escHtml(item.name)}" data-item-source="${escHtml(item.source || '')}"><span class="dnd-sk-dd-name">${escHtml(item.name)}${bonusAc}</span><span class="dnd-sk-dd-info">Shield, AC +${item.ac || 2}${rarity}${src}</span></div>`;
+        });
+        $results.html(items.join(''));
+    }, 250);
+}
+
+function updateShieldAttuneVisibility() {
+    if (!_skSelectedShieldName) {
+        $('#dnd-sk-shield-attune-check').closest('.dnd-sk-shield-attune-row').hide();
+        return;
+    }
+    const useMagic = !!$('#dnd-sk-magic-shield-check').prop('checked');
+    if (!useMagic) {
+        _skTempShieldAttuned = false;
+        $('#dnd-sk-shield-attune-check').prop('checked', false).closest('.dnd-sk-shield-attune-row').hide();
+        updateAttuneCounter();
+        return;
+    }
+    const item = searchEquipment(_skSelectedShieldName, 'shield', true).find(i => i.name === _skSelectedShieldName);
+    if (item?.reqAttune) {
+        $('#dnd-sk-shield-attune-check').closest('.dnd-sk-shield-attune-row').show();
+    } else {
+        _skTempShieldAttuned = false;
+        $('#dnd-sk-shield-attune-check').prop('checked', false).closest('.dnd-sk-shield-attune-row').hide();
+    }
+    updateAttuneCounter();
+}
+
 function showEquipmentSection() {
     renderTraitsList();
     renderActionsList();
@@ -863,8 +939,6 @@ function renderWeaponsList() {
 }
 
 function updateAcPreview() {
-    const hasShield = $('#dnd-sk-shield-check').prop('checked');
-
     let armorObj = null;
     if (_skSelectedArmorName) {
         const useMagic = !!$('#dnd-sk-magic-armor-check').prop('checked');
@@ -872,10 +946,18 @@ function updateAcPreview() {
         if (item) armorObj = armorFromItem(item);
     }
 
+    let shieldObj = null;
+    if (_skSelectedShieldName) {
+        const useMagic = !!$('#dnd-sk-magic-shield-check').prop('checked');
+        const item = searchEquipment(_skSelectedShieldName, 'shield', useMagic).find(i => i.name === _skSelectedShieldName);
+        if (item) shieldObj = shieldFromItem(item);
+        else shieldObj = { name: _skSelectedShieldName, ac: 2, rarity: null };
+    }
+
     const baseDex = _skTempCreature?.dex ?? 10;
     const dexMod = Math.floor((baseDex - 10) / 2);
     const baseAc = _skTempCreature ? (typeof _skTempCreature.ac?.[0] === 'number' ? _skTempCreature.ac[0] : _skTempCreature.ac?.[0]?.ac ?? 10) : 10;
-    const ac = computeEquippedAC(armorObj, hasShield, dexMod, baseAc, 0);
+    const ac = computeEquippedAC(armorObj, shieldObj, dexMod, baseAc, 0);
     $('#dnd-sk-ac-preview').text(`AC ${ac}`);
 }
 
@@ -1937,7 +2019,17 @@ function saveSidekickFromModal() {
             equippedArmor.attuned = !!_skTempArmorAttuned;
         }
     }
-    const hasShield = !!$('#dnd-sk-shield-check').prop('checked');
+    let equippedShield = null;
+    if (_skSelectedShieldName) {
+        const useMagic = !!$('#dnd-sk-magic-shield-check').prop('checked');
+        const item = searchEquipment(_skSelectedShieldName, 'shield', useMagic).find(i => i.name === _skSelectedShieldName);
+        if (item) {
+            equippedShield = shieldFromItem(item);
+            equippedShield.attuned = !!_skTempShieldAttuned;
+        } else {
+            equippedShield = { name: _skSelectedShieldName, ac: 2, rarity: null, attuned: false };
+        }
+    }
 
     const editId = _skEditId;
     if (editId) {
@@ -1965,7 +2057,8 @@ function saveSidekickFromModal() {
         sk.hireQuestPaid = hireQuestPaid;
         sk.hireDate = hireDate;
         sk.equippedArmor = equippedArmor;
-        sk.hasShield = hasShield;
+        sk.equippedShield = equippedShield;
+        delete sk.hasShield;
         sk.creatureActions = _skTempActions;
         sk.creatureTraits = _skTempTraits;
         sk.weapons = _skTempWeapons;
@@ -2007,7 +2100,7 @@ function saveSidekickFromModal() {
         newSk.items = _skTempItems.slice();
         newSk.chosenLanguages = _skTempChosenLanguages.slice();
         newSk.equippedArmor = equippedArmor;
-        newSk.hasShield = hasShield;
+        newSk.equippedShield = equippedShield;
         sidekicks.push(newSk);
     }
 
@@ -2087,7 +2180,15 @@ function migrateSidekickData() {
             sk.chosenLanguages = [];
             dirty = true;
         }
-        // Backfill attunement fields on items, weapons, and armor
+        // Migrate hasShield boolean to equippedShield object
+        if (sk.hasShield !== undefined) {
+            if (sk.hasShield && !sk.equippedShield) {
+                sk.equippedShield = { name: 'Shield', ac: 2, rarity: null, attuned: false };
+            }
+            delete sk.hasShield;
+            dirty = true;
+        }
+        // Backfill attunement fields on items, weapons, armor, and shield
         for (const it of (sk.items || [])) {
             if (it.attuned === undefined) { it.attuned = false; dirty = true; }
         }
@@ -2096,6 +2197,10 @@ function migrateSidekickData() {
         }
         if (sk.equippedArmor && sk.equippedArmor.attuned === undefined) {
             sk.equippedArmor.attuned = false;
+            dirty = true;
+        }
+        if (sk.equippedShield && sk.equippedShield.attuned === undefined) {
+            sk.equippedShield.attuned = false;
             dirty = true;
         }
     }
@@ -3450,7 +3555,37 @@ async function initUI() {
         _skTempArmorAttuned = !!checked;
         updateAttuneCounter();
     });
-    $('#dnd-sk-shield-check').on('change', updateAcPreview);
+
+    // Shield search + clear + magic toggle + attune
+    $('#dnd-sk-shield-search').on('input', onSkShieldSearch);
+    $('#dnd-sk-shield-clear').on('click', () => { setSelectedShield(null); $('#dnd-sk-shield-search').val(''); $('#dnd-sk-shield-results').html(''); });
+    $(document).on('click', '.dnd-sk-shield-result', function () {
+        const name = $(this).data('item-name');
+        if (name) {
+            setSelectedShield(name);
+            $('#dnd-sk-shield-search').val('');
+            $('#dnd-sk-shield-results').html('');
+        }
+    });
+    $('#dnd-sk-magic-shield-check').on('change', async function () {
+        if ($(this).prop('checked') && !isMagicWeaponsLoaded()) {
+            $(this).parent().addClass('dnd-sk-loading');
+            await fetchMagicItems();
+            $(this).parent().removeClass('dnd-sk-loading');
+        }
+        onSkShieldSearch();
+        updateShieldAttuneVisibility();
+    });
+    $('#dnd-sk-shield-attune-check').on('change', function () {
+        const checked = $(this).prop('checked');
+        if (checked && getTempAttunedCount() >= SIDEKICK_MAX_ATTUNEMENT) {
+            $(this).prop('checked', false);
+            toastr.warning(`Attunement full (${SIDEKICK_MAX_ATTUNEMENT}/${SIDEKICK_MAX_ATTUNEMENT} slots used)`);
+            return;
+        }
+        _skTempShieldAttuned = !!checked;
+        updateAttuneCounter();
+    });
 
     // Payment mode toggle
     $('#dnd-sk-hire-paymode').on('change', function () {

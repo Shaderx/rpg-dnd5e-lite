@@ -28,11 +28,12 @@ const CDN_DATA = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src
 export const SIDEKICK_MAX_ATTUNEMENT = 3;
 
 /**
- * Count total attuned items across armor, weapons, and gear for a sidekick.
+ * Count total attuned items across armor, shield, weapons, and gear for a sidekick.
  */
 export function getSidekickAttunedCount(sk) {
     let count = 0;
     if (sk.equippedArmor?.attuned) count++;
+    if (sk.equippedShield?.attuned) count++;
     count += (sk.weapons || []).filter(w => w.attuned).length;
     count += (sk.items || []).filter(it => it.attuned).length;
     return count;
@@ -899,13 +900,32 @@ export function armorFromItem(item) {
     };
 }
 
+/**
+ * Build a compact shield descriptor from a CDN item entry.
+ * Base shield gives +2 AC; magic shields add bonusAc on top.
+ */
+export function shieldFromItem(item) {
+    let ac = item.ac ?? 2;
+    if (item.bonusAc) ac += parseInt(item.bonusAc) || 0;
+    return {
+        name: item.name,
+        ac,
+        rarity: item.rarity || null,
+    };
+}
+
 // ─── AC Calculation ─────────────────────────────────────────
 
 /**
  * Compute AC from equipped armor, shield, and DEX modifier.
  * Falls back to baseAc if no armor is configured.
+ * @param {object|null} equippedArmor
+ * @param {object|boolean} shieldOrFlag - shield object { ac } or legacy boolean (true = +2)
+ * @param {number} dexMod
+ * @param {number} [baseAc]
+ * @param {number} [warriorDefBonus]
  */
-export function computeEquippedAC(equippedArmor, hasShield, dexMod, baseAc, warriorDefBonus) {
+export function computeEquippedAC(equippedArmor, shieldOrFlag, dexMod, baseAc, warriorDefBonus) {
     let ac;
     if (!equippedArmor) {
         ac = baseAc ?? (10 + dexMod);
@@ -919,7 +939,9 @@ export function computeEquippedAC(equippedArmor, hasShield, dexMod, baseAc, warr
             ac = equippedArmor.ac;
         }
     }
-    if (hasShield) ac += 2;
+    if (shieldOrFlag) {
+        ac += (typeof shieldOrFlag === 'object' && shieldOrFlag.ac != null) ? shieldOrFlag.ac : 2;
+    }
     if (warriorDefBonus) ac += warriorDefBonus;
     return ac;
 }
@@ -1219,9 +1241,10 @@ export function computeSidekickStats(sidekick, level) {
     }
 
     const warriorDefBonus = (sidekick.type === 'warrior' && level >= 10) ? 1 : 0;
+    const shieldArg = sidekick.equippedShield || (sidekick.hasShield ? true : false);
     const ac = computeEquippedAC(
         sidekick.equippedArmor || null,
-        !!sidekick.hasShield,
+        shieldArg,
         mods.dex,
         sidekick.baseAc,
         warriorDefBonus,
@@ -1850,7 +1873,7 @@ export function createSidekickFromCreature(creature, config) {
         chosenLanguages: [],
         weapons: [],
         equippedArmor: null,
-        hasShield: false,
+        equippedShield: null,
         saveProficiency: config.saveProficiency || null,
         skillProficiencies: config.skillProficiencies || [],
         skillExpertise: config.skillExpertise || [],
