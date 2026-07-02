@@ -924,8 +924,10 @@ export function shieldFromItem(item) {
  * @param {number} dexMod
  * @param {number} [baseAc]
  * @param {number} [warriorDefBonus]
+ * @param {{ mediumArmorMaster?: boolean, featAcBonus?: number }} [overrides]
  */
-export function computeEquippedAC(equippedArmor, shieldOrFlag, dexMod, baseAc, warriorDefBonus) {
+export function computeEquippedAC(equippedArmor, shieldOrFlag, dexMod, baseAc, warriorDefBonus, overrides) {
+    const { mediumArmorMaster = false, featAcBonus = 0 } = overrides || {};
     let ac;
     if (!equippedArmor) {
         ac = baseAc ?? (10 + dexMod);
@@ -934,7 +936,8 @@ export function computeEquippedAC(equippedArmor, shieldOrFlag, dexMod, baseAc, w
         if (type === 'LA') {
             ac = equippedArmor.ac + dexMod;
         } else if (type === 'MA') {
-            ac = equippedArmor.ac + Math.min(dexMod, 2);
+            const cap = mediumArmorMaster ? 3 : 2;
+            ac = equippedArmor.ac + Math.min(dexMod, cap);
         } else {
             ac = equippedArmor.ac;
         }
@@ -943,6 +946,7 @@ export function computeEquippedAC(equippedArmor, shieldOrFlag, dexMod, baseAc, w
         ac += (typeof shieldOrFlag === 'object' && shieldOrFlag.ac != null) ? shieldOrFlag.ac : 2;
     }
     if (warriorDefBonus) ac += warriorDefBonus;
+    ac += featAcBonus;
     return ac;
 }
 
@@ -1173,6 +1177,7 @@ export function computeSidekickStats(sidekick, level) {
     const featEffects = collectFeatEffects(chosenFeats, sidekick.featData || {}, {
         level, scores, mods, proficiency,
         featAbilityMod: 0,
+        weapons: sidekick.weapons || [],
     });
 
     const baseAvgHp = sidekick.baseHp?.average ?? (hitDice.count * avgPerDie);
@@ -1248,6 +1253,10 @@ export function computeSidekickStats(sidekick, level) {
         mods.dex,
         sidekick.baseAc,
         warriorDefBonus,
+        {
+            mediumArmorMaster: !!featEffects.meta.mediumArmorMaster,
+            featAcBonus: featEffects.acBonus || 0,
+        },
     );
 
     const features = buildFeatureSummary(sidekick, level, { proficiency, mods, scores, spellcasting, extraAttack });

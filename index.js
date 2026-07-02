@@ -938,6 +938,17 @@ function renderWeaponsList() {
     updateAttuneCounter();
 }
 
+function getSelectedFeatNames() {
+    const feats = [];
+    $('#dnd-sk-asi-rows .dnd-sk-asi-row').each(function () {
+        if ($(this).find('.dnd-sk-asi-feat-toggle').prop('checked')) {
+            const name = $(this).find('.dnd-sk-feat-select').val();
+            if (name) feats.push(name);
+        }
+    });
+    return feats;
+}
+
 function updateAcPreview() {
     let armorObj = null;
     if (_skSelectedArmorName) {
@@ -957,7 +968,15 @@ function updateAcPreview() {
     const baseDex = _skTempCreature?.dex ?? 10;
     const dexMod = Math.floor((baseDex - 10) / 2);
     const baseAc = _skTempCreature ? (typeof _skTempCreature.ac?.[0] === 'number' ? _skTempCreature.ac[0] : _skTempCreature.ac?.[0]?.ac ?? 10) : 10;
-    const ac = computeEquippedAC(armorObj, shieldObj, dexMod, baseAc, 0);
+
+    const selectedFeats = getSelectedFeatNames();
+    const hasMediumArmorMaster = selectedFeats.includes('Medium Armor Master');
+    const hasDualWielder = selectedFeats.includes('Dual Wielder') && _skTempWeapons.length >= 2;
+
+    const ac = computeEquippedAC(armorObj, shieldObj, dexMod, baseAc, 0, {
+        mediumArmorMaster: hasMediumArmorMaster,
+        featAcBonus: hasDualWielder ? 1 : 0,
+    });
     $('#dnd-sk-ac-preview').text(`AC ${ac}`);
 }
 
@@ -1357,12 +1376,14 @@ async function populateAsiSection(type, savedChoices, savedFeatData) {
             $row.find('.dnd-sk-asi-ability-picks').show();
             $row.find('.dnd-sk-asi-feat-picks').hide();
         }
+        updateAcPreview();
     });
 
     $rows.off('change', '.dnd-sk-feat-select').on('change', '.dnd-sk-feat-select', function () {
         const featName = $(this).val();
         const $row = $(this).closest('.dnd-sk-asi-row');
         renderFeatAbilityChoice($row, featName);
+        updateAcPreview();
     });
 
     $rows.off('change', '.dnd-sk-feat-mi-list').on('change', '.dnd-sk-feat-mi-list', function () {

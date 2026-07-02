@@ -6,6 +6,7 @@
  *
  * Effect types:
  *   hp       – modifies max HP
+ *   ac       – modifies AC (flat bonus or meta flags like mediumArmorMaster)
  *   skills   – grants skill/tool proficiencies or expertise
  *   spells   – grants bonus cantrips/spells (with free-cast info)
  *   damage   – modifies damage rolls or dice
@@ -43,6 +44,8 @@ function register(featName, handler) {
 export function collectFeatEffects(chosenFeats, featData, ctx) {
     const result = {
         hpBonus: 0,
+        acBonus: 0,
+        meta: {},
         extraSkills: [],
         extraExpertise: [],
         toolProficiencies: [],
@@ -260,10 +263,25 @@ register('Great Weapon Master', (result, _data, ctx) => {
     result.promptNotes.push(`Great Weapon Master: Heavy/Two-Handed weapons deal +${ctx.proficiency} extra damage on Attack action hits. After a crit or reducing a creature to 0 HP with a melee weapon, can make one bonus action attack.`);
 });
 
+// ─── Medium Armor Master ────────────────────────────────────
+
+register('Medium Armor Master', (result) => {
+    result.meta.mediumArmorMaster = true;
+    result.promptNotes.push('Medium Armor Master: Medium armor DEX cap is +3 instead of +2; no stealth disadvantage from medium armor.');
+});
+
 // ─── Heavy Armor Master ─────────────────────────────────────
 
 register('Heavy Armor Master', (result, _data, ctx) => {
     result.promptNotes.push(`Heavy Armor Master: While wearing heavy armor, Bludgeoning/Piercing/Slashing damage from attacks is reduced by ${ctx.proficiency}.`);
+});
+
+// ─── Dual Wielder ───────────────────────────────────────────
+
+register('Dual Wielder', (result, _data, ctx) => {
+    const weaponCount = (ctx.weapons || []).length;
+    if (weaponCount >= 2) result.acBonus += 1;
+    result.promptNotes.push('Dual Wielder: +1 AC when wielding two weapons; can TWF with non-light weapons; draw/stow two weapons.');
 });
 
 // ─── Crusher / Piercer / Slasher ────────────────────────────
