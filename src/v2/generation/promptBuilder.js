@@ -177,13 +177,15 @@ add: add a new item to inventory:
   Magic weapon: {"tool":"inventory","action":"add","name":"Staff of Fire","type":"weapon","magic":true,"charges":10,"notes":"Fireball (3ch), Wall of Fire (4ch)","location":"equipped"}
   Required: name
   Optional: quantity (default 1), rarity, location (equipped/stored), type, magic, notes, charges
-  notes: brief static description of what the item is or does (set on add only, never update)
+  notes: brief static description of what the item is or does
   Naming: use canonical D&D names when possible (e.g. "Potion of Healing" not "Healing Potion", "Scroll of [Spell]" not "[Spell] Scroll")
 
-update: modify quantity or rarity on existing item:
+update: modify quantity, rarity, or notes on existing item:
   {"tool":"inventory","action":"update","index":1,"quantity":3}
+  {"tool":"inventory","action":"update","index":1,"notes":"Repels fey within 30ft for 1hr when rung 3 times"}
   quantity_change: use +/- for relative changes (e.g. -1 to consume one)
-  Do NOT update notes. Item descriptions are permanent.
+  rarity: update rarity of the item
+  notes: static factual description of what the item is or does. Never narrative, usage history, or story events.
 
 equip: {"tool":"inventory","action":"equip","index":1}
 unequip: {"tool":"inventory","action":"unequip","index":1}
@@ -199,7 +201,6 @@ charges: modify charges on a magic item:
 - Quest description is the original briefing. Never overwrite it on update. Put evolving progress in notes instead.
 - Equipment type auto-resolves stats from D&D database. Only 1 armor + 1 shield can be equipped.
 - No gold/currency in inventory. Track items only.
-- Do not add narrative plots or usage history to items.
 </game_state_actions>`;
 }
 

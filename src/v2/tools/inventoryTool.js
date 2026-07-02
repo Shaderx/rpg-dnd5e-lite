@@ -301,6 +301,9 @@ function handleUpdate(args) {
             item.equipmentData = null;
         }
     }
+    if (args.notes !== undefined || args.magic_notes !== undefined) {
+        item.magicNotes = (args.notes || args.magic_notes || '').trim();
+    }
     if (args.magic !== undefined) item.magic = !!args.magic;
     if (args.charges !== undefined) {
         item.charges = args.charges === null ? null : Math.max(0, parseInt(args.charges) || 0);
