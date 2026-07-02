@@ -12,7 +12,7 @@ import { renderSpellbook, hideSpellTooltip } from './src/rendering/spellbook.js'
 import { fetchClassIndex, fetchClassData, listClasses, getSubclasses, saveCharacterConfig, clearCharacter, ensureCharacterData } from './src/features/character.js';
 import { renderCharacter } from './src/rendering/character.js';
 import { renderSidekickCards, renderSidekickDetail } from './src/rendering/sidekick.js';
-import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, CREATURE_TYPES, SPELL_SCHOOLS, fetchBestiaryIndex, fetchBestiarySource, preloadBestiarySources, getAvailableSourceKeys, getLoadedSourceKeys, searchCreatures, findCreatureVersions, getCreatureStats, fetchEquipmentItems, fetchMagicItems, isMagicWeaponsLoaded, extractCreatureActions, extractCreatureTraits, extractCreatureSkillProficiencies, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, preloadSpellData, getSpellsForClass, getAllLoadedSpells, spellSchoolLabel, searchEquipment, searchMagicItems, weaponFromItem, armorFromItem, computeEquippedAC, DND_LANGUAGES, parseCreatureLanguages, getSpellDamageInfo, fetchFeats, getLoadedFeats, parseFeatAbility, checkFeatPrereqs, lookupFeatByName } from './src/features/sidekick.js';
+import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, CREATURE_TYPES, SPELL_SCHOOLS, SIDEKICK_MAX_ATTUNEMENT, getSidekickAttunedCount, fetchBestiaryIndex, fetchBestiarySource, preloadBestiarySources, getAvailableSourceKeys, getLoadedSourceKeys, searchCreatures, findCreatureVersions, getCreatureStats, fetchEquipmentItems, fetchMagicItems, isMagicWeaponsLoaded, extractCreatureActions, extractCreatureTraits, extractCreatureSkillProficiencies, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, preloadSpellData, getSpellsForClass, getAllLoadedSpells, spellSchoolLabel, searchEquipment, searchMagicItems, weaponFromItem, armorFromItem, computeEquippedAC, DND_LANGUAGES, parseCreatureLanguages, getSpellDamageInfo, fetchFeats, getLoadedFeats, parseFeatAbility, checkFeatPrereqs, lookupFeatByName, lookupItemByName } from './src/features/sidekick.js';
 import { getFeatUIDescriptor, DND_TOOLS } from './src/features/featEffects.js';
 import { bindTooltipEvents, hideTooltip, showEventTooltip } from './src/rendering/tooltip.js';
 import { onGenerationStarted, clearExtensionPrompts } from './src/generation/injector.js';
@@ -367,6 +367,15 @@ let _skTempWeapons = [];
 let _skTempCantrips = [];
 let _skTempSpells = [];
 let _skTempItems = [];
+let _skTempArmorAttuned = false;
+
+function getTempAttunedCount() {
+    let count = 0;
+    if (_skTempArmorAttuned) count++;
+    count += _skTempWeapons.filter(w => w.attuned).length;
+    count += _skTempItems.filter(it => it.attuned).length;
+    return count;
+}
 
 function toggleSidekickEnabled(id) {
     const sk = sidekicks.find(s => s.id === id);
@@ -441,11 +450,13 @@ async function openSidekickConfigModal(editId) {
     $('#dnd-sk-hire-quest-paid').prop('checked', false);
     $('#dnd-sk-hire-date').val('');
     _skSelectedArmorName = null;
+    _skTempArmorAttuned = false;
     $('#dnd-sk-armor-current').text('None');
     $('#dnd-sk-armor-clear').hide();
     $('#dnd-sk-armor-search').val('');
     $('#dnd-sk-armor-results').html('');
     $('#dnd-sk-magic-armor-check').prop('checked', false);
+    $('#dnd-sk-armor-attune-check').prop('checked', false).closest('.dnd-sk-armor-attune-row').hide();
     $('#dnd-sk-shield-check').prop('checked', false);
     $('#dnd-sk-equip-search').val('');
     $('#dnd-sk-equip-results').html('');
@@ -509,6 +520,11 @@ async function openSidekickConfigModal(editId) {
 
             if (sk.equippedArmor) {
                 setSelectedArmor(sk.equippedArmor.name);
+                _skTempArmorAttuned = !!sk.equippedArmor.attuned;
+                if (_skTempArmorAttuned) {
+                    $('#dnd-sk-armor-attune-check').prop('checked', true);
+                }
+                updateArmorAttuneVisibility();
             }
             $('#dnd-sk-shield-check').prop('checked', !!sk.hasShield);
             showEquipmentSection();
@@ -706,9 +722,14 @@ let _skSelectedArmorName = null;
 
 function setSelectedArmor(name) {
     _skSelectedArmorName = name || null;
+    if (!name) {
+        _skTempArmorAttuned = false;
+        $('#dnd-sk-armor-attune-check').prop('checked', false);
+    }
     $('#dnd-sk-armor-current').text(name || 'None');
     $('#dnd-sk-armor-clear').toggle(!!name);
     updateAcPreview();
+    updateArmorAttuneVisibility();
 }
 
 function onSkArmorSearch() {
@@ -799,14 +820,20 @@ function renderWeaponsList() {
     const $list = $('#dnd-sk-weapons-list');
     if (_skTempWeapons.length === 0) {
         $list.html('<div class="dnd-sk-no-spells">No extra weapons</div>');
+        updateAttuneCounter();
         return;
     }
     let html = '';
     for (let i = 0; i < _skTempWeapons.length; i++) {
         const w = _skTempWeapons[i];
-        const notesInput = w._magic ? `<input type="text" class="dnd-sk-item-notes" data-equip-idx="${i}" placeholder="Notes (e.g. bound spell, attunement)" value="${escHtml(w.customNotes || '')}" />` : '';
-        html += `<div class="dnd-sk-equip-item" data-item-name="${escHtml(w.name)}">
+        const isMagic = w._magic || !!w.bonus || w.attuned;
+        const attuneBtn = isMagic
+            ? `<button class="dnd-sk-attune-toggle${w.attuned ? ' active' : ''}" data-equip-idx="${i}" title="${w.attuned ? 'Attuned — click to unattune' : 'Click to attune'}"><i class="fa-solid fa-sun"></i></button>`
+            : '';
+        const notesInput = isMagic ? `<input type="text" class="dnd-sk-item-notes" data-equip-idx="${i}" placeholder="Notes (e.g. bound spell)" value="${escHtml(w.customNotes || '')}" />` : '';
+        html += `<div class="dnd-sk-equip-item${w.attuned ? ' dnd-sk-attuned' : ''}" data-item-name="${escHtml(w.name)}">
             <span>${escHtml(w.name)} &mdash; ${formatWeaponDesc(w)}</span>
+            ${attuneBtn}
             <button class="dnd-sk-equip-remove" data-equip-idx="${i}" title="Remove"><i class="fa-solid fa-xmark"></i></button>
             ${notesInput}
         </div>`;
@@ -818,6 +845,21 @@ function renderWeaponsList() {
             _skTempWeapons[idx].customNotes = /** @type {string} */ ($(this).val()).trim();
         }
     });
+    $list.find('.dnd-sk-attune-toggle').on('click', function() {
+        const idx = parseInt($(this).data('equip-idx'));
+        if (idx < 0 || idx >= _skTempWeapons.length) return;
+        const w = _skTempWeapons[idx];
+        if (w.attuned) {
+            w.attuned = false;
+        } else if (getTempAttunedCount() < SIDEKICK_MAX_ATTUNEMENT) {
+            w.attuned = true;
+        } else {
+            toastr.warning(`Attunement full (${SIDEKICK_MAX_ATTUNEMENT}/${SIDEKICK_MAX_ATTUNEMENT} slots used)`);
+            return;
+        }
+        renderWeaponsList();
+    });
+    updateAttuneCounter();
 }
 
 function updateAcPreview() {
@@ -870,7 +912,11 @@ function addWeaponFromSearch(itemName, itemSource) {
         toastr.warning(`${itemName} is already equipped`);
         return;
     }
-    _skTempWeapons.push(weaponFromItem(item));
+    const wpn = weaponFromItem(item);
+    if (item._magic && item.reqAttune && getTempAttunedCount() < SIDEKICK_MAX_ATTUNEMENT) {
+        wpn.attuned = true;
+    }
+    _skTempWeapons.push(wpn);
     renderWeaponsList();
     $('#dnd-sk-equip-search').val('');
     $('#dnd-sk-equip-results').html('');
@@ -883,6 +929,37 @@ function removeWeaponByIndex(idx) {
     }
 }
 
+// ─── Attunement Helpers ─────────────────────────────────────
+
+function updateAttuneCounter() {
+    const count = getTempAttunedCount();
+    const $counter = $('#dnd-sk-attune-counter');
+    $counter.text(`Attuned ${count}/${SIDEKICK_MAX_ATTUNEMENT}`);
+    $counter.toggleClass('dnd-sk-attune-full', count >= SIDEKICK_MAX_ATTUNEMENT);
+}
+
+function updateArmorAttuneVisibility() {
+    if (!_skSelectedArmorName) {
+        $('#dnd-sk-armor-attune-check').closest('.dnd-sk-armor-attune-row').hide();
+        return;
+    }
+    const useMagic = !!$('#dnd-sk-magic-armor-check').prop('checked');
+    if (!useMagic) {
+        _skTempArmorAttuned = false;
+        $('#dnd-sk-armor-attune-check').prop('checked', false).closest('.dnd-sk-armor-attune-row').hide();
+        updateAttuneCounter();
+        return;
+    }
+    const item = searchEquipment(_skSelectedArmorName, 'armor', true).find(i => i.name === _skSelectedArmorName);
+    if (item?.reqAttune) {
+        $('#dnd-sk-armor-attune-check').closest('.dnd-sk-armor-attune-row').show();
+    } else {
+        _skTempArmorAttuned = false;
+        $('#dnd-sk-armor-attune-check').prop('checked', false).closest('.dnd-sk-armor-attune-row').hide();
+    }
+    updateAttuneCounter();
+}
+
 // ─── Items & Gear ───────────────────────────────────────────
 
 const RARITY_HIDDEN = new Set(['unknown', 'unknown (magic)', 'none']);
@@ -891,16 +968,19 @@ function renderItemsList() {
     const $list = $('#dnd-sk-items-list');
     if (_skTempItems.length === 0) {
         $list.html('<div class="dnd-sk-no-spells">No items</div>');
+        updateAttuneCounter();
         return;
     }
     let html = '';
     for (let i = 0; i < _skTempItems.length; i++) {
         const it = _skTempItems[i];
         const rarity = it.rarity && !RARITY_HIDDEN.has(it.rarity) ? ` (${it.rarity})` : '';
-        html += `<div class="dnd-sk-equip-item" data-item-name="${escHtml(it.name)}">
+        const attuneBtn = `<button class="dnd-sk-attune-toggle${it.attuned ? ' active' : ''}" data-item-idx="${i}" title="${it.attuned ? 'Attuned — click to unattune' : 'Click to attune'}"><i class="fa-solid fa-sun"></i></button>`;
+        html += `<div class="dnd-sk-equip-item${it.attuned ? ' dnd-sk-attuned' : ''}" data-item-name="${escHtml(it.name)}">
             <span>${escHtml(it.name)}${rarity}</span>
+            ${attuneBtn}
             <button class="dnd-sk-item-remove" data-item-idx="${i}" title="Remove"><i class="fa-solid fa-xmark"></i></button>
-            <input type="text" class="dnd-sk-item-notes" data-item-idx="${i}" placeholder="Notes (e.g. bound spell, attunement)" value="${escHtml(it.customNotes || '')}" />
+            <input type="text" class="dnd-sk-item-notes" data-item-idx="${i}" placeholder="Notes (e.g. bound spell)" value="${escHtml(it.customNotes || '')}" />
         </div>`;
     }
     $list.html(html);
@@ -910,6 +990,21 @@ function renderItemsList() {
             _skTempItems[idx].customNotes = /** @type {string} */ ($(this).val()).trim();
         }
     });
+    $list.find('.dnd-sk-attune-toggle').on('click', function() {
+        const idx = parseInt($(this).data('item-idx'));
+        if (idx < 0 || idx >= _skTempItems.length) return;
+        const it = _skTempItems[idx];
+        if (it.attuned) {
+            it.attuned = false;
+        } else if (getTempAttunedCount() < SIDEKICK_MAX_ATTUNEMENT) {
+            it.attuned = true;
+        } else {
+            toastr.warning(`Attunement full (${SIDEKICK_MAX_ATTUNEMENT}/${SIDEKICK_MAX_ATTUNEMENT} slots used)`);
+            return;
+        }
+        renderItemsList();
+    });
+    updateAttuneCounter();
 }
 
 function addItemCustom() {
@@ -932,7 +1027,9 @@ function addItemFromSearch(itemName) {
         toastr.warning(`${item.name} is already in the list`);
         return;
     }
-    _skTempItems.push({ name: item.name, rarity: item.rarity || null, source: item.source || null });
+    const cdnItem = lookupItemByName(itemName);
+    const autoAttune = cdnItem?.reqAttune && getTempAttunedCount() < SIDEKICK_MAX_ATTUNEMENT;
+    _skTempItems.push({ name: item.name, rarity: item.rarity || null, source: item.source || null, attuned: !!autoAttune });
     renderItemsList();
     $('#dnd-sk-item-input').val('');
     $('#dnd-sk-item-results').html('');
@@ -1835,7 +1932,10 @@ function saveSidekickFromModal() {
     if (_skSelectedArmorName) {
         const useMagic = !!$('#dnd-sk-magic-armor-check').prop('checked');
         const item = searchEquipment(_skSelectedArmorName, 'armor', useMagic).find(i => i.name === _skSelectedArmorName);
-        if (item) equippedArmor = armorFromItem(item);
+        if (item) {
+            equippedArmor = armorFromItem(item);
+            equippedArmor.attuned = !!_skTempArmorAttuned;
+        }
     }
     const hasShield = !!$('#dnd-sk-shield-check').prop('checked');
 
@@ -1985,6 +2085,17 @@ function migrateSidekickData() {
         }
         if (!sk.chosenLanguages) {
             sk.chosenLanguages = [];
+            dirty = true;
+        }
+        // Backfill attunement fields on items, weapons, and armor
+        for (const it of (sk.items || [])) {
+            if (it.attuned === undefined) { it.attuned = false; dirty = true; }
+        }
+        for (const w of (sk.weapons || [])) {
+            if (w.attuned === undefined) { w.attuned = false; dirty = true; }
+        }
+        if (sk.equippedArmor && sk.equippedArmor.attuned === undefined) {
+            sk.equippedArmor.attuned = false;
             dirty = true;
         }
     }
@@ -3327,6 +3438,17 @@ async function initUI() {
             $(this).parent().removeClass('dnd-sk-loading');
         }
         onSkArmorSearch();
+        updateArmorAttuneVisibility();
+    });
+    $('#dnd-sk-armor-attune-check').on('change', function () {
+        const checked = $(this).prop('checked');
+        if (checked && getTempAttunedCount() >= SIDEKICK_MAX_ATTUNEMENT) {
+            $(this).prop('checked', false);
+            toastr.warning(`Attunement full (${SIDEKICK_MAX_ATTUNEMENT}/${SIDEKICK_MAX_ATTUNEMENT} slots used)`);
+            return;
+        }
+        _skTempArmorAttuned = !!checked;
+        updateAttuneCounter();
     });
     $('#dnd-sk-shield-check').on('change', updateAcPreview);
 

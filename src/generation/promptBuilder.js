@@ -9,7 +9,7 @@ import { RARITY_LABELS, normalizeRarity } from '../features/inventoryRarity.js';
 import { formatLevel, schoolName } from '../features/spellbook.js';
 import { extractSpellCasts, actionLabels } from '../features/spellTracker.js';
 import { MODIFIER_DEFS } from '../features/modifiers.js';
-import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, lookupFeatByName, strip5eMarkup, lookupSpellByName } from '../features/sidekick.js';
+import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, lookupFeatByName, strip5eMarkup, lookupSpellByName, getSidekickAttunedCount, SIDEKICK_MAX_ATTUNEMENT, lookupItemByName } from '../features/sidekick.js';
 import { getSpellDamageInfo as getV1SpellDamageInfo, lookupSpellSync, ordinal } from '../v1/features/spells.js';
 import {
     getActiveEffectsList,
@@ -641,7 +641,10 @@ export function buildSidekickSection() {
         }
 
         const equipParts = [];
-        if (sk.equippedArmor) equipParts.push(sk.equippedArmor.name);
+        if (sk.equippedArmor) {
+            const armorTag = sk.equippedArmor.attuned ? ' [attuned]' : '';
+            equipParts.push(`${sk.equippedArmor.name}${armorTag}`);
+        }
         if (sk.hasShield) equipParts.push('Shield');
         if (equipParts.length > 0) lines.push(`Armor: ${equipParts.join(', ')}`);
 
@@ -652,8 +655,9 @@ export function buildSidekickSection() {
                 let desc = `${hit} to hit, ${w.computedDamage} ${w.damageType}`;
                 if (w.computedVersatile) desc += ` (versatile: ${w.computedVersatile})`;
                 if (w.range) desc += `, ${w.attackType?.includes('mw') ? 'thrown' : 'range'} ${w.range}`;
+                const attuneTag = w.attuned ? ' [attuned]' : '';
                 const notes = w.customNotes ? ` [${w.customNotes}]` : '';
-                return `${w.name} (${desc})${notes}`;
+                return `${w.name}${attuneTag} (${desc})${notes}`;
             });
             lines.push(`Weapons: ${wpnParts.join('; ')}`);
         }
@@ -672,7 +676,17 @@ export function buildSidekickSection() {
         }
 
         if (sk.items?.length > 0) {
-            lines.push(`Items: ${sk.items.map(it => it.customNotes ? `${it.name} [${it.customNotes}]` : it.name).join(', ')}`);
+            const itemDescs = sk.items.map(it => {
+                const attuneTag = it.attuned ? ' [attuned]' : '';
+                const notes = it.customNotes ? ` [${it.customNotes}]` : '';
+                return `${it.name}${attuneTag}${notes}`;
+            });
+            lines.push(`Items: ${itemDescs.join(', ')}`);
+        }
+
+        const attuneCount = getSidekickAttunedCount(sk);
+        if (attuneCount > 0) {
+            lines.push(`Attunement: ${attuneCount}/${SIDEKICK_MAX_ATTUNEMENT} slots used`);
         }
 
         if (stats.spellcasting) {

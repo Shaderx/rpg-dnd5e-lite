@@ -4,7 +4,7 @@
  */
 
 import { sidekicks, headerInfo } from '../core/state.js';
-import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation } from '../features/sidekick.js';
+import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, getSidekickAttunedCount, SIDEKICK_MAX_ATTUNEMENT } from '../features/sidekick.js';
 
 const TYPE_ICONS = { expert: 'fa-hat-wizard', spellcaster: 'fa-wand-sparkles', warrior: 'fa-shield-halved' };
 
@@ -179,7 +179,10 @@ export function renderSidekickDetail(sidekickId) {
 
     // Equipment summary
     const equipParts = [];
-    if (sk.equippedArmor) equipParts.push(`<span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${escHtml(sk.equippedArmor.name)}">${escHtml(sk.equippedArmor.name)}</span> (${escHtml(sk.equippedArmor.type)})`);
+    if (sk.equippedArmor) {
+        const armorAttuneTag = sk.equippedArmor.attuned ? ' <span class="dnd-sk-det-attune-tag"><i class="fa-solid fa-sun"></i> attuned</span>' : '';
+        equipParts.push(`<span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${escHtml(sk.equippedArmor.name)}">${escHtml(sk.equippedArmor.name)}</span> (${escHtml(sk.equippedArmor.type)})${armorAttuneTag}`);
+    }
     if (sk.hasShield) equipParts.push(`<span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="Shield">Shield</span> (+2 AC)`);
     if (equipParts.length > 0) {
         sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Armor</div><div>${equipParts.join(', ')}</div></div>`);
@@ -211,7 +214,8 @@ export function renderSidekickDetail(sidekickId) {
             if (w.range) desc += `, ${w.attackType?.includes('mw') ? 'thrown' : 'range'} ${w.range}`;
             const props = (w.properties || []).filter(p => p !== 'Versatile' || !w.versatileDice).join(', ');
             if (props) desc += ` [${props}]`;
-            return `<div class="dnd-sk-det-weapon"><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${escHtml(w.name)}">${escHtml(w.name)}</span> (${desc})</div>`;
+            const wpnAttuneTag = w.attuned ? ' <span class="dnd-sk-det-attune-tag"><i class="fa-solid fa-sun"></i> attuned</span>' : '';
+            return `<div class="dnd-sk-det-weapon${w.attuned ? ' dnd-sk-det-attuned' : ''}"><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${escHtml(w.name)}">${escHtml(w.name)}</span> (${desc})${wpnAttuneTag}</div>`;
         });
         sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Extra Weapons</div>${wLines.join('')}</div>`);
     }
@@ -220,9 +224,16 @@ export function renderSidekickDetail(sidekickId) {
     if (sk.items?.length > 0) {
         const iLines = sk.items.map(it => {
             const rarity = it.rarity && !RARITY_HIDE.has(it.rarity) ? ` (${it.rarity})` : '';
-            return `<div class="dnd-sk-det-weapon"><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${escHtml(it.name)}">${escHtml(it.name)}</span>${rarity}</div>`;
+            const itemAttuneTag = it.attuned ? ' <span class="dnd-sk-det-attune-tag"><i class="fa-solid fa-sun"></i> attuned</span>' : '';
+            return `<div class="dnd-sk-det-weapon${it.attuned ? ' dnd-sk-det-attuned' : ''}"><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${escHtml(it.name)}">${escHtml(it.name)}</span>${rarity}${itemAttuneTag}</div>`;
         });
         sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Items</div>${iLines.join('')}</div>`);
+    }
+
+    // Attunement slot summary
+    const attuneCount = getSidekickAttunedCount(sk);
+    if (attuneCount > 0) {
+        sections.push(`<div class="dnd-sk-det-section dnd-sk-det-attune-summary"><div class="dnd-sk-det-label">Attunement</div><div>${attuneCount}/${SIDEKICK_MAX_ATTUNEMENT} slots used</div></div>`);
     }
 
     if (stats.spellcasting) {

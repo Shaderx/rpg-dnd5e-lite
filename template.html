@@ -866,7 +866,7 @@
             </div>
 
             <div class="dnd-sk-config-section" id="dnd-sk-equip-section" style="display:none;">
-                <div class="dnd-sk-config-section-title">Equipment &amp; Actions</div>
+                <div class="dnd-sk-config-section-title">Equipment &amp; Actions <span id="dnd-sk-attune-counter" class="dnd-sk-attune-counter">Attuned 0/3</span></div>
                 <div class="dnd-setting-row">
                     <span>Armor:</span>
                     <span id="dnd-sk-armor-current" class="dnd-sk-armor-current">None</span>
@@ -885,6 +885,12 @@
                     </label>
                 </div>
                 <div id="dnd-sk-armor-results" class="dnd-sk-spell-dropdown"></div>
+                <div class="dnd-sk-armor-attune-row" style="display:none;">
+                    <label class="dnd-sk-check dnd-sk-attune-label">
+                        <input type="checkbox" id="dnd-sk-armor-attune-check" />
+                        <i class="fa-solid fa-sun"></i> Attune armor
+                    </label>
+                </div>
                 <div class="dnd-sk-equip-sub-title">Creature Traits</div>
                 <div id="dnd-sk-traits-list" class="dnd-sk-actions-list"></div>
                 <div class="dnd-sk-equip-sub-title">Creature Actions</div>

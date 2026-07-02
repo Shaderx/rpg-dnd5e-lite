@@ -25,6 +25,19 @@ const CDN_DATA = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src
 
 // ─── Constants ──────────────────────────────────────────────
 
+export const SIDEKICK_MAX_ATTUNEMENT = 3;
+
+/**
+ * Count total attuned items across armor, weapons, and gear for a sidekick.
+ */
+export function getSidekickAttunedCount(sk) {
+    let count = 0;
+    if (sk.equippedArmor?.attuned) count++;
+    count += (sk.weapons || []).filter(w => w.attuned).length;
+    count += (sk.items || []).filter(it => it.attuned).length;
+    return count;
+}
+
 export const ASI_LEVELS = {
     expert:      [4, 8, 10, 12, 16, 19],
     spellcaster: [4, 8, 12, 16, 18],
