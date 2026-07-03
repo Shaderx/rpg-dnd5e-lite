@@ -129,6 +129,7 @@ export function updateDiceDisplay() {
             ? [{ roll1: roll.roll1, roll2: roll.roll2 }] : []);
         const userCols = users.length <= 1 ? 1 : 2;
         $userContainer.css('--dnd-user-roll-cols', String(userCols));
+        $userContainer.show();
         let userHtml = '';
         for (let i = 0; i < users.length; i++) {
             const u = users[i];
@@ -143,6 +144,8 @@ export function updateDiceDisplay() {
 
         const allies = roll.allyRolls ?? (roll.allyRoll1 != null
             ? [{ roll1: roll.allyRoll1, roll2: roll.allyRoll2 }] : []);
+        const allyCols = Math.max(1, Math.min(2, allies.length || 1));
+        $allyContainer.css('--dnd-ally-roll-cols', String(allyCols));
         let allyHtml = '';
         for (let i = 0; i < allies.length; i++) {
             const a = allies[i];
@@ -155,9 +158,12 @@ export function updateDiceDisplay() {
                 + `</div>`;
         }
         $allyContainer.html(allyHtml);
+        $allyContainer.toggle(allies.length > 0);
 
         const enemies = roll.enemyRolls ?? (roll.npcRoll1 != null
             ? [{ roll1: roll.npcRoll1, roll2: roll.npcRoll2 }] : []);
+        const enemyCols = Math.max(1, Math.min(4, enemies.length || 1));
+        $enemyContainer.css('--dnd-enemy-roll-cols', String(enemyCols));
         let enemyHtml = '';
         for (let i = 0; i < enemies.length; i++) {
             const e = enemies[i];
@@ -170,14 +176,18 @@ export function updateDiceDisplay() {
                 + `</div>`;
         }
         $enemyContainer.html(enemyHtml);
+        $enemyContainer.toggle(enemies.length > 0);
 
         $result.show();
         $rollBtn.addClass('dnd-roll-locked');
     } else {
         $result.hide();
         $userContainer.css('--dnd-user-roll-cols', '1');
+        $userContainer.hide();
         $userContainer.empty();
+        $allyContainer.hide();
         $allyContainer.empty();
+        $enemyContainer.hide();
         $enemyContainer.empty();
         $rollBtn.removeClass('dnd-roll-locked');
     }
