@@ -302,7 +302,10 @@ function handleUpdate(args) {
         }
     }
     if (args.notes !== undefined || args.magic_notes !== undefined) {
-        item.magicNotes = (args.notes || args.magic_notes || '').trim();
+        const newNotes = (args.notes || args.magic_notes || '').trim();
+        if (newNotes !== (item.magicNotes || '')) {
+            item.magicNotes = newNotes;
+        }
     }
     if (args.magic !== undefined) item.magic = !!args.magic;
     if (args.charges !== undefined) {

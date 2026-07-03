@@ -180,12 +180,10 @@ add: add a new item to inventory:
   notes: brief static description of what the item is or does
   Naming: use canonical D&D names when possible (e.g. "Potion of Healing" not "Healing Potion", "Scroll of [Spell]" not "[Spell] Scroll")
 
-update: modify quantity, rarity, or notes on existing item:
-  {"tool":"inventory","action":"update","index":1,"quantity":3}
-  {"tool":"inventory","action":"update","index":1,"notes":"Repels fey within 30ft for 1hr when rung 3 times"}
-  quantity_change: use +/- for relative changes (e.g. -1 to consume one)
-  rarity: update rarity of the item
-  notes: static factual description of what the item is or does. Never narrative, usage history, or story events.
+update: modify an existing item. Only include fields that are CHANGING — omit unchanged fields:
+  {"tool":"inventory","action":"update","index":1,"quantity_change":-1}
+  quantity_change: +/- relative change (e.g. -1 to consume one). Prefer over absolute quantity.
+  notes: static factual description of what the item is or does. Only set when the description itself needs rewriting. Never echo existing notes back. Never narrative or usage history.
 
 equip: {"tool":"inventory","action":"equip","index":1}
 unequip: {"tool":"inventory","action":"unequip","index":1}
@@ -197,6 +195,7 @@ charges: modify charges on a magic item:
 
 == RULES ==${msNote}
 - Only output game_actions when state actually changed. Omit entirely if nothing changed.
+- In update actions, only include fields whose values are changing. Never echo back unchanged fields.
 - Do NOT mention game_actions in prose. It is invisible metadata. You will not see previous turn game_actions.
 - Quest description is the original briefing. Never overwrite it on update. Put evolving progress in notes instead.
 - Equipment type auto-resolves stats from D&D database. Only 1 armor + 1 shield can be equipped.
