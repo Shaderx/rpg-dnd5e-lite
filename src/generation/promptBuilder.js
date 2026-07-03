@@ -207,7 +207,9 @@ export function buildSpellLogSection() {
  * Concentration callout is handled in buildActiveSpellsSection() instead.
  */
 export function buildActiveEffectsSection() {
-    const active = getActiveEffectsList();
+    const lastUserIdx = getLastUserMsgIndex();
+    const excludeOpts = lastUserIdx >= 0 ? { excludeMsgIndex: lastUserIdx } : undefined;
+    const active = getActiveEffectsList(excludeOpts);
     const armedReactions = buildArmedReactionsList();
 
     if (active.length === 0 && armedReactions.length === 0) return '';
@@ -287,7 +289,7 @@ export function buildCombatDiceSection() {
 
     const userName = getContext().name1 || 'User';
     const includeAttrs = sendAttributesOnRoll;
-    const lines = ['<dice>', '[Combat: use these pre-rolled values]'];
+    const lines = ['<dice>', '[Combat: use these pre-rolled values, if any missing use an average roll]'];
 
     if (includeAttrs) {
         lines.push(`Attributes: ${buildAttributesString()}`);
@@ -415,7 +417,9 @@ export function buildNonCombatDiceSection() {
  * spellInjectEnabled, but the CONCENTRATING ON line always displays.
  */
 export function buildActiveSpellsSection() {
-    const concEffect = getActiveConcentrationSpell();
+    const lastUserIdx = getLastUserMsgIndex();
+    const excludeOpts = lastUserIdx >= 0 ? { excludeMsgIndex: lastUserIdx } : undefined;
+    const concEffect = getActiveConcentrationSpell(excludeOpts);
     const activeEffects = getActiveEffectsList();
 
     const chat = getContext().chat;

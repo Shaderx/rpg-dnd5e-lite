@@ -90,19 +90,29 @@ function getLogSliceStart() {
 }
 
 /**
+ * @param {object} [options]
+ * @param {number} [options.excludeMsgIndex] - Skip log entries from this chat message index.
+ *   Used during pre-reply injection so spells cast in the current user message
+ *   are not treated as already active before the LLM narrates them.
  * @returns {Array<{ logIndex: number, logEntry: object, status: EffectStatus, remainingMinutes: number|null, concentration: boolean, spell: object|null, castLevel: number|null, reason?: string }>}
  */
-export function computeActiveEffects() {
+export function computeActiveEffects({ excludeMsgIndex } = {}) {
     if (!spellLog?.length) return [];
 
     const startIdx = getLogSliceStart();
     const entries = spellLog.slice(startIdx);
-    const ctx = buildContext(entries);
+
+    const shouldExclude = excludeMsgIndex != null && excludeMsgIndex >= 0;
+    const contextEntries = shouldExclude
+        ? entries.filter(e => e.msgIndex !== excludeMsgIndex)
+        : entries;
+    const ctx = buildContext(contextEntries);
     const results = [];
 
     for (let i = startIdx; i < spellLog.length; i++) {
         const entry = spellLog[i];
         if (entry.type !== 'cast') continue;
+        if (shouldExclude && entry.msgIndex === excludeMsgIndex) continue;
 
         const resolved = resolveCastStatus(entry, ctx);
         results.push({
@@ -288,19 +298,19 @@ function resolveCastStatus(entry, ctx) {
     return { status: 'active', remainingMinutes: null, concentration, spell, castLevel };
 }
 
-export function getActiveEffectsList() {
-    return computeActiveEffects().filter(e => e.status === 'active' || e.status === 'unknown');
+export function getActiveEffectsList(options) {
+    return computeActiveEffects(options).filter(e => e.status === 'active' || e.status === 'unknown');
 }
 
-export function hasActiveConcentration() {
-    return computeActiveEffects().some(e => (e.status === 'active' || e.status === 'unknown') && e.concentration);
+export function hasActiveConcentration(options) {
+    return computeActiveEffects(options).some(e => (e.status === 'active' || e.status === 'unknown') && e.concentration);
 }
 
 /**
  * Return the currently concentrated spell effect, or null.
  */
-export function getActiveConcentrationSpell() {
-    return computeActiveEffects().find(e => (e.status === 'active' || e.status === 'unknown') && e.concentration) || null;
+export function getActiveConcentrationSpell(options) {
+    return computeActiveEffects(options).find(e => (e.status === 'active' || e.status === 'unknown') && e.concentration) || null;
 }
 
 export function formatEffectStatusTag(resolved) {

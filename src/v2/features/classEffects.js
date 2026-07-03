@@ -832,7 +832,7 @@ register('sorcerer', 'Elemental Affinity', 6, {
     }),
     promptNote: (stats) => {
         const el = stats.draconicElement || 'chosen element';
-        return `Elemental Affinity: +${stats.mods.cha || 0} (CHA mod) to ${el} spell damage; spend 1 sorcery point for ${el} resistance for 1 hour`;
+        return `Elemental Affinity: +${stats.mods.cha || 0} (CHA mod) to one ${el} spell damage; Caster have ${el} resistance.`;
     },
 }, { subclass: 'Draconic' });
 
