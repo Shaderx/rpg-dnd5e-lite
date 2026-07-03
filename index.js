@@ -21,7 +21,7 @@ import { renderQuests, addQuestFromInput } from './src/rendering/quests.js';
 import { renderInventory, addInventoryItemFromInput } from './src/rendering/inventory.js';
 import { renderSpellLog, addSpellFromInput, addRestFromButton, addShortRestFromButton, addDispelFromButton, addDropConcFromButton, hardRefreshSpellLogFromButton } from './src/rendering/spellLog.js';
 import { refreshSpellLog, hardRefreshSpellLog } from './src/features/spellTracker.js';
-import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, removeDamageDie, updateDamageDisplay, clearDamageRoll, toggleModifier, updateModifierDisplay, clearModifiers, updateAllyCountLabel, updateEnemyCountLabel, renderModifierButtons } from './src/features/dice.js';
+import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, removeDamageDie, updateDamageDisplay, clearDamageRoll, toggleModifier, updateModifierDisplay, clearModifiers, updatePlayerCountLabel, updateAllyCountLabel, updateEnemyCountLabel, renderModifierButtons } from './src/features/dice.js';
 import { refreshHeaderFromChat, updateHeaderFromMessage } from './src/features/headerParser.js';
 import { updateStripWidgets, updateHeaderWidgets, getOmniWidgetSizes, DEFAULT_OMNI_WIDGET_SIZES } from './src/ui/desktop.js';
 import { setupMobileFab } from './src/ui/mobile.js';
@@ -2496,11 +2496,18 @@ function buildNonCombatDiceGroup(groupClass, shortLabel, pair) {
 }
 
 function buildNonCombatDiceLabel(roll) {
-    return buildNonCombatDiceGroup('dnd-noncombat-user', 'U', roll.user)
+ /*   return buildNonCombatDiceGroup('dnd-noncombat-user', 'U', roll.user)
         + `<span class="dnd-noncombat-divider">·</span>`
         + buildNonCombatDiceGroup('dnd-noncombat-ally', 'A', roll.ally)
         + `<span class="dnd-noncombat-divider">·</span>`
         + buildNonCombatDiceGroup('dnd-noncombat-npc', 'N', roll.npc);
+*/
+// Removed U/A/N labels without breaking code. Lazy i know.
+      return buildNonCombatDiceGroup('dnd-noncombat-user', '', roll.user)
+        + `<span class="dnd-noncombat-divider">·</span>`
+        + buildNonCombatDiceGroup('dnd-noncombat-ally', '', roll.ally)
+        + `<span class="dnd-noncombat-divider">·</span>`
+        + buildNonCombatDiceGroup('dnd-noncombat-npc', '', roll.npc);
 }
 
 function updateNonCombatDiceDisplay() {
@@ -3141,6 +3148,21 @@ async function initUI() {
         rollD20();
         updateStripWidgets();
     });
+    $('#dnd-player-minus').on('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        extensionSettings.playerCount = Math.max(1, (extensionSettings.playerCount ?? 1) - 1);
+        saveSettings();
+        updatePlayerCountLabel();
+    });
+    $('#dnd-player-plus').on('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        extensionSettings.playerCount = Math.min(3, (extensionSettings.playerCount ?? 1) + 1);
+        saveSettings();
+        updatePlayerCountLabel();
+    });
+    updatePlayerCountLabel();
     $('#dnd-clear-roll').on('click', () => {
         clearDiceRoll();
         updateStripWidgets();

@@ -175,7 +175,10 @@
             <div class="dnd-dice-section">
                 <div class="dnd-dice-controls">
                     <button id="dnd-roll-btn" class="dnd-roll-btn" title="Roll d20 sets (Player + Allies + Enemies)">
-                        <i class="fa-solid fa-dice-d20"></i>
+                        <span id="dnd-player-minus" class="dnd-roll-count-btn dnd-roll-count-minus" title="Decrease player d20 sets">−</span>
+                        <i class="fa-solid fa-dice-d20 dnd-roll-btn-icon"></i>
+                        <span id="dnd-player-plus" class="dnd-roll-count-btn dnd-roll-count-plus" title="Increase player d20 sets">+</span>
+                        <span class="dnd-roll-count-display"><span id="dnd-player-count-val">1</span> You</span>
                     </button>
                     <div class="dnd-count-stack">
                         <div class="dnd-count-control dnd-count-control-ally" title="Number of ally d20 sets to roll">
@@ -194,14 +197,7 @@
                     <div class="dnd-roll-groups">
                         <div class="dnd-roll-group dnd-roll-group-player">
                             <span class="dnd-roll-group-label">You</span>
-                            <div class="dnd-roll-pair">
-                                <span class="dnd-roll-label">1</span>
-                                <span class="dnd-roll-value" id="dnd-roll-value-1"></span>
-                            </div>
-                            <div class="dnd-roll-pair">
-                                <span class="dnd-roll-label">2</span>
-                                <span class="dnd-roll-value" id="dnd-roll-value-2"></span>
-                            </div>
+                            <div id="dnd-roll-user-groups" class="dnd-roll-user-groups"></div>
                         </div>
                         <div id="dnd-roll-ally-groups" class="dnd-roll-multi-groups"></div>
                         <div id="dnd-roll-enemy-groups" class="dnd-roll-multi-groups"></div>

@@ -50,18 +50,22 @@ function rollCombatDamageDice() {
 }
 
 /**
- * Roll d20 sets: 2 player + 2×N ally + 2×N enemy for advantage/disadvantage checks.
+ * Roll d20 sets: 2×N player + 2×N ally + 2×N enemy for advantage/disadvantage checks.
  * Each ally/enemy also gets a pre-rolled d4-d12 set for combat damage/skill use.
+ * Player count is driven by extensionSettings.playerCount (default 1).
  * Ally count is driven by extensionSettings.allyCount (default 1).
  * Once rolled, the roll button is locked until cleared (by user or LLM reply).
  */
 export function rollD20() {
     if (extensionSettings.lastDiceRoll) return null;
 
+    const playerCount = Math.max(1, extensionSettings.playerCount ?? 1);
     const allyCount = Math.max(0, extensionSettings.allyCount ?? 1);
     const enemyCount = Math.max(0, extensionSettings.enemyCount ?? 1);
-    const r1 = secureRoll(20);
-    const r2 = secureRoll(20);
+    const userRolls = [];
+    for (let i = 0; i < playerCount; i++) {
+        userRolls.push({ roll1: secureRoll(20), roll2: secureRoll(20) });
+    }
     const allyRolls = [];
     for (let i = 0; i < allyCount; i++) {
         allyRolls.push({ roll1: secureRoll(20), roll2: secureRoll(20), dmg: rollCombatDamageDice() });
@@ -71,12 +75,13 @@ export function rollD20() {
         enemyRolls.push({ roll1: secureRoll(20), roll2: secureRoll(20), dmg: rollCombatDamageDice() });
     }
 
-    const totalDice = 2 + allyCount * 2 + enemyCount * 2;
-    const allRolls = [r1, r2, ...allyRolls.flatMap(a => [a.roll1, a.roll2]), ...enemyRolls.flatMap(e => [e.roll1, e.roll2])];
+    const totalDice = playerCount * 2 + allyCount * 2 + enemyCount * 2;
+    const allRolls = [...userRolls.flatMap(u => [u.roll1, u.roll2]), ...allyRolls.flatMap(a => [a.roll1, a.roll2]), ...enemyRolls.flatMap(e => [e.roll1, e.roll2])];
     const rollData = {
         formula: `${totalDice}d20`,
-        roll1: r1,
-        roll2: r2,
+        userRolls,
+        roll1: userRolls[0]?.roll1 ?? null,
+        roll2: userRolls[0]?.roll2 ?? null,
         allyRolls,
         allyRoll1: allyRolls[0]?.roll1 ?? null,
         allyRoll2: allyRolls[0]?.roll2 ?? null,
@@ -114,15 +119,26 @@ export function saveDiceRoll() {
 export function updateDiceDisplay() {
     const roll = extensionSettings.lastDiceRoll;
     const $result = $('#dnd-roll-result');
-    const $val1 = $('#dnd-roll-value-1');
-    const $val2 = $('#dnd-roll-value-2');
+    const $userContainer = $('#dnd-roll-user-groups');
     const $allyContainer = $('#dnd-roll-ally-groups');
     const $enemyContainer = $('#dnd-roll-enemy-groups');
     const $rollBtn = $('#dnd-roll-btn');
 
     if (roll) {
-        $val1.text(`${roll.roll1}`).attr('title', `Player 1st: ${roll.roll1}`);
-        $val2.text(`${roll.roll2}`).attr('title', `Player 2nd: ${roll.roll2}`);
+        const users = roll.userRolls ?? (roll.roll1 != null
+            ? [{ roll1: roll.roll1, roll2: roll.roll2 }] : []);
+        let userHtml = '';
+        for (let i = 0; i < users.length; i++) {
+            const u = users[i];
+            const label = users.length === 1 ? 'You' : `U${i + 1}`;
+            userHtml += `<div class="dnd-roll-chip dnd-roll-chip-user" title="${label}: d20 ${u.roll1} / ${u.roll2}">`
+                + `<span class="dnd-roll-chip-label">${label}</span>`
+                + `<span class="dnd-roll-chip-val">${u.roll1}</span>`
+                + `<span class="dnd-roll-chip-sep">/</span>`
+                + `<span class="dnd-roll-chip-val">${u.roll2}</span>`
+                + `</div>`;
+        }
+        $userContainer.html(userHtml);
 
         const allies = roll.allyRolls ?? (roll.allyRoll1 != null
             ? [{ roll1: roll.allyRoll1, roll2: roll.allyRoll2 }] : []);
@@ -157,19 +173,24 @@ export function updateDiceDisplay() {
         $enemyContainer.html(enemyHtml);
 
         $result.show();
-        $rollBtn.prop('disabled', true).addClass('dnd-roll-locked');
+        $rollBtn.addClass('dnd-roll-locked');
     } else {
         $result.hide();
-        $val1.text('');
-        $val2.text('');
+        $userContainer.empty();
         $allyContainer.empty();
         $enemyContainer.empty();
-        $rollBtn.prop('disabled', false).removeClass('dnd-roll-locked');
+        $rollBtn.removeClass('dnd-roll-locked');
     }
 
+    updatePlayerCountLabel();
     updateAllyCountLabel();
     updateEnemyCountLabel();
     updateModifierDisplay();
+}
+
+export function updatePlayerCountLabel() {
+    const count = Math.max(1, extensionSettings.playerCount ?? 1);
+    $('#dnd-player-count-val').text(count);
 }
 
 /**

@@ -641,8 +641,16 @@ function renderStripDice($container) {
 
     const roll = extensionSettings.lastDiceRoll;
     if (roll) {
-        $r1.text(roll.roll1).attr('title', `Player 1st: ${roll.roll1}`);
-        $r2.text(roll.roll2).attr('title', `Player 2nd: ${roll.roll2}`);
+        const users = roll.userRolls ?? (roll.roll1 != null
+            ? [{ roll1: roll.roll1, roll2: roll.roll2 }] : []);
+        const firstUser = users[0] || { roll1: '--', roll2: '--' };
+        const extraUserSets = users.slice(1)
+            .map((u, i) => `U${i + 2}: ${u.roll1}/${u.roll2}`)
+            .join(', ');
+        const extraTip = extraUserSets ? `\nExtra user sets: ${extraUserSets}` : '';
+
+        $r1.text(firstUser.roll1).attr('title', `You 1st: ${firstUser.roll1}${extraTip}`);
+        $r2.text(firstUser.roll2).attr('title', `You 2nd: ${firstUser.roll2}${extraTip}`);
 
         const allies = roll.allyRolls ?? (roll.allyRoll1 != null
             ? [{ roll1: roll.allyRoll1, roll2: roll.allyRoll2 }] : []);

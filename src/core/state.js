@@ -31,6 +31,7 @@ export const extensionSettings = {
     lastDiceRoll: null,
     lastDamageRoll: null,
     lastModifierRolls: {},
+    playerCount: 1,
     allyCount: 1,
     enemyCount: 1,
 

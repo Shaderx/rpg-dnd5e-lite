@@ -294,7 +294,17 @@ export function buildCombatDiceSection() {
     }
 
     if (roll) {
-        lines.push(`${userName}: user_d20_1=${roll.roll1}, user_d20_2=${roll.roll2}`);
+        const users = roll.userRolls ?? (roll.roll1 != null
+            ? [{ roll1: roll.roll1, roll2: roll.roll2 }] : []);
+        if (users.length > 0) {
+            for (let i = 0; i < users.length; i++) {
+                const u = users[i];
+                const n = i + 1;
+                const tag = users.length === 1 ? userName : `${userName} ${n}`;
+                const prefix = n === 1 ? 'user_' : `user${n}_`;
+                lines.push(`${tag}: ${prefix}d20_1=${u.roll1}, ${prefix}d20_2=${u.roll2}`);
+            }
+        }
         if (includeAttrs) {
             lines.push('Attack = d20 + ability mod + proficiency. Apply all proficiencies/expertise where applicable.');
         }

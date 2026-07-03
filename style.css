@@ -1486,6 +1486,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
     width: var(--dice-h);
     min-width: var(--dice-h);
     background: linear-gradient(135deg, rgba(255,215,0,0.12) 0%, rgba(255,215,0,0.04) 100%);
@@ -1500,11 +1501,51 @@
 }
 .dnd-roll-btn:hover { background: rgba(255,215,0,0.18); }
 .dnd-roll-btn:active { transform: scale(0.95); }
-.dnd-roll-btn i { font-size: 1.05em; }
+.dnd-roll-btn-icon { font-size: 1.05em; }
+.dnd-roll-count-btn {
+    position: absolute;
+    top: 0.22em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.05em;
+    height: 1.05em;
+    padding: 0;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 0.2em;
+    color: rgba(255,215,0,0.85);
+    font-size: 0.62em;
+    font-weight: 700;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    user-select: none;
+}
+.dnd-roll-count-minus { left: 0.22em; }
+.dnd-roll-count-plus { right: 0.22em; }
+.dnd-roll-count-btn:hover {
+    color: #ffe57f;
+    border-color: rgba(255, 215, 0, 0.42);
+    background: rgba(255, 215, 0, 0.16);
+}
+.dnd-roll-count-display {
+    position: absolute;
+    bottom: 0.16em;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.48em;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.58);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
 .dnd-roll-btn.dnd-roll-locked {
     opacity: 0.4;
     cursor: not-allowed;
-    pointer-events: none;
+}
+.dnd-roll-btn.dnd-roll-locked .dnd-roll-count-btn {
+    opacity: 0.9;
 }
 
 /* Shared count control (ally / enemy) */
@@ -1598,9 +1639,10 @@
     writing-mode: horizontal-tb;
     text-orientation: initial;
 }
-.dnd-roll-group-player .dnd-roll-pair {
-    flex-direction: row;
-    gap: 0.2em;
+.dnd-roll-user-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1em;
 }
 
 .dnd-roll-group-label {
@@ -1704,6 +1746,12 @@
 }
 .dnd-roll-chip-ally .dnd-roll-chip-val {
     color: #81c784;
+}
+.dnd-roll-chip-user {
+    background: rgba(255,215,0,0.08);
+}
+.dnd-roll-chip-user .dnd-roll-chip-val {
+    color: var(--dnd-gold);
 }
 .dnd-roll-chip-enemy {
     background: rgba(229,115,115,0.06);
