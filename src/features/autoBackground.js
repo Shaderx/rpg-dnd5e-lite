@@ -4,11 +4,12 @@
  */
 
 import { getContext } from '../../../../../extensions.js';
-import { headerInfo, autoBackgrounds } from '../core/state.js';
+import { headerInfo, autoBackgrounds, setAutoBackgrounds } from '../core/state.js';
 import { saveAutoBackgrounds } from '../core/persistence.js';
 import { inferTimeOfDay } from './weatherVisuals.js';
 
 let lastAppliedBackground = null;
+const NIGHT_SUFFIX_RE = /(?:[_\-\s]+(?:n|night))$/i;
 
 /**
  * Fetch the list of available ST backgrounds from the server.
@@ -54,21 +55,131 @@ function isNightTime() {
 
 /**
  * Find the best matching entry for the current location.
- * Uses case-insensitive substring matching against entry names.
+ * Uses tokenized matching against entry names and selected background filenames.
+ * Trailing night suffixes (_n / _night) in filenames are ignored for matching.
  * Falls back to the Default entry (index 0) if no match.
  */
 function findMatchingEntry(entries, location) {
-    if (!location || entries.length <= 1) return entries[0] || null;
+    const defaultEntry = entries[0] || null;
+    if (!location || entries.length <= 1) return defaultEntry;
 
-    const locLower = location.toLowerCase();
+    const locationTokens = collectLocationTokens(location);
+    if (locationTokens.length === 0) return defaultEntry;
+
+    let bestEntry = null;
+    let bestScore = null;
+
     for (let i = 1; i < entries.length; i++) {
-        const entryName = entries[i].name;
-        if (!entryName) continue;
-        if (locLower.includes(entryName.toLowerCase())) {
-            return entries[i];
+        const entry = entries[i];
+        const score = getEntryMatchScore(entry, locationTokens);
+        if (!score) continue;
+
+        if (isBetterMatch(score, bestScore)) {
+            bestEntry = entry;
+            bestScore = score;
         }
     }
-    return entries[0];
+
+    return bestEntry || defaultEntry;
+}
+
+function normalizeBackgroundNameForMatch(value) {
+    if (!value) return '';
+    const noExt = String(value).replace(/\.[^./\\]+$/, '');
+    return noExt.replace(NIGHT_SUFFIX_RE, '');
+}
+
+function tokenizeMatchValue(value) {
+    if (!value) return [];
+    const cleaned = String(value)
+        .replace(/[’']/g, '')
+        .replace(/[^A-Za-z0-9_\-\s]/g, ' ')
+        .replace(/[_\-\s]+/g, ' ')
+        .trim()
+        .toLowerCase();
+    if (!cleaned) return [];
+    return cleaned.split(/\s+/).filter(t => t.length >= 2);
+}
+
+function dedupeTokens(tokens) {
+    const out = [];
+    const seen = new Set();
+    for (const t of tokens) {
+        if (seen.has(t)) continue;
+        seen.add(t);
+        out.push(t);
+    }
+    return out;
+}
+
+function collectLocationTokens(location) {
+    const raw = String(location || '');
+    const capitalized = raw.match(/\b[A-Z][A-Za-z0-9']*\b/g) || [];
+    const capitalizedTokens = capitalized
+        .map(t => t.replace(/[’']/g, '').toLowerCase())
+        .filter(t => t.length >= 2);
+    const genericTokens = tokenizeMatchValue(raw);
+    return dedupeTokens([...capitalizedTokens, ...genericTokens]);
+}
+
+function collectEntryTokens(entry) {
+    const sources = [];
+    const name = String(entry?.name || '').trim();
+    if (name && !/^default$/i.test(name)) sources.push(name);
+
+    const day = normalizeBackgroundNameForMatch(entry?.day);
+    const night = normalizeBackgroundNameForMatch(entry?.night);
+    if (day) sources.push(day);
+    if (night) sources.push(night);
+
+    const allTokens = [];
+    for (const s of sources) {
+        allTokens.push(...tokenizeMatchValue(s));
+    }
+    return dedupeTokens(allTokens);
+}
+
+function getEntryMatchScore(entry, locationTokens) {
+    const entryTokens = collectEntryTokens(entry);
+    if (entryTokens.length === 0) return null;
+
+    let exactCount = 0;
+    let fuzzyCount = 0;
+    let bestTokenIndex = Number.POSITIVE_INFINITY;
+
+    for (const locToken of locationTokens) {
+        let foundExact = false;
+        for (let i = 0; i < entryTokens.length; i++) {
+            if (entryTokens[i] === locToken) {
+                exactCount++;
+                bestTokenIndex = Math.min(bestTokenIndex, i);
+                foundExact = true;
+                break;
+            }
+        }
+        if (foundExact) continue;
+
+        for (let i = 0; i < entryTokens.length; i++) {
+            const token = entryTokens[i];
+            if (token.includes(locToken) || locToken.includes(token)) {
+                fuzzyCount++;
+                bestTokenIndex = Math.min(bestTokenIndex, i);
+                break;
+            }
+        }
+    }
+
+    if (exactCount === 0 && fuzzyCount === 0) return null;
+    return { exactCount, fuzzyCount, bestTokenIndex, tokenCount: entryTokens.length };
+}
+
+function isBetterMatch(next, current) {
+    if (!current) return true;
+    if (next.exactCount !== current.exactCount) return next.exactCount > current.exactCount;
+    if (next.fuzzyCount !== current.fuzzyCount) return next.fuzzyCount > current.fuzzyCount;
+    if (next.bestTokenIndex !== current.bestTokenIndex) return next.bestTokenIndex < current.bestTokenIndex;
+    if (next.tokenCount !== current.tokenCount) return next.tokenCount < current.tokenCount;
+    return false;
 }
 
 /**
@@ -83,7 +194,7 @@ export async function evaluateAutoBackground() {
     if (!entry) return;
 
     const night = isNightTime();
-    let targetBg = night ? (entry.night || entry.day) : entry.day;
+    let targetBg = night ? (entry.night || entry.day) : (entry.day || entry.night);
     if (!targetBg) return;
 
     if (targetBg === lastAppliedBackground) return;
@@ -194,6 +305,7 @@ export function saveAutoBackgroundModal() {
 
     const data = { enabled, entries };
     saveAutoBackgrounds(data);
+    setAutoBackgrounds(data);
     return data;
 }
 

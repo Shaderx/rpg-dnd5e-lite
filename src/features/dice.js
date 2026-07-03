@@ -127,6 +127,8 @@ export function updateDiceDisplay() {
     if (roll) {
         const users = roll.userRolls ?? (roll.roll1 != null
             ? [{ roll1: roll.roll1, roll2: roll.roll2 }] : []);
+        const userCols = users.length <= 1 ? 1 : 2;
+        $userContainer.css('--dnd-user-roll-cols', String(userCols));
         let userHtml = '';
         for (let i = 0; i < users.length; i++) {
             const u = users[i];
@@ -173,6 +175,7 @@ export function updateDiceDisplay() {
         $rollBtn.addClass('dnd-roll-locked');
     } else {
         $result.hide();
+        $userContainer.css('--dnd-user-roll-cols', '1');
         $userContainer.empty();
         $allyContainer.empty();
         $enemyContainer.empty();
