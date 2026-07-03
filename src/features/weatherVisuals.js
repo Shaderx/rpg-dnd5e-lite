@@ -13,6 +13,11 @@ const DAY_START_MINUTES = 6 * 60;
 const NIGHT_START_MINUTES = 18 * 60;
 const MORNING_END_MINUTES = 9 * 60;
 const EVENING_END_MINUTES = 21 * 60;
+const MIDNIGHT_MINUTES = 24 * 60;
+const NEXT_DAY_START_MINUTES = DAY_START_MINUTES + MIDNIGHT_MINUTES;
+
+const NIGHT_KEYWORD_OVERRIDE_RE = /\b(night|nightfall|after\s*dark|dark(?:ness)?|pitch(?:\s|-)?black|gloom|moon(?:lit|less)?|starlit|midnight|eclipse)\b/i;
+const DAY_KEYWORD_OVERRIDE_RE = /\b(dawn|sunrise|daybreak|first\s*light|daylight|sunlit)\b/i;
 
 // ─── Weather-type inference from header text ─────────────
 
@@ -103,10 +108,54 @@ export function parseHeaderClockMinutes(timeStr) {
     return (hours * 60) + minutes;
 }
 
-export function inferTimeOfDay(timeStr, weatherText) {
-    const wt = (weatherText || '').toLowerCase();
-    if (/\bnight\b/.test(wt)) return 'night';
-    if (/\bdawn\b/.test(wt)) return 'morning';
+function clamp01(v) {
+    return Math.max(0, Math.min(1, v));
+}
+
+function buildKeywordSource(weatherText, extras) {
+    const parts = [String(weatherText || '')];
+    if (Array.isArray(extras)) {
+        for (const extra of extras) {
+            if (extra?.text) parts.push(String(extra.text));
+        }
+    }
+    return parts.join(' ').trim();
+}
+
+/**
+ * Keyword-based day/night override from header weather/extras text.
+ * Returns:
+ * - true  => force night
+ * - false => force day/morning
+ * - null  => no keyword override
+ */
+export function inferNightKeywordOverride(weatherText, extras = []) {
+    const source = buildKeywordSource(weatherText, extras);
+    if (!source) return null;
+
+    const nightMatch = source.match(NIGHT_KEYWORD_OVERRIDE_RE);
+    const dayMatch = source.match(DAY_KEYWORD_OVERRIDE_RE);
+    if (nightMatch && dayMatch) return (nightMatch.index ?? 0) >= (dayMatch.index ?? 0);
+    if (nightMatch) return true;
+    if (dayMatch) return false;
+    return null;
+}
+
+/**
+ * Strict clock night detection used for day/night background switching.
+ * Returns null when time is unparseable.
+ */
+export function inferClockNight(timeStr) {
+    const minutes = parseHeaderClockMinutes(timeStr);
+    if (minutes == null) return null;
+    return minutes >= NIGHT_START_MINUTES || minutes < DAY_START_MINUTES;
+}
+
+export function inferTimeOfDay(timeStr, weatherText, extras = []) {
+    const wt = buildKeywordSource(weatherText, extras).toLowerCase();
+    const keywordOverride = inferNightKeywordOverride(weatherText, extras);
+    if (keywordOverride === true) return 'night';
+    if (keywordOverride === false) return 'morning';
     if (/\bdusk\b|\btwilight\b/.test(wt)) return 'evening';
 
     const minutes = parseHeaderClockMinutes(timeStr);
@@ -150,22 +199,35 @@ function a(base, k) {
     return Math.min(base * Math.max(0, k), 1).toFixed(3);
 }
 
-function getNightTransitionMix(timeStr) {
+function getNightLightingProfile(timeStr) {
     const minutes = parseHeaderClockMinutes(timeStr);
     if (minutes == null) {
-        return { sunset: 0.35, sunrise: 0.35 };
+        return { sunset: 0.55, sunrise: 0.0, darkness: 0.7 };
     }
 
     // Treat the night window as 18:00 -> next day 06:00.
-    const normalized = minutes < NIGHT_START_MINUTES ? minutes + (24 * 60) : minutes;
+    const normalized = minutes < NIGHT_START_MINUTES ? minutes + MIDNIGHT_MINUTES : minutes;
     const nightStart = NIGHT_START_MINUTES;
-    const nightEnd = DAY_START_MINUTES + (24 * 60);
+    const nightEnd = NEXT_DAY_START_MINUTES;
     const clamped = Math.min(Math.max(normalized, nightStart), nightEnd);
-    const progress = (clamped - nightStart) / (nightEnd - nightStart);
+    const sunsetWindowEnd = NIGHT_START_MINUTES + 120; // 18:00 -> 20:00
+    const sunriseWindowStart = MIDNIGHT_MINUTES + 240; // 04:00
+    const sunriseWindowEnd = NEXT_DAY_START_MINUTES;   // 06:00
+
+    const sunset = clamp01((sunsetWindowEnd - clamped) / (sunsetWindowEnd - NIGHT_START_MINUTES));
+    const sunrise = clamp01((clamped - sunriseWindowStart) / (sunriseWindowEnd - sunriseWindowStart));
+
+    let darkness;
+    if (clamped <= MIDNIGHT_MINUTES) {
+        darkness = clamp01((clamped - NIGHT_START_MINUTES) / (MIDNIGHT_MINUTES - NIGHT_START_MINUTES));
+    } else {
+        darkness = clamp01((nightEnd - clamped) / (nightEnd - MIDNIGHT_MINUTES));
+    }
 
     return {
-        sunset: 1 - progress,
-        sunrise: progress,
+        sunset,
+        sunrise,
+        darkness: (0.35 + (0.65 * darkness)),
     };
 }
 
@@ -175,9 +237,10 @@ function getNightTransitionMix(timeStr) {
  * These values are designed to work with blend modes like soft-light
  * and overlay where higher alphas interact naturally with the wallpaper.
  */
-function getLightingBackground(tod, intensity, timeStr) {
+function getLightingBackground(tod, intensity, timeStr, options = {}) {
     const k = intensity;
-    const nightMix = tod === 'night' ? getNightTransitionMix(timeStr) : null;
+    const nightProfile = tod === 'night' ? getNightLightingProfile(timeStr) : null;
+    const disableNightHue = !!options.disableNightHue;
 
     switch (tod) {
         case 'morning':
@@ -208,10 +271,13 @@ function getLightingBackground(tod, intensity, timeStr) {
                 `linear-gradient(to bottom, rgba(6,10,35,${a(0.65, k)}) 0%, rgba(10,16,45,${a(0.55, k)}) 40%, rgba(6,8,28,${a(0.60, k)}) 100%)`,
                 `radial-gradient(ellipse 55% 45% at 74% 6%, rgba(160,190,240,${a(0.18, k)}) 0%, rgba(120,150,210,${a(0.06, k)}) 35%, transparent 55%)`,
                 `radial-gradient(ellipse 25% 20% at 74% 4%, rgba(210,225,255,${a(0.12, k)}) 0%, transparent 40%)`,
-                // Sunset warmth fades out across the night window.
-                `radial-gradient(ellipse 140% 70% at 50% 108%, rgba(255,120,40,${a(0.24 * (nightMix?.sunset ?? 0), k)}) 0%, rgba(220,90,45,${a(0.12 * (nightMix?.sunset ?? 0), k)}) 30%, transparent 62%)`,
-                // Sunrise warmth fades in toward dawn.
-                `radial-gradient(ellipse 140% 70% at 50% 108%, rgba(255,180,105,${a(0.20 * (nightMix?.sunrise ?? 0), k)}) 0%, rgba(255,210,140,${a(0.09 * (nightMix?.sunrise ?? 0), k)}) 35%, transparent 62%)`,
+                // Sunset warmth for ~1-2 hours after dark, unless keyword-forced night disables hue.
+                `radial-gradient(ellipse 140% 70% at 50% 108%, rgba(255,120,40,${a((disableNightHue ? 0 : 0.26 * (nightProfile?.sunset ?? 0)), k)}) 0%, rgba(220,90,45,${a((disableNightHue ? 0 : 0.13 * (nightProfile?.sunset ?? 0)), k)}) 30%, transparent 62%)`,
+                // Sunrise warmth ramps in from ~4:00 to ~6:00, unless hue is disabled.
+                `radial-gradient(ellipse 140% 70% at 50% 108%, rgba(255,185,110,${a((disableNightHue ? 0 : 0.23 * (nightProfile?.sunrise ?? 0)), k)}) 0%, rgba(255,215,145,${a((disableNightHue ? 0 : 0.10 * (nightProfile?.sunrise ?? 0)), k)}) 35%, transparent 62%)`,
+                // Vignetting deepens toward midnight and eases toward dawn.
+                `radial-gradient(ellipse 140% 95% at 50% 50%, rgba(0,0,0,0) 32%, rgba(5,8,24,${a(0.30 * (nightProfile?.darkness ?? 0), k)}) 76%, rgba(2,4,14,${a(0.56 * (nightProfile?.darkness ?? 0), k)}) 100%)`,
+                `linear-gradient(to bottom, rgba(8,12,30,${a(0.16 * (nightProfile?.darkness ?? 0), k)}) 0%, transparent 38%, rgba(4,7,20,${a(0.24 * (nightProfile?.darkness ?? 0), k)}) 100%)`,
                 `linear-gradient(rgba(15,20,50,${a(0.20, k)}), rgba(15,20,50,${a(0.20, k)}))`,
             ].join(', ');
 
@@ -375,7 +441,10 @@ export function applyWeatherVisuals() {
     ensureMount();
 
     const weather = inferWeather(headerInfo.weather, headerInfo.weatherEmoji);
-    const tod = inferTimeOfDay(headerInfo.time, headerInfo.weather);
+    const tod = inferTimeOfDay(headerInfo.time, headerInfo.weather, headerInfo.extras);
+    const keywordOverride = inferNightKeywordOverride(headerInfo.weather, headerInfo.extras);
+    const clockNight = inferClockNight(headerInfo.time);
+    const disableNightHue = keywordOverride === true && clockNight === false;
     const intensityMul = INTENSITY_MULTIPLIERS[weather.intensity];
     const primaryType = weather.types[0] || 'clear';
 
@@ -422,7 +491,7 @@ export function applyWeatherVisuals() {
     }
 
     // Lighting overlay
-    applyLightingOverlay(tod, headerInfo.time);
+    applyLightingOverlay(tod, headerInfo.time, { disableNightHue });
 
     lastTimeOfDay = tod;
 }
@@ -435,7 +504,7 @@ const VALID_BLEND_MODES = [
 /**
  * Apply the directional lighting overlay for the given time of day.
  */
-export function applyLightingOverlay(tod, timeStr = headerInfo.time) {
+export function applyLightingOverlay(tod, timeStr = headerInfo.time, options = {}) {
     const el = document.getElementById(`${PREFIX}-lighting`);
     if (!el) return;
 
@@ -452,7 +521,7 @@ export function applyLightingOverlay(tod, timeStr = headerInfo.time) {
         ? lSettings.blendMode
         : 'soft-light';
 
-    el.style.background = getLightingBackground(tod ?? 'day', intensity, timeStr);
+    el.style.background = getLightingBackground(tod ?? 'day', intensity, timeStr, options);
     el.style.mixBlendMode = blend;
     el.setAttribute('data-tod', tod ?? 'day');
 }
@@ -483,6 +552,9 @@ export function rebuildWeatherParticles() {
  * Refresh just the lighting overlay (e.g. after intensity changes).
  */
 export function refreshLightingOverlay() {
-    const tod = inferTimeOfDay(headerInfo.time, headerInfo.weather);
-    applyLightingOverlay(tod, headerInfo.time);
+    const tod = inferTimeOfDay(headerInfo.time, headerInfo.weather, headerInfo.extras);
+    const keywordOverride = inferNightKeywordOverride(headerInfo.weather, headerInfo.extras);
+    const clockNight = inferClockNight(headerInfo.time);
+    const disableNightHue = keywordOverride === true && clockNight === false;
+    applyLightingOverlay(tod, headerInfo.time, { disableNightHue });
 }

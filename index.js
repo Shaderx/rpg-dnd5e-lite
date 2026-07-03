@@ -1208,33 +1208,30 @@ function populateProfSection(type, savedSave, savedSkills, savedExpertise, saved
         $('#dnd-sk-expertise-checks').hide().html('');
     }
 
-    // Tool proficiency selection for Expert sidekicks
-    const maxTools = 2;
-    if (type === 'expert') {
-        const $toolRow = $('#dnd-sk-tool-row');
-        const $toolChecks = $('#dnd-sk-tool-checks');
-        const $toolLabel = $('#dnd-sk-tool-label');
-        const existingTools = savedTools || [];
-        $toolLabel.text(`Tools (${existingTools.length}/${maxTools}):`);
-        let toolHtml = '';
-        for (const tool of DND_TOOLS) {
-            const checked = existingTools.includes(tool) ? ' checked' : '';
-            toolHtml += `<label class="dnd-sk-check"><input type="checkbox" data-tool="${escHtml(tool)}"${checked} /> ${escHtml(tool)}</label>`;
-        }
-        $toolChecks.html(toolHtml).show();
-        $toolChecks.off('change').on('change', 'input[type="checkbox"]', function () {
-            const checkedTools = $toolChecks.find('input:checked');
-            if (checkedTools.length > maxTools) {
-                $(this).prop('checked', false);
-                return;
-            }
-            $toolLabel.text(`Tools (${checkedTools.length}/${maxTools}):`);
-        });
-        $toolRow.show();
-    } else {
-        $('#dnd-sk-tool-row').hide();
-        $('#dnd-sk-tool-checks').hide().html('');
+    // Tool proficiency selection:
+    // - All sidekicks can manually choose 1 tool.
+    // - Expert sidekicks can choose 3 total (their 2 class tools + 1 manual extra).
+    const maxTools = type === 'expert' ? 3 : 1;
+    const $toolRow = $('#dnd-sk-tool-row');
+    const $toolChecks = $('#dnd-sk-tool-checks');
+    const $toolLabel = $('#dnd-sk-tool-label');
+    const existingTools = (savedTools || []).slice(0, maxTools);
+    $toolLabel.text(`Tools (${existingTools.length}/${maxTools}):`);
+    let toolHtml = '';
+    for (const tool of DND_TOOLS) {
+        const checked = existingTools.includes(tool) ? ' checked' : '';
+        toolHtml += `<label class="dnd-sk-check"><input type="checkbox" data-tool="${escHtml(tool)}"${checked} /> ${escHtml(tool)}</label>`;
     }
+    $toolChecks.html(toolHtml).show();
+    $toolChecks.off('change').on('change', 'input[type="checkbox"]', function () {
+        const checkedTools = $toolChecks.find('input:checked');
+        if (checkedTools.length > maxTools) {
+            $(this).prop('checked', false);
+            return;
+        }
+        $toolLabel.text(`Tools (${checkedTools.length}/${maxTools}):`);
+    });
+    $toolRow.show();
 
     $checks.off('change').on('change', 'input[type="checkbox"]', function () {
         const checked = $checks.find('input:checked');

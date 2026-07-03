@@ -9,6 +9,8 @@ import { parseCastLevelFromTokens } from '../../features/spellTracker.js';
 import { lookupSpellSync } from './spells.js';
 
 /** @typedef {'active'|'expired'|'instant'|'unknown'} EffectStatus */
+const ROUND_SECONDS = 6;
+const MINUTE_SECONDS = 60;
 
 /**
  * Curated AC effects for long-duration buffs (not round/reaction spells).
@@ -70,8 +72,29 @@ function resolveSpell(name) {
  * Keyed by lowercase spell name → forced duration object.
  */
 const DURATION_OVERRIDES = {
-    'summon dragon (no conc)': [{ type: 'timed', concentration: false, duration: { amount: 1, type: 'minute' } }],
+    'summon dragon no conc': { type: 'timed', concentration: false, duration: { amount: 1, type: 'minute' } },
 };
+
+/**
+ * Hardcoded durations for non-spell abilities commonly logged via [Ability Name].
+ * Keyed by normalized name. These do not come from spell databases.
+ */
+const NON_SPELL_DURATION_OVERRIDES = {
+    'innate sorcery': { type: 'timed', concentration: false, duration: { amount: 10, type: 'round' } }, // 1 minute
+    'rage': { type: 'timed', concentration: false, duration: { amount: 10, type: 'round' } }, // 1 minute
+    'bladesong': { type: 'timed', concentration: false, duration: { amount: 1, type: 'minute' } },
+    'giants might': { type: 'timed', concentration: false, duration: { amount: 1, type: 'minute' } },
+    'starry form': { type: 'timed', concentration: false, duration: { amount: 10, type: 'minute' } },
+    'twilight sanctuary': { type: 'timed', concentration: false, duration: { amount: 1, type: 'minute' } },
+};
+
+function normalizeEffectName(name) {
+    return String(name || '')
+        .toLowerCase()
+        .replace(/['’]/g, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+}
 
 function getLogSliceStart() {
     if (!spellLog?.length) return 0;
@@ -137,7 +160,7 @@ export function durationToMinutes(dur) {
 
     const amount = dur.duration.amount || 1;
     switch (dur.duration.type) {
-        case 'round': return amount * 0.1;
+        case 'round': return (amount * ROUND_SECONDS) / MINUTE_SECONDS;
         case 'minute': return amount;
         case 'hour': return amount * 60;
         case 'day': return amount * 24 * 60;
@@ -251,51 +274,55 @@ function buildContext(entries) {
  */
 function resolveCastStatus(entry, ctx) {
     const spell = resolveSpell(entry.spell);
-    if (!spell) {
+    const effectKey = normalizeEffectName(entry.spell);
+    const overrideDur = DURATION_OVERRIDES[effectKey];
+    const hardcodedAbilityDur = NON_SPELL_DURATION_OVERRIDES[effectKey];
+
+    if (!spell && !overrideDur && !hardcodedAbilityDur) {
         return { status: 'unknown', remainingMinutes: null, concentration: false, spell: null, castLevel: null };
     }
 
-    const overrideDur = DURATION_OVERRIDES[entry.spell.toLowerCase()];
-    const dur = overrideDur ? overrideDur[0] : spell.duration?.[0];
+    const dur = overrideDur || spell?.duration?.[0] || hardcodedAbilityDur;
+    const spellForUi = spell || { name: entry.spell, duration: dur ? [dur] : [] };
     const concentration = isConcentrationCast(entry);
     const castLevel = parseCastLevelFromDetails(entry.details);
 
     if (dur?.type === 'instant') {
-        return { status: 'instant', remainingMinutes: null, concentration, spell, castLevel };
+        return { status: 'instant', remainingMinutes: null, concentration, spell: spellForUi, castLevel };
     }
 
     const latest = ctx.latestCastBySpell.get(entry.spell.toLowerCase());
     if (latest !== entry) {
-        return { status: 'expired', remainingMinutes: null, concentration, spell, castLevel, reason: 'superseded' };
+        return { status: 'expired', remainingMinutes: null, concentration, spell: spellForUi, castLevel, reason: 'superseded' };
     }
 
     if (concentration && ctx.activeConcEntry !== entry) {
-        return { status: 'expired', remainingMinutes: null, concentration, spell, castLevel, reason: 'concentration' };
+        return { status: 'expired', remainingMinutes: null, concentration, spell: spellForUi, castLevel, reason: 'concentration' };
     }
 
     const durationMin = durationToMinutes(dur);
     if (durationMin != null && durationMin <= 0.15) {
-        return { status: 'expired', remainingMinutes: null, concentration, spell, castLevel, reason: 'round' };
+        return { status: 'expired', remainingMinutes: null, concentration, spell: spellForUi, castLevel, reason: 'round' };
     }
 
     if (durationMin != null) {
         const elapsed = elapsedMinutes(entry.date, entry.time, ctx.currentDate, ctx.currentTime);
         if (elapsed == null) {
-            return { status: 'unknown', remainingMinutes: null, concentration, spell, castLevel };
+            return { status: 'unknown', remainingMinutes: null, concentration, spell: spellForUi, castLevel };
         }
         if (elapsed >= durationMin) {
-            return { status: 'expired', remainingMinutes: 0, concentration, spell, castLevel, reason: 'duration' };
+            return { status: 'expired', remainingMinutes: 0, concentration, spell: spellForUi, castLevel, reason: 'duration' };
         }
         return {
             status: 'active',
             remainingMinutes: durationMin - elapsed,
             concentration,
-            spell,
+            spell: spellForUi,
             castLevel,
         };
     }
 
-    return { status: 'active', remainingMinutes: null, concentration, spell, castLevel };
+    return { status: 'active', remainingMinutes: null, concentration, spell: spellForUi, castLevel };
 }
 
 export function getActiveEffectsList(options) {
