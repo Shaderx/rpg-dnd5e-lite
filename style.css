@@ -1504,26 +1504,26 @@
 .dnd-roll-btn-icon { font-size: 1.05em; }
 .dnd-roll-count-btn {
     position: absolute;
-    top: 0.22em;
+    top: 0.16em;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.05em;
-    height: 1.05em;
+    width: 1.18em;
+    height: 1.18em;
     padding: 0;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.16);
     border-radius: 0.2em;
     color: rgba(255,215,0,0.85);
-    font-size: 0.62em;
+    font-size: 0.72em;
     font-weight: 700;
     cursor: pointer;
     line-height: 1;
     transition: color 0.15s, border-color 0.15s, background 0.15s;
     user-select: none;
 }
-.dnd-roll-count-minus { left: 0.22em; }
-.dnd-roll-count-plus { right: 0.22em; }
+.dnd-roll-count-minus { left: 0.18em; }
+.dnd-roll-count-plus { right: 0.18em; }
 .dnd-roll-count-btn:hover {
     color: #ffe57f;
     border-color: rgba(255, 215, 0, 0.42);
@@ -1663,17 +1663,6 @@
     writing-mode: horizontal-tb;
     text-orientation: initial;
 }
-.dnd-roll-user-groups {
-    display: grid;
-    grid-template-columns: repeat(2, auto);
-    grid-auto-rows: 1fr;
-    gap: 0.1em;
-    align-items: stretch;
-    justify-items: stretch;
-}
-#dnd-roll-user-groups .dnd-roll-chip {
-    flex: unset;
-}
 
 .dnd-roll-group-label {
     font-size: 0.5em;
@@ -1714,7 +1703,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.1em;
-    padding: 0 0.2em;
+    padding: 0 calc(0.2em + 1px);
     border-right: 1px solid rgba(255,255,255,0.08);
     min-width: 0;
     min-height: 0;
@@ -1730,28 +1719,46 @@
     flex: 1;
 }
 
+/* User container: 2-column grid with the same autoscaling behavior */
+#dnd-roll-user-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 0.1em;
+    align-items: stretch;
+    justify-items: stretch;
+    align-content: stretch;
+}
+#dnd-roll-user-groups .dnd-roll-chip {
+    flex: unset;
+    width: 100%;
+    height: 100%;
+}
+
 /* Ally container: 2-column grid so up to 8 fits legibly */
 #dnd-roll-ally-groups {
     display: grid;
-    grid-template-columns: repeat(2, auto);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-rows: 1fr;
     align-items: stretch;
     justify-items: stretch;
 }
 #dnd-roll-ally-groups .dnd-roll-chip {
     flex: unset;
+    width: 100%;
 }
 
 /* Enemy container: 4-column grid so up to 16 fits */
 #dnd-roll-enemy-groups {
     display: grid;
-    grid-template-columns: repeat(4, auto);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-auto-rows: 1fr;
     align-items: stretch;
     justify-items: stretch;
 }
 #dnd-roll-enemy-groups .dnd-roll-chip {
     flex: unset;
+    width: 100%;
 }
 
 /* Compact roll chip (ally / enemy) */
