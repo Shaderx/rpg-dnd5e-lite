@@ -9,6 +9,10 @@
 import { extensionSettings, headerInfo } from '../core/state.js';
 
 const PREFIX = 'dnd-weather';
+const DAY_START_MINUTES = 6 * 60;
+const NIGHT_START_MINUTES = 18 * 60;
+const MORNING_END_MINUTES = 9 * 60;
+const EVENING_END_MINUTES = 21 * 60;
 
 // ─── Weather-type inference from header text ─────────────
 
@@ -83,24 +87,34 @@ export function inferWeatherType(weatherText, weatherEmoji) {
  * Derive a time-of-day bucket from the header's time string.
  * Returns 'morning' | 'day' | 'evening' | 'night'.
  */
+export function parseHeaderClockMinutes(timeStr) {
+    if (!timeStr) return null;
+    const m = String(timeStr).match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?/i);
+    if (!m) return null;
+
+    let hours = parseInt(m[1], 10);
+    const minutes = parseInt(m[2], 10);
+    const period = m[3]?.toUpperCase();
+
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    if (!period) hours = Math.max(0, Math.min(hours, 23));
+
+    return (hours * 60) + minutes;
+}
+
 export function inferTimeOfDay(timeStr, weatherText) {
     const wt = (weatherText || '').toLowerCase();
     if (/\bnight\b/.test(wt)) return 'night';
     if (/\bdawn\b/.test(wt)) return 'morning';
     if (/\bdusk\b|\btwilight\b/.test(wt)) return 'evening';
 
-    if (!timeStr) return 'day';
-    const m = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-    if (!m) return 'day';
+    const minutes = parseHeaderClockMinutes(timeStr);
+    if (minutes == null) return 'day';
 
-    let hours = parseInt(m[1]);
-    const period = m[3]?.toUpperCase();
-    if (period === 'PM' && hours < 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
-
-    if (hours >= 5 && hours < 9) return 'morning';
-    if (hours >= 9 && hours < 17) return 'day';
-    if (hours >= 17 && hours < 21) return 'evening';
+    if (minutes >= DAY_START_MINUTES && minutes < MORNING_END_MINUTES) return 'morning';
+    if (minutes >= MORNING_END_MINUTES && minutes < NIGHT_START_MINUTES) return 'day';
+    if (minutes >= NIGHT_START_MINUTES && minutes < EVENING_END_MINUTES) return 'evening';
     return 'night';
 }
 
@@ -136,14 +150,34 @@ function a(base, k) {
     return Math.min(base * Math.max(0, k), 1).toFixed(3);
 }
 
+function getNightTransitionMix(timeStr) {
+    const minutes = parseHeaderClockMinutes(timeStr);
+    if (minutes == null) {
+        return { sunset: 0.35, sunrise: 0.35 };
+    }
+
+    // Treat the night window as 18:00 -> next day 06:00.
+    const normalized = minutes < NIGHT_START_MINUTES ? minutes + (24 * 60) : minutes;
+    const nightStart = NIGHT_START_MINUTES;
+    const nightEnd = DAY_START_MINUTES + (24 * 60);
+    const clamped = Math.min(Math.max(normalized, nightStart), nightEnd);
+    const progress = (clamped - nightStart) / (nightEnd - nightStart);
+
+    return {
+        sunset: 1 - progress,
+        sunrise: progress,
+    };
+}
+
 /**
  * Build multi-layered CSS backgrounds for the lighting overlay.
  * The `intensity` factor (0..2) scales all alpha values linearly.
  * These values are designed to work with blend modes like soft-light
  * and overlay where higher alphas interact naturally with the wallpaper.
  */
-function getLightingBackground(tod, intensity) {
+function getLightingBackground(tod, intensity, timeStr) {
     const k = intensity;
+    const nightMix = tod === 'night' ? getNightTransitionMix(timeStr) : null;
 
     switch (tod) {
         case 'morning':
@@ -174,6 +208,10 @@ function getLightingBackground(tod, intensity) {
                 `linear-gradient(to bottom, rgba(6,10,35,${a(0.65, k)}) 0%, rgba(10,16,45,${a(0.55, k)}) 40%, rgba(6,8,28,${a(0.60, k)}) 100%)`,
                 `radial-gradient(ellipse 55% 45% at 74% 6%, rgba(160,190,240,${a(0.18, k)}) 0%, rgba(120,150,210,${a(0.06, k)}) 35%, transparent 55%)`,
                 `radial-gradient(ellipse 25% 20% at 74% 4%, rgba(210,225,255,${a(0.12, k)}) 0%, transparent 40%)`,
+                // Sunset warmth fades out across the night window.
+                `radial-gradient(ellipse 140% 70% at 50% 108%, rgba(255,120,40,${a(0.24 * (nightMix?.sunset ?? 0), k)}) 0%, rgba(220,90,45,${a(0.12 * (nightMix?.sunset ?? 0), k)}) 30%, transparent 62%)`,
+                // Sunrise warmth fades in toward dawn.
+                `radial-gradient(ellipse 140% 70% at 50% 108%, rgba(255,180,105,${a(0.20 * (nightMix?.sunrise ?? 0), k)}) 0%, rgba(255,210,140,${a(0.09 * (nightMix?.sunrise ?? 0), k)}) 35%, transparent 62%)`,
                 `linear-gradient(rgba(15,20,50,${a(0.20, k)}), rgba(15,20,50,${a(0.20, k)}))`,
             ].join(', ');
 
@@ -384,7 +422,7 @@ export function applyWeatherVisuals() {
     }
 
     // Lighting overlay
-    applyLightingOverlay(tod);
+    applyLightingOverlay(tod, headerInfo.time);
 
     lastTimeOfDay = tod;
 }
@@ -397,7 +435,7 @@ const VALID_BLEND_MODES = [
 /**
  * Apply the directional lighting overlay for the given time of day.
  */
-export function applyLightingOverlay(tod) {
+export function applyLightingOverlay(tod, timeStr = headerInfo.time) {
     const el = document.getElementById(`${PREFIX}-lighting`);
     if (!el) return;
 
@@ -414,7 +452,7 @@ export function applyLightingOverlay(tod) {
         ? lSettings.blendMode
         : 'soft-light';
 
-    el.style.background = getLightingBackground(tod ?? 'day', intensity);
+    el.style.background = getLightingBackground(tod ?? 'day', intensity, timeStr);
     el.style.mixBlendMode = blend;
     el.setAttribute('data-tod', tod ?? 'day');
 }
@@ -446,5 +484,5 @@ export function rebuildWeatherParticles() {
  */
 export function refreshLightingOverlay() {
     const tod = inferTimeOfDay(headerInfo.time, headerInfo.weather);
-    applyLightingOverlay(tod);
+    applyLightingOverlay(tod, headerInfo.time);
 }

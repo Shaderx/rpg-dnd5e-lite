@@ -6,7 +6,7 @@
 import { getContext } from '../../../../../extensions.js';
 import { headerInfo, autoBackgrounds, setAutoBackgrounds } from '../core/state.js';
 import { saveAutoBackgrounds } from '../core/persistence.js';
-import { inferTimeOfDay } from './weatherVisuals.js';
+import { inferTimeOfDay, parseHeaderClockMinutes } from './weatherVisuals.js';
 
 let lastAppliedBackground = null;
 const NIGHT_SUFFIX_RE = /(?:[_\-\s]+(?:n|night))$/i;
@@ -49,6 +49,12 @@ export function getDefaultAutoBackgroundData() {
  * Morning, day, and evening all map to the "day" background variant.
  */
 function isNightTime() {
+    const minutes = parseHeaderClockMinutes(headerInfo.time);
+    if (minutes != null) {
+        return minutes >= (18 * 60) || minutes < (6 * 60);
+    }
+
+    // Fallback for uncommon headers that don't include parseable time.
     const tod = inferTimeOfDay(headerInfo.time, headerInfo.weather);
     return tod === 'night';
 }
