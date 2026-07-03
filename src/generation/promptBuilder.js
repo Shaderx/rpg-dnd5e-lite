@@ -365,11 +365,14 @@ export function buildNonCombatDiceSection() {
     const lines = ['<dice>'];
 
     if (hasNonCombatD20) {
-        const { user, npc } = lastNonCombatRoll;
+        const user = lastNonCombatRoll.user || lastNonCombatRoll.ally || lastNonCombatRoll.npc || { roll1: 10, roll2: 10 };
+        const ally = lastNonCombatRoll.ally || lastNonCombatRoll.npc || user;
+        const npc = lastNonCombatRoll.npc || lastNonCombatRoll.ally || user;
         lines.push(
             '[Non-combat: skill checks, ability checks, saving throws only. Use for non-trivial checks vs DC.]',
             'Pick one d20 per check: use higher if advantage, lower if disadvantage, sequentially if straight roll.',
-            `${userName}: user_d20_1=${user.roll1}, user_d20_2=${user.roll2}`,
+            `User: user_d20_1=${user.roll1}, user_d20_2=${user.roll2}`,
+            `Ally: ally_d20_1=${ally.roll1}, ally_d20_2=${ally.roll2}`,
             `NPC: npc_d20_1=${npc.roll1}, npc_d20_2=${npc.roll2}`,
         );
     }

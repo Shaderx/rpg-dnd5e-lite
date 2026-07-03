@@ -476,7 +476,7 @@
     font-variant-numeric: tabular-nums;
     opacity: 0.5;
     color: #999;
-    cursor: default;
+    cursor: pointer;
     padding: 1px 4px;
     border-radius: 3px;
     text-align: center;
@@ -528,7 +528,7 @@
 .dnd-panel-noncombat-tag {
     display: inline-flex;
     align-items: center;
-    gap: 0.45em;
+    gap: 0.35em;
     font-variant-numeric: tabular-nums;
     font-weight: 700;
     line-height: 1.1;
@@ -539,12 +539,12 @@
     user-select: none;
 }
 .dnd-strip-noncombat-tag {
-    font-size: 0.62rem;
-    padding: 1px 2px;
+    font-size: 0.6rem;
+    padding: 1px 1px;
 }
 .dnd-panel-noncombat-tag {
-    font-size: 0.72rem;
-    padding: 2px 4px;
+    font-size: 0.7rem;
+    padding: 2px 3px;
     border-radius: 3px;
 }
 .dnd-strip-noncombat-tag:hover,
@@ -560,28 +560,43 @@
     opacity: 0.58;
 }
 .dnd-noncombat-user,
+.dnd-noncombat-ally,
 .dnd-noncombat-npc {
     display: inline-flex;
     align-items: center;
-    gap: 0.2em;
+    gap: 0.14em;
 }
+.dnd-noncombat-role {
+    font-size: 0.58em;
+    font-weight: 700;
+    text-transform: uppercase;
+    opacity: 0.65;
+    line-height: 1;
+    margin-right: 0.08em;
+}
+.dnd-noncombat-user .dnd-noncombat-role,
 .dnd-noncombat-user .dnd-noncombat-val {
     color: var(--dnd-gold);
 }
-.dnd-noncombat-npc .dnd-noncombat-val {
+.dnd-noncombat-ally .dnd-noncombat-role,
+.dnd-noncombat-ally .dnd-noncombat-val {
     color: #81c784;
 }
+.dnd-noncombat-npc .dnd-noncombat-role,
+.dnd-noncombat-npc .dnd-noncombat-val {
+    color: #e57373;
+}
 .dnd-noncombat-sep {
-    font-size: 0.72em;
+    font-size: 0.68em;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.18);
-    padding: 0 0.05em;
+    padding: 0 0.04em;
 }
 .dnd-noncombat-divider {
-    font-size: 0.65em;
+    font-size: 0.6em;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.14);
-    padding: 0 0.1em;
+    padding: 0 0.06em;
 }
 
 /* Expanded panel: event tag in header actions row */
@@ -590,7 +605,7 @@
     font-variant-numeric: tabular-nums;
     opacity: 0.5;
     color: #999;
-    cursor: default;
+    cursor: pointer;
     padding: 2px 6px;
     border-radius: 3px;
     transition: opacity 0.2s, background 0.2s, color 0.2s;

@@ -438,10 +438,12 @@ const SEVERITY_COLORS = {
     critical: '#d32f2f',
 };
 
-function buildEventTooltip(eventRoll) {
+function buildEventTooltip(eventRoll, enabled = true) {
     if (!eventRoll) return '<div class="dnd-tt-name">No Event Data</div>';
 
     const { roll, severity, categoryMeta, examples, cooldownActive, cooldownRemaining } = eventRoll;
+    const stateText = enabled ? 'Injection: ON' : 'Injection: OFF';
+    const controlsHint = '<div class="dnd-tt-divider"></div><div class="dnd-tt-field" style="font-size:0.9em;color:rgba(255,255,255,0.6)">Click: toggle injection<br>Shift-click: edit thresholds</div>';
 
     if (!severity) {
         const cdNote = cooldownActive
@@ -450,7 +452,8 @@ function buildEventTooltip(eventRoll) {
         return `<div class="dnd-tt-name" style="color:#999">d100: ${roll}</div>
 <div class="dnd-tt-sub">No Event</div>${cdNote}
 <div class="dnd-tt-divider"></div>
-<div class="dnd-tt-desc" style="color:rgba(255,255,255,0.45)">Roll below event threshold. Narrative continues normally.</div>`;
+<div class="dnd-tt-desc" style="color:rgba(255,255,255,0.45)">Roll below event threshold. Narrative continues normally.</div>
+<div class="dnd-tt-field" style="color:${enabled ? 'rgba(102,187,106,0.95)' : 'rgba(239,83,80,0.95)'}">${stateText}</div>${controlsHint}`;
     }
 
     const color = SEVERITY_COLORS[severity.id] || '#ffd700';
@@ -472,13 +475,14 @@ function buildEventTooltip(eventRoll) {
 <div class="dnd-tt-sub">${escHtml(cat)} Event</div>
 <div class="dnd-tt-divider"></div>
 <div class="dnd-tt-field"><strong>Severity:</strong> <span style="color:${color}">${escHtml(severity.label)}</span> (${severity.min}\u2013${severity.max})</div>
-<div class="dnd-tt-field"><strong>Category:</strong> ${escHtml(cat)}</div>${examplesHtml}${directiveHtml}`;
+<div class="dnd-tt-field"><strong>Category:</strong> ${escHtml(cat)}</div>
+<div class="dnd-tt-field" style="color:${enabled ? 'rgba(102,187,106,0.95)' : 'rgba(239,83,80,0.95)'}">${stateText}</div>${examplesHtml}${directiveHtml}${controlsHint}`;
 }
 
-export function showEventTooltip(anchorEl, eventRoll) {
+export function showEventTooltip(anchorEl, eventRoll, enabled = true) {
     clearTimeout(tooltipTimer);
     tooltipTimer = setTimeout(() => {
-        showTooltip(anchorEl, buildEventTooltip(eventRoll));
+        showTooltip(anchorEl, buildEventTooltip(eventRoll, enabled));
     }, TOOLTIP_DELAY);
 }
 

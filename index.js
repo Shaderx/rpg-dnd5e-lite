@@ -2433,6 +2433,13 @@ function preloadV2Assets() {
 
 const EVENT_SEVERITY_CLASSES = ['dnd-event-triggered', 'dnd-event-minor', 'dnd-event-moderate', 'dnd-event-major', 'dnd-event-critical'];
 
+function setRandomEventInjectionEnabled(enabled) {
+    extensionSettings.randomEventsEnabled = !!enabled;
+    $('#dnd-setting-random-events').prop('checked', extensionSettings.randomEventsEnabled);
+    saveSettings();
+    updateRandomEventDisplay();
+}
+
 function updateRandomEventDisplay() {
     const enabled = extensionSettings.randomEventsEnabled;
     const roll = lastEventRoll;
@@ -2442,7 +2449,7 @@ function updateRandomEventDisplay() {
 
     $opts.toggle(extensionSettings.randomEventsEnabled ?? false);
 
-    if (!enabled || !roll) {
+    if (!roll) {
         $stripTag.hide();
         $panelTag.hide();
         return;
@@ -2450,7 +2457,7 @@ function updateRandomEventDisplay() {
 
     const hasSeverity = !!roll.severity;
     const label = `${roll.roll}`;
-    const severityClass = hasSeverity ? `dnd-event-${roll.severity.id}` : '';
+    const severityClass = enabled && hasSeverity ? `dnd-event-${roll.severity.id}` : '';
 
     for (const $tag of [$stripTag, $panelTag]) {
         $tag.text(label).removeAttr('title').show();
@@ -2458,36 +2465,47 @@ function updateRandomEventDisplay() {
         if (severityClass) $tag.addClass(severityClass);
     }
 
-    bindEventTagTooltip($stripTag, roll);
-    bindEventTagTooltip($panelTag, roll);
+    bindEventTagTooltip($stripTag, roll, enabled);
+    bindEventTagTooltip($panelTag, roll, enabled);
 }
 
-function bindEventTagTooltip($el, eventRoll) {
+function bindEventTagTooltip($el, eventRoll, enabled) {
     const NS = '.dndEventTip';
     $el.off(NS);
-    $el.on('mouseenter' + NS, function () { showEventTooltip(this, eventRoll); });
+    $el.on('mouseenter' + NS, function () { showEventTooltip(this, eventRoll, enabled); });
     $el.on('mouseleave' + NS, function () { hideTooltip(); });
 }
 
 // ─── Non-combat dice display ────────────────────────────────
 
-function buildNonCombatDiceLabel(roll) {
-    return `<span class="dnd-noncombat-user">`
-        + `<span class="dnd-noncombat-val">${roll.user.roll1}</span>`
+function normalizeNonCombatRoll(roll) {
+    if (!roll || !roll.user) return null;
+    const user = roll.user;
+    const ally = roll.ally || roll.npc || user;
+    const npc = roll.npc || roll.ally || user;
+    return { user, ally, npc };
+}
+
+function buildNonCombatDiceGroup(groupClass, shortLabel, pair) {
+    return `<span class="${groupClass}">`
+        + `<span class="dnd-noncombat-role">${shortLabel}</span>`
+        + `<span class="dnd-noncombat-val">${pair.roll1}</span>`
         + `<span class="dnd-noncombat-sep">|</span>`
-        + `<span class="dnd-noncombat-val">${roll.user.roll2}</span>`
-        + `</span>`
-        + `<span class="dnd-noncombat-divider">·</span>`
-        + `<span class="dnd-noncombat-npc">`
-        + `<span class="dnd-noncombat-val">${roll.npc.roll1}</span>`
-        + `<span class="dnd-noncombat-sep">|</span>`
-        + `<span class="dnd-noncombat-val">${roll.npc.roll2}</span>`
+        + `<span class="dnd-noncombat-val">${pair.roll2}</span>`
         + `</span>`;
+}
+
+function buildNonCombatDiceLabel(roll) {
+    return buildNonCombatDiceGroup('dnd-noncombat-user', 'U', roll.user)
+        + `<span class="dnd-noncombat-divider">·</span>`
+        + buildNonCombatDiceGroup('dnd-noncombat-ally', 'A', roll.ally)
+        + `<span class="dnd-noncombat-divider">·</span>`
+        + buildNonCombatDiceGroup('dnd-noncombat-npc', 'N', roll.npc);
 }
 
 function updateNonCombatDiceDisplay() {
     const enabled = extensionSettings.nonCombatDiceEnabled;
-    const roll = lastNonCombatRoll;
+    const roll = normalizeNonCombatRoll(lastNonCombatRoll);
     const $stripTag = $('#dnd-strip-noncombat-tag');
     const $panelTag = $('#dnd-panel-noncombat-tag');
 
@@ -2498,7 +2516,7 @@ function updateNonCombatDiceDisplay() {
     }
 
     const label = buildNonCombatDiceLabel(roll);
-    const tooltip = `Non-Combat d20s\nUser: ${roll.user.roll1}, ${roll.user.roll2}\nNPC: ${roll.npc.roll1}, ${roll.npc.roll2}\n(checks vs DC, not opposed)`;
+    const tooltip = `Non-Combat d20s\nUser: ${roll.user.roll1}, ${roll.user.roll2}\nAlly: ${roll.ally.roll1}, ${roll.ally.roll2}\nNPC: ${roll.npc.roll1}, ${roll.npc.roll2}\n(checks vs DC, not opposed)`;
 
     $stripTag.html(label).attr('title', tooltip).show();
     $stripTag.addClass('dnd-noncombat-active');
@@ -3714,9 +3732,7 @@ async function initUI() {
         updateNonCombatDiceDisplay();
     });
     $('#dnd-setting-random-events').on('change', function () {
-        extensionSettings.randomEventsEnabled = $(this).prop('checked');
-        saveSettings();
-        updateRandomEventDisplay();
+        setRandomEventInjectionEnabled($(this).prop('checked'));
     });
     $('#dnd-setting-event-role').on('change', function () {
         extensionSettings.randomEventRole = String($(this).val());
@@ -3739,11 +3755,16 @@ async function initUI() {
     $('#dnd-setting-omni-two-wide, #dnd-setting-omni-three-wide, #dnd-setting-omni-full-wide')
         .on('change', saveOmniWidgetSizesFromInputs);
 
-    // Event tags: shift-click opens threshold modal (both strip and expanded panel)
+    // Event tags: click toggles random-event injection; shift-click opens threshold modal
     $('#dnd-strip-event-tag, #dnd-panel-event-tag').on('click', function (e) {
         if (e.shiftKey) {
             openThresholdModal();
+            return;
         }
+
+        const nextEnabled = !(extensionSettings.randomEventsEnabled ?? false);
+        setRandomEventInjectionEnabled(nextEnabled);
+        toastr.info(`Random encounter injection ${nextEnabled ? 'enabled' : 'disabled'}`);
     });
 
     // Threshold modal

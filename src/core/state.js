@@ -174,7 +174,7 @@ export function setEventCooldown(val) { eventCooldown = val; }
 export let lastEventRoll = null;
 export function setLastEventRoll(val) { lastEventRoll = val; }
 
-// Non-combat dice: last rolled pair for user + NPC
+// Non-combat dice: last rolled pairs for user + ally + NPC
 export let lastNonCombatRoll = null;
 export function setLastNonCombatRoll(val) { lastNonCombatRoll = val; }
 

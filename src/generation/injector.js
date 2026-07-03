@@ -155,7 +155,11 @@ export function onGenerationStarted(type) {
             const isReroll = type === 'swipe' || type === 'regenerate';
             if (!isReroll) {
                 const roll1 = () => Math.floor(Math.random() * 20) + 1;
-                setLastNonCombatRoll({ user: { roll1: roll1(), roll2: roll1() }, npc: { roll1: roll1(), roll2: roll1() } });
+                setLastNonCombatRoll({
+                    user: { roll1: roll1(), roll2: roll1() },
+                    ally: { roll1: roll1(), roll2: roll1() },
+                    npc: { roll1: roll1(), roll2: roll1() },
+                });
                 extensionSettings.lastDiceRoll = null;
                 saveSettings();
             }
