@@ -3145,7 +3145,11 @@ async function initUI() {
 
     // Dice — expanded panel roll button
     $('#dnd-roll-btn').on('click', () => {
-        rollD20();
+        if (extensionSettings.lastDiceRoll) {
+            clearDiceRoll();
+        } else {
+            rollD20();
+        }
         updateStripWidgets();
     });
     $('#dnd-player-minus').on('click', function (e) {
@@ -3158,37 +3162,33 @@ async function initUI() {
     $('#dnd-player-plus').on('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        extensionSettings.playerCount = Math.min(3, (extensionSettings.playerCount ?? 1) + 1);
+        extensionSettings.playerCount = Math.min(4, (extensionSettings.playerCount ?? 1) + 1);
         saveSettings();
         updatePlayerCountLabel();
     });
     updatePlayerCountLabel();
-    $('#dnd-clear-roll').on('click', () => {
-        clearDiceRoll();
-        updateStripWidgets();
-    });
 
-    // Ally count +/- controls (clamped 0–3)
+    // Ally count +/- controls (clamped 0–8)
     $('#dnd-ally-minus').on('click', () => {
         extensionSettings.allyCount = Math.max(0, (extensionSettings.allyCount ?? 1) - 1);
         saveSettings();
         updateAllyCountLabel();
     });
     $('#dnd-ally-plus').on('click', () => {
-        extensionSettings.allyCount = Math.min(3, (extensionSettings.allyCount ?? 1) + 1);
+        extensionSettings.allyCount = Math.min(8, (extensionSettings.allyCount ?? 1) + 1);
         saveSettings();
         updateAllyCountLabel();
     });
     updateAllyCountLabel();
 
-    // Enemy count +/- controls (clamped 0–9)
+    // Enemy count +/- controls (clamped 0–16)
     $('#dnd-enemy-minus').on('click', () => {
         extensionSettings.enemyCount = Math.max(0, (extensionSettings.enemyCount ?? 1) - 1);
         saveSettings();
         updateEnemyCountLabel();
     });
     $('#dnd-enemy-plus').on('click', () => {
-        extensionSettings.enemyCount = Math.min(9, (extensionSettings.enemyCount ?? 1) + 1);
+        extensionSettings.enemyCount = Math.min(16, (extensionSettings.enemyCount ?? 1) + 1);
         saveSettings();
         updateEnemyCountLabel();
     });

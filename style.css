@@ -1540,9 +1540,33 @@
     letter-spacing: 0.02em;
     white-space: nowrap;
 }
+.dnd-roll-delete-overlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+    color: #ef5350;
+    background: radial-gradient(circle, rgba(48, 48, 48, 0.78) 0%, rgba(48, 48, 48, 0.5) 45%, rgba(48, 48, 48, 0.15) 72%);
+    font-size: 1.05em;
+    text-shadow: 0 0 6px rgba(239, 83, 80, 0.35);
+    pointer-events: none;
+}
 .dnd-roll-btn.dnd-roll-locked {
-    opacity: 0.4;
-    cursor: not-allowed;
+    opacity: 0.85;
+    cursor: pointer;
+    border-color: rgba(239, 83, 80, 0.45);
+    background: linear-gradient(135deg, rgba(72, 72, 72, 0.6) 0%, rgba(54, 54, 54, 0.35) 100%);
+}
+.dnd-roll-btn.dnd-roll-locked .dnd-roll-delete-overlay {
+    display: flex;
+}
+.dnd-roll-btn.dnd-roll-locked .dnd-roll-btn-icon {
+    opacity: 0.14;
+}
+.dnd-roll-btn.dnd-roll-locked .dnd-roll-count-display {
+    opacity: 0.35;
 }
 .dnd-roll-btn.dnd-roll-locked .dnd-roll-count-btn {
     opacity: 0.9;
@@ -1640,9 +1664,15 @@
     text-orientation: initial;
 }
 .dnd-roll-user-groups {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    grid-auto-rows: 1fr;
     gap: 0.1em;
+    align-items: stretch;
+    justify-items: stretch;
+}
+#dnd-roll-user-groups .dnd-roll-chip {
+    flex: unset;
 }
 
 .dnd-roll-group-label {
@@ -1700,10 +1730,22 @@
     flex: 1;
 }
 
-/* Enemy container: 3-column grid stretching to fill height */
+/* Ally container: 2-column grid so up to 8 fits legibly */
+#dnd-roll-ally-groups {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    grid-auto-rows: 1fr;
+    align-items: stretch;
+    justify-items: stretch;
+}
+#dnd-roll-ally-groups .dnd-roll-chip {
+    flex: unset;
+}
+
+/* Enemy container: 4-column grid so up to 16 fits */
 #dnd-roll-enemy-groups {
     display: grid;
-    grid-template-columns: repeat(3, auto);
+    grid-template-columns: repeat(4, auto);
     grid-auto-rows: 1fr;
     align-items: stretch;
     justify-items: stretch;
@@ -1717,20 +1759,13 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.15em;
-    padding: 0.1em 0.25em;
+    gap: 0.1em;
+    padding: 0.08em 0.2em;
     border-radius: 0.2em;
-    font-size: 0.8em;
+    font-size: 0.76em;
     line-height: 1.2;
     min-height: 0;
     overflow: hidden;
-}
-.dnd-roll-chip-label {
-    font-size: 0.65em;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.35);
-    letter-spacing: 0.03em;
 }
 .dnd-roll-chip-val {
     font-weight: 700;
@@ -1759,18 +1794,6 @@
 .dnd-roll-chip-enemy .dnd-roll-chip-val {
     color: #e57373;
 }
-
-.dnd-clear-roll-btn {
-    background: none;
-    border: none;
-    color: rgba(255,255,255,0.3);
-    cursor: pointer;
-    font-size: 0.7em;
-    padding: 2px;
-    flex-shrink: 0;
-    align-self: center;
-}
-.dnd-clear-roll-btn:hover { color: #f44336; }
 
 /* ─── Modifier toggles ───────────────────────────────── */
 

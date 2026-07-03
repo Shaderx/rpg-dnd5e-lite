@@ -59,9 +59,9 @@ function rollCombatDamageDice() {
 export function rollD20() {
     if (extensionSettings.lastDiceRoll) return null;
 
-    const playerCount = Math.max(1, extensionSettings.playerCount ?? 1);
-    const allyCount = Math.max(0, extensionSettings.allyCount ?? 1);
-    const enemyCount = Math.max(0, extensionSettings.enemyCount ?? 1);
+    const playerCount = Math.min(4, Math.max(1, extensionSettings.playerCount ?? 1));
+    const allyCount = Math.min(8, Math.max(0, extensionSettings.allyCount ?? 1));
+    const enemyCount = Math.min(16, Math.max(0, extensionSettings.enemyCount ?? 1));
     const userRolls = [];
     for (let i = 0; i < playerCount; i++) {
         userRolls.push({ roll1: secureRoll(20), roll2: secureRoll(20) });
@@ -132,7 +132,6 @@ export function updateDiceDisplay() {
             const u = users[i];
             const label = users.length === 1 ? 'You' : `U${i + 1}`;
             userHtml += `<div class="dnd-roll-chip dnd-roll-chip-user" title="${label}: d20 ${u.roll1} / ${u.roll2}">`
-                + `<span class="dnd-roll-chip-label">${label}</span>`
                 + `<span class="dnd-roll-chip-val">${u.roll1}</span>`
                 + `<span class="dnd-roll-chip-sep">/</span>`
                 + `<span class="dnd-roll-chip-val">${u.roll2}</span>`
@@ -148,7 +147,6 @@ export function updateDiceDisplay() {
             const label = allies.length === 1 ? 'Ally' : `A${i + 1}`;
             const diceTip = a.dmg ? `\nDice: ${formatDiceSetTooltip(a.dmg)}` : '';
             allyHtml += `<div class="dnd-roll-chip dnd-roll-chip-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${diceTip}">`
-                + `<span class="dnd-roll-chip-label">${label}</span>`
                 + `<span class="dnd-roll-chip-val">${a.roll1}</span>`
                 + `<span class="dnd-roll-chip-sep">/</span>`
                 + `<span class="dnd-roll-chip-val">${a.roll2}</span>`
@@ -164,7 +162,6 @@ export function updateDiceDisplay() {
             const label = enemies.length === 1 ? 'Foe' : `F${i + 1}`;
             const diceTip = e.dmg ? `\nDice: ${formatDiceSetTooltip(e.dmg)}` : '';
             enemyHtml += `<div class="dnd-roll-chip dnd-roll-chip-enemy" title="${label}: d20 ${e.roll1} / ${e.roll2}${diceTip}">`
-                + `<span class="dnd-roll-chip-label">${label}</span>`
                 + `<span class="dnd-roll-chip-val">${e.roll1}</span>`
                 + `<span class="dnd-roll-chip-sep">/</span>`
                 + `<span class="dnd-roll-chip-val">${e.roll2}</span>`
@@ -189,7 +186,7 @@ export function updateDiceDisplay() {
 }
 
 export function updatePlayerCountLabel() {
-    const count = Math.max(1, extensionSettings.playerCount ?? 1);
+    const count = Math.min(4, Math.max(1, extensionSettings.playerCount ?? 1));
     $('#dnd-player-count-val').text(count);
 }
 
@@ -197,12 +194,12 @@ export function updatePlayerCountLabel() {
  * Update the ally count label text to reflect current setting.
  */
 export function updateAllyCountLabel() {
-    const count = extensionSettings.allyCount ?? 1;
+    const count = Math.min(8, Math.max(0, extensionSettings.allyCount ?? 1));
     $('#dnd-ally-count-val').text(count);
 }
 
 export function updateEnemyCountLabel() {
-    const count = extensionSettings.enemyCount ?? 1;
+    const count = Math.min(16, Math.max(0, extensionSettings.enemyCount ?? 1));
     $('#dnd-enemy-count-val').text(count);
 }
 
