@@ -174,7 +174,7 @@ export function parseCastLevelFromTokens(detailTokens) {
 /**
  * Extract spell casts from a user message.
  * Finds any [...] brackets. Format: [SpellName, Level, ...extras]
- * @returns {{ spell: string, details: string, castLevel: number|null, conc: boolean, extras: string, action: string }[]}
+ * @returns {{ spell: string, details: string, castLevel: number|null, conc: boolean, chosenElement: string|null, extras: string, action: string }[]}
  */
 export function extractSpellCasts(text) {
     if (!text) return [];

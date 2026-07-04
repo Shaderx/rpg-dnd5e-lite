@@ -1489,6 +1489,136 @@ function buildFeatureSummary(sidekick, level, ctx) {
     return feats;
 }
 
+function normalizeCombatLabel(name, fallback) {
+    const clean = (typeof name === 'string' ? name : '').trim();
+    return clean || fallback;
+}
+
+function shortenCombatTraitText(text, maxLen = 180) {
+    if (!text) return '';
+    const clean = strip5eMarkup(String(text)).replace(/\s+/g, ' ').trim();
+    if (!clean) return '';
+    const sentence = clean.split(/(?<=[.!?])\s+/)[0] || clean;
+    if (sentence.length <= maxLen) return sentence;
+    return `${sentence.slice(0, maxLen - 3).trimEnd()}...`;
+}
+
+function buildTraitCombatNote(traitName, traitText, sidekickName, playerLabel) {
+    const key = (traitName || '').toLowerCase();
+    if (!key) return null;
+
+    if (key.includes('pack tactics')) {
+        return `Pack Tactics: ${sidekickName} has advantage on attacks when ${playerLabel} or another ally is within 5ft of the target and not incapacitated.`;
+    }
+    if (key.includes('sunlight sensitivity')) {
+        return 'Sunlight Sensitivity: In sunlight, attack rolls and sight-based Perception checks are made with disadvantage.';
+    }
+    if (key.includes("dragon's resistance") || key.includes('dragons resistance')) {
+        const specificType = traitText?.match(/resistance to ([a-z]+) damage/i)?.[1]?.toLowerCase();
+        const knownTypes = new Set(['acid', 'cold', 'fire', 'lightning', 'poison', 'necrotic', 'radiant', 'thunder', 'force', 'psychic', 'bludgeoning', 'piercing', 'slashing']);
+        if (specificType && knownTypes.has(specificType)) {
+            return `Dragon's Resistance: ${sidekickName} has resistance to ${specificType} damage.`;
+        }
+        return "Dragon's Resistance: Has resistance to one dragon-linked damage type; confirm the active type when resolving damage.";
+    }
+    if (key.includes('heart of the dragon')) {
+        return "Heart of the Dragon: If frightened or paralyzed, repeat the save at the start of turn; success also helps nearby kobolds and grants advantage on the next attack.";
+    }
+    if (key.includes('aggressive')) {
+        return 'Aggressive: Can use a bonus action to move up to speed toward a visible enemy.';
+    }
+    if (key.includes('relentless')) {
+        return 'Relentless: Once per rest, can drop to 1 HP instead of 0 HP when reduced by damage and not killed outright.';
+    }
+    return null;
+}
+
+export function buildSidekickCombatNotes(sidekick, level, stats, playerName) {
+    if (!sidekick || !stats) return [];
+
+    const notes = [];
+    const seen = new Set();
+    const sidekickName = normalizeCombatLabel(sidekick.name, 'This sidekick');
+    const playerLabel = normalizeCombatLabel(playerName, 'the player');
+    const maxNotes = 12;
+
+    const pushNote = (note) => {
+        if (!note || notes.length >= maxNotes) return;
+        const cleaned = String(note).replace(/\s+/g, ' ').trim();
+        if (!cleaned) return;
+        const key = cleaned.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        notes.push(cleaned);
+    };
+
+    if (sidekick.type === 'warrior') {
+        if (sidekick.subtype === 'defender') {
+            pushNote(`Defender Reaction: If a creature within 5ft attacks ${playerLabel} or another ally, use reaction to impose disadvantage on that attack (must see attacker).`);
+        }
+        if (sidekick.subtype === 'attacker') {
+            pushNote('Martial Role (Attacker): +2 attack bonus is already included in listed attack modifiers.');
+        }
+        if (level >= 2) {
+            const uses = level >= 20 ? 2 : 1;
+            pushNote(`Second Wind: Bonus action self-heal for 1d10+${level} HP (${uses}/SR).`);
+        }
+        if (level >= 3) pushNote('Improved Critical: Weapon attacks crit on 19-20.');
+        if ((stats.extraAttack || 0) >= 2) pushNote(`Extra Attack: Makes ${stats.extraAttack} attacks whenever taking the Attack action.`);
+        if (level >= 7) pushNote('Battle Readiness: Advantage on initiative rolls.');
+    } else if (sidekick.type === 'expert') {
+        pushNote('Helpful: Can use the Help action as a bonus action.');
+        if (level >= 6) {
+            pushNote(`Coordinated Strike: When ${sidekickName} uses Help, the assisted creature adds 2d6 damage to its next successful attack before ${sidekickName}'s next turn.`);
+        }
+        if (level >= 7) pushNote('Evasion: On Dex saves for half damage, success takes no damage and failure takes half.');
+        if (level >= 9) pushNote('Inspiring Help: The creature that receives Help also gains 1d6 temporary HP.');
+        if (level >= 14) pushNote('Cunning Action: Bonus action Dash, Disengage, or Hide each turn.');
+    } else if (sidekick.type === 'spellcaster') {
+        if (sidekick.subtype === 'healer') {
+            const known = new Set((sidekick.knownSpells || []).map(s => String(s).toLowerCase()));
+            if (known.has('healing spirit') || known.has('lesser restoration')) {
+                pushNote(`Healer Tactics: Prioritize supporting ${playerLabel}; use Healing Spirit for sustained healing and Lesser Restoration for conditions.`);
+            } else {
+                pushNote(`Healer Tactics: Prioritize keeping ${playerLabel} and other allies alive with healing and condition-cleansing spells.`);
+            }
+        }
+        if (level >= 6) {
+            const potent = Number.isFinite(stats.potentCantripMod) ? stats.potentCantripMod : 0;
+            const potentStr = potent >= 0 ? `+${potent}` : `${potent}`;
+            pushNote(`Potent Cantrips: Add ${potentStr} damage to cantrip damage rolls.`);
+        }
+        if (level >= 14 && stats.empoweredSchool) {
+            const school = SPELL_SCHOOLS[stats.empoweredSchool] || stats.empoweredSchool;
+            const mod = Number.isFinite(stats.empoweredMod) ? stats.empoweredMod : 0;
+            const modStr = mod >= 0 ? `+${mod}` : `${mod}`;
+            pushNote(`Empowered Spells (${school}): Add ${modStr} to one damage or healing roll when casting a slot spell of that school.`);
+        }
+        if (level >= 18) pushNote('Focused Casting: Advantage on Constitution saves to maintain concentration.');
+    }
+
+    const tacticalTraitRegex = /(advantage|disadvantage|reaction|ally|within\s+\d+\s*(?:ft|feet)|saving throw|save)/i;
+    const enabledTraits = (sidekick.creatureTraits || []).filter(t => t?.enabled);
+    for (const trait of enabledTraits) {
+        const traitName = normalizeCombatLabel(trait?.name, 'Trait');
+        const traitText = typeof trait?.text === 'string' ? trait.text : '';
+        const mapped = buildTraitCombatNote(traitName, traitText, sidekickName, playerLabel);
+        if (mapped) {
+            pushNote(mapped);
+            continue;
+        }
+        if (tacticalTraitRegex.test(traitText)) {
+            const compact = shortenCombatTraitText(traitText);
+            if (compact) pushNote(`${traitName}: ${compact}`);
+        }
+    }
+
+    const featNotes = stats.featEffects?.promptNotes || [];
+    for (const featNote of featNotes) pushNote(featNote);
+
+    return notes;
+}
+
 // ─── Max Spell Level ────────────────────────────────────────
 
 export function getMaxSpellLevel(sidekickLevel) {

@@ -6,7 +6,7 @@
 import { extension_prompt_types, extension_prompt_roles, setExtensionPrompt } from '../../../../../../script.js';
 import { extensionSettings, spellTrackerDisabled, setLastNonCombatRoll } from '../core/state.js';
 import { saveSettings } from '../core/persistence.js';
-import { buildQuestSection, buildInventorySection, buildCombatDiceSection, buildNonCombatDiceSection, buildSpellLogSection, buildActiveEffectsSection, buildActiveSpellsSection, buildSidekickSection, buildRandomEventSection } from './promptBuilder.js';
+import { buildQuestSection, buildInventorySection, buildCombatDiceSection, buildCombatTacticsSection, buildNonCombatDiceSection, buildSpellLogSection, buildActiveEffectsSection, buildActiveSpellsSection, buildSidekickSection, buildRandomEventSection } from './promptBuilder.js';
 import { refreshHeaderFromChat } from '../features/headerParser.js';
 import { refreshSpellLog } from '../features/spellTracker.js';
 import { rollRandomEvent, getLastEventRoll } from '../features/randomEvents.js';
@@ -91,8 +91,10 @@ function buildConsolidatedPrompt(options) {
     const activeSpellsSection = buildActiveSpellsSection();
     if (activeSpellsSection) sections.push(activeSpellsSection);
 
-    // 7. Dice (combat always shown if active; otherwise non-combat)
+    // 7. Combat tactics + Dice (combat-only tactics shown when combat dice are active)
     if (combatDice) {
+        const combatTacticsSection = buildCombatTacticsSection();
+        if (combatTacticsSection) sections.push(combatTacticsSection);
         sections.push(combatDice);
     } else if (nonCombatDice) {
         sections.push(nonCombatDice);

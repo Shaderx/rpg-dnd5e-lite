@@ -9,7 +9,7 @@ import { RARITY_LABELS, normalizeRarity } from '../features/inventoryRarity.js';
 import { formatLevel, schoolName } from '../features/spellbook.js';
 import { extractSpellCasts, actionLabels } from '../features/spellTracker.js';
 import { MODIFIER_DEFS } from '../features/modifiers.js';
-import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, lookupFeatByName, strip5eMarkup, lookupSpellByName, getSidekickAttunedCount, SIDEKICK_MAX_ATTUNEMENT, lookupItemByName } from '../features/sidekick.js';
+import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, buildSidekickCombatNotes, lookupFeatByName, strip5eMarkup, lookupSpellByName, getSidekickAttunedCount, SIDEKICK_MAX_ATTUNEMENT, lookupItemByName } from '../features/sidekick.js';
 import { getSpellDamageInfo as getV1SpellDamageInfo, lookupSpellSync, ordinal } from '../v1/features/spells.js';
 import {
     getActiveEffectsList,
@@ -486,7 +486,8 @@ export function buildActiveSpellsSection() {
                 lines.push(`  Notes: ${cast.extras}`);
             }
 
-            const statsBlock = buildPrecalculatedStats(spell, characterLevel, cast.castLevel, charSpellBonuses, cast.chosenElement);
+            const chosenElement = 'chosenElement' in cast ? cast.chosenElement : null;
+            const statsBlock = buildPrecalculatedStats(spell, characterLevel, cast.castLevel, charSpellBonuses, chosenElement);
             if (statsBlock) lines.push(statsBlock);
 
             lines.push(`  Time: ${fmtTime(spell.time)} | Range: ${fmtRange(spell.range)} | Duration: ${fmtDuration(spell.duration)}`);
@@ -741,8 +742,10 @@ export function buildSidekickSection() {
         }
 
         if (stats.features?.length > 0) {
-            lines.push('Class Features:');
-            for (const f of stats.features) lines.push(`  ${f.name}: ${f.text}`);
+            const featureNames = stats.features.map(f => f.name).filter(Boolean);
+            if (featureNames.length > 0) {
+                lines.push(`Class Features: ${featureNames.join(', ')}`);
+            }
         }
 
         if (stats.chosenFeats?.length > 0) {
@@ -782,10 +785,6 @@ export function buildSidekickSection() {
                 const all = [...bCantrips, ...bSpells];
                 if (all.length > 0) lines.push(`Bonus Spells: ${all.join(', ')}`);
             }
-            if (fe.promptNotes?.length > 0) {
-                lines.push('Feat Notes:');
-                for (const note of fe.promptNotes) lines.push(`  - ${note}`);
-            }
         }
 
         if (sk.hireGoldPerDay > 0 || sk.hireDate || sk.hirePayMode === 'free' || sk.hirePayMode === 'quest') {
@@ -819,6 +818,45 @@ export function buildSidekickSection() {
     }
 
     lines.push('</sidekicks>');
+    return lines.join('\n');
+}
+
+/**
+ * Build the <combat_tactics> section for sidekicks.
+ * Included only when combat dice are active.
+ */
+export function buildCombatTacticsSection() {
+    if (!sidekicks || sidekicks.length === 0) return '';
+    const enabled = sidekicks.filter(sk => sk.enabled);
+    if (enabled.length === 0) return '';
+
+    const level = getSidekickLevel();
+    const playerName = getContext().name1 || 'User';
+    const lines = [
+        '<combat_tactics>',
+        '[Party combat capabilities -- apply these during combat resolution]',
+    ];
+    let hasAnyNotes = false;
+
+    for (const sk of enabled) {
+        const stats = computeSidekickStats(sk, level);
+        const notes = buildSidekickCombatNotes(sk, level, stats, playerName);
+        if (notes.length === 0) continue;
+
+        const typeInfo = SIDEKICK_TYPES[sk.type];
+        const subInfo = typeInfo?.subtypes?.find(s => s.key === sk.subtype);
+        const typeLabel = typeInfo?.label || sk.type;
+        const subLabel = subInfo ? `/${subInfo.label}` : '';
+        const name = sk.name || 'Unnamed sidekick';
+
+        lines.push('');
+        lines.push(`${name} (${typeLabel}${subLabel}):`);
+        for (const note of notes) lines.push(`  - ${note}`);
+        hasAnyNotes = true;
+    }
+
+    if (!hasAnyNotes) return '';
+    lines.push('</combat_tactics>');
     return lines.join('\n');
 }
 
