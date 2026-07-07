@@ -544,7 +544,6 @@
 }
 .dnd-panel-noncombat-tag {
     font-size: 0.7rem;
-    padding: 2px 3px;
     border-radius: 3px;
 }
 .dnd-strip-noncombat-tag:hover,
@@ -564,7 +563,7 @@
 .dnd-noncombat-npc {
     display: inline-flex;
     align-items: center;
-    gap: 0.14em;
+    gap: 0.05em;
 }
 .dnd-noncombat-role {
     font-size: 0.58em;
@@ -593,7 +592,7 @@
     padding: 0 0.04em;
 }
 .dnd-noncombat-divider {
-    font-size: 0.6em;
+    font-size: 0em;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.14);
     padding: 0 0.06em;
@@ -606,7 +605,7 @@
     opacity: 0.5;
     color: #999;
     cursor: pointer;
-    padding: 2px 6px;
+    padding: 2px 2px;
     border-radius: 3px;
     transition: opacity 0.2s, background 0.2s, color 0.2s;
     white-space: nowrap;
