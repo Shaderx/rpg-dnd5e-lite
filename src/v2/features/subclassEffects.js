@@ -111,6 +111,10 @@ register('barbarian', 'Ancestral Protectors', 3, {
 }, { subclass: 'Ancestral Guardian' });
 
 register('barbarian', 'Spirit Shield', 6, {
+    statTag: (stats) => {
+        const dice = stats.level >= 14 ? '4d6' : stats.level >= 10 ? '3d6' : '2d6';
+        return `rxn -${dice} dmg`;
+    },
     promptNote: (stats) => {
         const dice = stats.level >= 14 ? '4d6' : stats.level >= 10 ? '3d6' : '2d6';
         return `Spirit Shield: Reaction reduce damage to ally within 30ft by ${dice}`;
@@ -157,6 +161,7 @@ register('bard', 'Dazzling Footwork', 3, {
         requiresNoArmor: true,
         allowsShield: false,
     }),
+    statTag: () => 'AC=10+DEX+CHA,+10ft',
     promptNote: () => 'Dazzling Footwork: AC = 10 + DEX + CHA (no armor/shield); speed +10ft; no OA from targets you attacked',
     speedBonus: () => 10,
 }, { subclass: 'Dance' });

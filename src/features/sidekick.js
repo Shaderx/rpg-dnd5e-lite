@@ -1566,13 +1566,21 @@ export function buildSidekickCombatNotes(sidekick, level, stats, playerName) {
         if (level >= 3) pushNote('Improved Critical: Weapon attacks crit on 19-20.');
         if ((stats.extraAttack || 0) >= 2) pushNote(`Extra Attack: Makes ${stats.extraAttack} attacks whenever taking the Attack action.`);
         if (level >= 7) pushNote('Battle Readiness: Advantage on initiative rolls.');
+        if (level >= 11) {
+            const uses = level >= 18 ? 2 : 1;
+            pushNote(`Indomitable: Reroll a failed saving throw (${uses}/LR).`);
+        }
     } else if (sidekick.type === 'expert') {
         pushNote('Helpful: Can use the Help action as a bonus action.');
         if (level >= 6) {
             pushNote(`Coordinated Strike: When ${sidekickName} uses Help, the assisted creature adds 2d6 damage to its next successful attack before ${sidekickName}'s next turn.`);
         }
         if (level >= 7) pushNote('Evasion: On Dex saves for half damage, success takes no damage and failure takes half.');
-        if (level >= 9) pushNote('Inspiring Help: The creature that receives Help also gains 1d6 temporary HP.');
+        if (level >= 9) {
+            const tempHpDice = level >= 20 ? '2d6' : '1d6';
+            pushNote(`Inspiring Help: The creature that receives Help also gains ${tempHpDice} temporary HP.`);
+        }
+        if (level >= 11) pushNote('Reliable Talent: Proficient ability checks treat d20 rolls of 9 or lower as 10 (important for grapple/shove contests).');
         if (level >= 14) pushNote('Cunning Action: Bonus action Dash, Disengage, or Hide each turn.');
     } else if (sidekick.type === 'spellcaster') {
         if (sidekick.subtype === 'healer') {

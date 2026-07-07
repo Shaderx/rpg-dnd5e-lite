@@ -14,6 +14,7 @@
  *   hpBonus(level, stats)         -> number
  *   speedBonus(level, stats)      -> number
  *   promptNote(stats)             -> string
+ *   statTag(stats)                -> string
  *   overrideWeaponAbility(stats)  -> string (ability key)
  */
 
@@ -47,10 +48,15 @@ register('barbarian', 'Unarmored Defense', 1, {
         requiresNoArmor: true,
         allowsShield: true,
     }),
+    statTag: () => 'AC=10+DEX+CON',
     promptNote: (stats) => `Unarmored Defense: AC = ${10 + (stats.mods.dex || 0) + (stats.mods.con || 0)} (10+DEX+CON) without armor; can use shield`,
 });
 
 register('barbarian', 'Rage', 1, {
+    statTag: (stats) => {
+        const dmg = RAGE_DAMAGE[stats.level - 1] || 2;
+        return `+${dmg} melee STR`;
+    },
     promptNote: (stats) => {
         const dmg = RAGE_DAMAGE[stats.level - 1] || 2;
         return `Rage: +${dmg} melee STR damage; resistance to bludgeoning/piercing/slashing; advantage on STR checks/saves; no spells/concentration`;
@@ -82,6 +88,7 @@ register('barbarian', 'Extra Attack', 5, {
 
 register('barbarian', 'Fast Movement', 5, {
     speedBonus: (level) => level >= 5 ? 10 : 0,
+    statTag: () => '+10ft spd',
     promptNote: () => 'Fast Movement: +10ft speed when not wearing heavy armor',
 });
 
@@ -326,6 +333,10 @@ register('fighter', 'Tactical Mind', 2, {
 });
 
 register('fighter', 'Extra Attack', 5, {
+    statTag: (stats) => {
+        const n = getExtraAttacks('fighter', stats.level);
+        return n > 2 ? `${n} atks` : null;
+    },
     promptNote: (stats) => {
         const n = getExtraAttacks('fighter', stats.level);
         return n > 1 ? `Extra Attack: ${n} attacks per Attack action` : null;
@@ -393,10 +404,15 @@ register('monk', 'Unarmored Defense', 1, {
         requiresNoArmor: true,
         allowsShield: false,
     }),
+    statTag: () => 'AC=10+DEX+WIS',
     promptNote: (stats) => `Unarmored Defense: AC = ${10 + (stats.mods.dex || 0) + (stats.mods.wis || 0)} (10+DEX+WIS) without armor; no shield`,
 });
 
 register('monk', 'Martial Arts', 1, {
+    statTag: (stats) => {
+        const die = MARTIAL_ARTS_DIE[stats.level - 1] || 6;
+        return `d${die}`;
+    },
     promptNote: (stats) => {
         const die = MARTIAL_ARTS_DIE[stats.level - 1] || 6;
         return `Martial Arts: Unarmed/monk weapon uses d${die}; DEX for attack/damage; bonus action unarmed strike after Attack`;
@@ -997,6 +1013,7 @@ export function collectClassEffects(classKey, subclassName, level, chosenFeature
         weaponAttackBonus: [],
         weaponDamageBonus: [],
         promptNotes: [],
+        statTags: {},
         bonusSpells: [],
         overrideWeaponAbility: null,
         healingBonus: null,
@@ -1012,7 +1029,16 @@ export function collectClassEffects(classKey, subclassName, level, chosenFeature
         if (effect.weaponAttackBonus) result.weaponAttackBonus.push(effect.weaponAttackBonus);
         if (effect.weaponDamageBonus) result.weaponDamageBonus.push(effect.weaponDamageBonus);
         if (effect.promptNote) {
-            result.promptNotes.push({ name: effect.featureName, fn: effect.promptNote });
+            result.promptNotes.push({
+                name: effect.featureName,
+                fn: effect.promptNote,
+                minLevel: effect.minLevel,
+                featureSource: effect._subclass ? 'subclass' : 'class',
+                statTag: effect.statTag || null,
+            });
+        }
+        if (effect.statTag && effect.featureName) {
+            result.statTags[effect.featureName.toLowerCase()] = effect.statTag;
         }
         if (effect.bonusSpells) {
             const spells = typeof effect.bonusSpells === 'function' ? effect.bonusSpells() : effect.bonusSpells;

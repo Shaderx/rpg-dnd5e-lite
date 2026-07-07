@@ -483,24 +483,56 @@ export function computeV2CharacterStats(char) {
     const classFeatures = getResolvedClassFeaturesSync(
         char.classFile, char.className, char.classSource, char.subclassName, level,
     );
-    const cdnFeatureNames = new Set(classFeatures.map(f => f.name.toLowerCase()));
 
     const compactNoteMap = new Map();
+    const registryFeatures = [];
     for (const entry of classEffects.promptNotes) {
-        if (entry.name) {
-            const note = entry.fn(statsCtx);
-            if (note) compactNoteMap.set(entry.name.toLowerCase(), note);
-        }
+        if (!entry.name) continue;
+        const note = entry.fn(statsCtx);
+        if (!note) continue;
+
+        const key = entry.name.toLowerCase();
+        compactNoteMap.set(key, note);
+
+        const statTagFn = classEffects.statTags?.[key] || entry.statTag;
+        const statTag = typeof statTagFn === 'function' ? statTagFn(statsCtx) : null;
+        registryFeatures.push({
+            name: entry.name,
+            level: entry.minLevel || 0,
+            featureSource: entry.featureSource || 'class',
+            compactNote: note,
+            statTag: statTag || null,
+        });
     }
 
-    const annotatedClassFeatures = classFeatures.map(f => ({
-        ...f,
-        compactNote: compactNoteMap.get(f.name.toLowerCase()) || null,
-    }));
+    const annotatedClassFeatures = [];
+    const seenClassFeatures = new Set();
+    const pushClassFeature = (feature) => {
+        const key = String(feature?.name || '').toLowerCase();
+        if (!key || seenClassFeatures.has(key)) return;
+        seenClassFeatures.add(key);
+        annotatedClassFeatures.push(feature);
+    };
+
+    for (const feat of classFeatures) {
+        const key = feat.name.toLowerCase();
+        const statTagFn = classEffects.statTags?.[key];
+        const statTag = typeof statTagFn === 'function' ? statTagFn(statsCtx) : null;
+        pushClassFeature({
+            ...feat,
+            compactNote: compactNoteMap.get(key) || null,
+            statTag: statTag || null,
+        });
+    }
+
+    for (const feat of registryFeatures) {
+        pushClassFeature(feat);
+    }
+
+    annotatedClassFeatures.sort((a, b) => (a.level || 0) - (b.level || 0) || (a.name || '').localeCompare(b.name || ''));
 
     const combatNotes = [];
     for (const entry of classEffects.promptNotes) {
-        if (entry.name && cdnFeatureNames.has(entry.name.toLowerCase())) continue;
         const note = entry.fn(statsCtx);
         if (note) combatNotes.push(note);
     }

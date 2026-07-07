@@ -10,13 +10,15 @@ import { computeFreeCastUsage, formatFreeCastPromptTag } from '../features/freeC
 import { ABILITY_KEYS, ABILITY_LABELS } from '../core/constants.js';
 import { v2Companions } from '../core/state.js';
 import { extensionSettings, spellLog } from '../../core/state.js';
+import { compressCombatNote } from '../../generation/compress.js';
 
 /**
  * Build the V2 <character> section for the consolidated game state injection.
  * Excludes equipment (armor/weapons/shield) since it's in the inventory section.
  * @returns {string} Formatted section with XML tags, or '' if no character / disabled
  */
-export function buildV2CharacterSection() {
+export function buildV2CharacterSection(options = {}) {
+    const { isCombat = false } = options;
     if (!characterV2 || !characterV2.enabled) return '';
 
     const stats = computeV2CharacterStats(characterV2);
@@ -80,26 +82,23 @@ export function buildV2CharacterSection() {
 
     // Equipment is deliberately excluded — it's in the <inventory> section with type tags
 
-    if (stats.combatNotes?.length > 0) {
+    if (isCombat && stats.combatNotes?.length > 0) {
         lines.push('Combat Notes:');
         for (const note of stats.combatNotes) {
-            lines.push(`  - ${note}`);
+            lines.push(`  - ${compressCombatNote(note)}`);
         }
     }
 
     if (stats.classFeatures?.length > 0) {
-        lines.push('Class Features:');
-        for (const feat of stats.classFeatures) {
-            const prefix = feat.featureSource === 'subclass' ? '[SC] ' : '';
-            if (feat.compactNote) {
-                lines.push(`  Lv${feat.level}: ${prefix}${feat.compactNote}`);
-            } else {
-                const desc = feat.description || '';
-                const truncated = desc.length > 150
-                    ? desc.substring(0, 147) + '...'
-                    : desc;
-                lines.push(`  Lv${feat.level}: ${prefix}${feat.name}${truncated ? `: ${truncated}` : ''}`);
-            }
+        const classFeatureParts = stats.classFeatures
+            .filter(feat => feat?.name)
+            .map(feat => {
+                const prefix = feat.featureSource === 'subclass' ? '[SC] ' : '';
+                const tag = feat.statTag ? ` (${feat.statTag})` : '';
+                return `${prefix}${feat.name}${tag}`;
+            });
+        if (classFeatureParts.length > 0) {
+            lines.push(`Class Features: ${classFeatureParts.join(', ')}`);
         }
     }
 

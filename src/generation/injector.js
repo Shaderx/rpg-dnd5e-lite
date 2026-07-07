@@ -41,10 +41,11 @@ export function clearExtensionPrompts() {
 function buildConsolidatedPrompt(options) {
     const { combatDice, nonCombatDice, randomEvent, randomEventRole } = options;
     const sections = [];
+    const isCombat = !!combatDice;
 
     // 1. Character (V1 or V2 system)
     if (extensionSettings.mode === 'v2') {
-        const charSection = buildV2CharacterSection();
+        const charSection = buildV2CharacterSection({ isCombat });
         if (charSection) sections.push(charSection);
     } else if (extensionSettings.v1Enabled) {
         const charSection = buildCharacterSection();

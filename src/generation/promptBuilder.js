@@ -10,6 +10,7 @@ import { formatLevel, schoolName } from '../features/spellbook.js';
 import { extractSpellCasts, actionLabels } from '../features/spellTracker.js';
 import { MODIFIER_DEFS } from '../features/modifiers.js';
 import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, buildSidekickCombatNotes, lookupFeatByName, strip5eMarkup, lookupSpellByName, getSidekickAttunedCount, SIDEKICK_MAX_ATTUNEMENT, lookupItemByName } from '../features/sidekick.js';
+import { compressCombatNote } from './compress.js';
 import { getSpellDamageInfo as getV1SpellDamageInfo, lookupSpellSync, ordinal } from '../v1/features/spells.js';
 import {
     getActiveEffectsList,
@@ -862,7 +863,7 @@ export function buildCombatTacticsSection() {
 
         lines.push('');
         lines.push(`${name} (${typeLabel}${subLabel}):`);
-        for (const note of notes) lines.push(`  - ${note}`);
+        for (const note of notes) lines.push(`  - ${compressCombatNote(note)}`);
         hasAnyNotes = true;
     }
 
