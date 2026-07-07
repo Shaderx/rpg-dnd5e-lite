@@ -5,7 +5,7 @@
 
 import { getContext } from '../../../../../extensions.js';
 import { saveSettingsDebounced, chat_metadata, saveChatDebounced } from '../../../../../../script.js';
-import { extensionName, extensionSettings, defaultAttributeSchema, buildDefaultAttributes, setChatAttributes, setChatAttributeSchema, setQuests, setInventory, setSpellLog, setSpellTrackerDisabled, setSendAttributesOnRoll, setSpellInjectEnabled, setAutoLongRestEnabled, setSpellbook, setCharacter, setSidekicks, eventCooldown, lastEventRoll, eventLog, setEventCooldown, setLastEventRoll, setEventLog, setAutoBackgrounds } from './state.js';
+import { extensionName, extensionSettings, defaultAttributeSchema, buildDefaultAttributes, setChatAttributes, setChatAttributeSchema, setQuests, setInventory, setSpellLog, setSpellTrackerDisabled, setSendAttributesOnRoll, setSpellInjectEnabled, setSidekickSlotsEnabled, setAutoLongRestEnabled, setSpellbook, setCharacter, setSidekicks, eventCooldown, lastEventRoll, eventLog, setEventCooldown, setLastEventRoll, setEventLog, setAutoBackgrounds } from './state.js';
 import { migrateInventoryRarity, INVENTORY_RARITY_VERSION, normalizeRarity } from '../features/inventoryRarity.js';
 
 /**
@@ -235,6 +235,27 @@ export function saveSpellInjectEnabled(enabled) {
 export function loadSpellInjectEnabled() {
     const val = chat_metadata?.dnd5e_spellInjectEnabled;
     setSpellInjectEnabled(!!val);
+}
+
+/**
+ * Save the per-chat "sidekick spell slots injected" flag.
+ * When enabled, sidekick stat blocks include slot info and the prompt
+ * reminds the LLM to track them. When disabled, no slots are injected
+ * and casting is treated as at-will.
+ */
+export function saveSidekickSlotsEnabled(enabled) {
+    if (!chat_metadata) return;
+    chat_metadata.dnd5e_sidekickSlotsEnabled = enabled !== false;
+    saveChatDebounced();
+}
+
+/**
+ * Load the per-chat "sidekick spell slots injected" flag into runtime state.
+ */
+export function loadSidekickSlotsEnabled() {
+    const val = chat_metadata?.dnd5e_sidekickSlotsEnabled;
+    // Default to true for backwards compatibility (existing chats).
+    setSidekickSlotsEnabled(val !== false);
 }
 
 /**

@@ -133,6 +133,11 @@ export function setSendAttributesOnRoll(val) { sendAttributesOnRoll = val; }
 export let spellInjectEnabled = false;
 export function setSpellInjectEnabled(val) { spellInjectEnabled = val; }
 
+// Per-chat flag: when true, sidekick spell slots are injected into the prompt.
+// When false, no slot info is injected and casting is treated as at-will.
+export let sidekickSlotsEnabled = true;
+export function setSidekickSlotsEnabled(val) { sidekickSlotsEnabled = val; }
+
 // Per-chat flag: when true, date changes in assistant headers auto-insert long rest entries.
 export let autoLongRestEnabled = true;
 export function setAutoLongRestEnabled(val) { autoLongRestEnabled = val; }

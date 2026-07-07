@@ -4,7 +4,7 @@
  */
 
 import { getContext } from '../../../../../extensions.js';
-import { extensionSettings, chatAttributes, chatAttributeSchema, quests, inventory, spellLog, headerInfo, sendAttributesOnRoll, spellInjectEnabled, spellDataCache, sidekicks, lastNonCombatRoll } from '../core/state.js';
+import { extensionSettings, chatAttributes, chatAttributeSchema, quests, inventory, spellLog, headerInfo, sendAttributesOnRoll, spellInjectEnabled, spellDataCache, sidekicks, sidekickSlotsEnabled, lastNonCombatRoll } from '../core/state.js';
 import { RARITY_LABELS, normalizeRarity } from '../features/inventoryRarity.js';
 import { formatLevel, schoolName } from '../features/spellbook.js';
 import { extractSpellCasts, actionLabels } from '../features/spellTracker.js';
@@ -602,7 +602,14 @@ export function buildSidekickSection() {
     if (enabled.length === 0) return '';
 
     const level = getSidekickLevel();
-    const lines = ['<sidekicks>'];
+    const slotsInjected = !!sidekickSlotsEnabled;
+    const slotsInstruction = slotsInjected
+        ? '[D&D 5.5e ruleset. Sidekick spell slots are listed for reference. Track and consume sidekick spell slots normally when sidekicks cast spells; once depleted, no further spell casts until a long rest.]'
+        : '[D&D 5.5e ruleset. Do NOT track sidekick spell usage. Treat ALL sidekick spellcasting as at-will, cast freely, any number of times, no spell slots consumed. No slot information is provided for sidekicks.]';
+    const lines = [
+        '<sidekicks>',
+        slotsInstruction,
+    ];
 
     for (const sk of enabled) {
         const stats = computeSidekickStats(sk, level);
@@ -714,7 +721,11 @@ export function buildSidekickSection() {
         if (stats.spellcasting) {
             const sc = stats.spellcasting;
             lines.push(`Spellcasting (${sc.abilityLabel}): Attack +${sc.attackMod}, Save DC ${sc.saveDC}`);
-            lines.push(`  Slots: ${sc.slotsStr || 'none'}`);
+            if (!slotsInjected) {
+                lines.push('  Slots: at-will (not tracked)');
+            } else {
+                lines.push(`  Slots: ${sc.slotsStr || 'none'}`);
+            }
 
             const allKnown = [
                 ...(sk.knownCantrips || []).map(n => ({ name: n, lvl: 0 })),

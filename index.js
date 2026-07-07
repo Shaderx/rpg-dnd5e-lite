@@ -5,8 +5,8 @@
 
 import { getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { eventSource, event_types, saveSettingsDebounced } from '../../../../script.js';
-import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, autoLongRestEnabled, setAutoLongRestEnabled, character, sidekicks, headerInfo, lastEventRoll, lastNonCombatRoll, migrateSettingsToMode, syncModeFlags } from './src/core/state.js';
-import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled, saveSendAttributesOnRoll, loadSendAttributesOnRoll, saveSpellInjectEnabled, loadSpellInjectEnabled, saveAutoLongRest, loadAutoLongRest, loadSpellbook, loadCharacter, saveSidekicks, loadSidekicks, loadRandomEventState, saveRandomEventState, loadAutoBackgrounds } from './src/core/persistence.js';
+import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, sidekickSlotsEnabled, setSidekickSlotsEnabled, autoLongRestEnabled, setAutoLongRestEnabled, character, sidekicks, headerInfo, lastEventRoll, lastNonCombatRoll, migrateSettingsToMode, syncModeFlags } from './src/core/state.js';
+import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled, saveSendAttributesOnRoll, loadSendAttributesOnRoll, saveSpellInjectEnabled, loadSpellInjectEnabled, saveSidekickSlotsEnabled, loadSidekickSlotsEnabled, saveAutoLongRest, loadAutoLongRest, loadSpellbook, loadCharacter, saveSidekicks, loadSidekicks, loadRandomEventState, saveRandomEventState, loadAutoBackgrounds } from './src/core/persistence.js';
 import { importSpellbook, clearSpellbook, ensureSpellData } from './src/features/spellbook.js';
 import { renderSpellbook, hideSpellTooltip } from './src/rendering/spellbook.js';
 import { fetchClassIndex, fetchClassData, listClasses, getSubclasses, saveCharacterConfig, clearCharacter, ensureCharacterData } from './src/features/character.js';
@@ -36,7 +36,8 @@ import { openV1ConfigModal } from './src/v1/rendering/configModal.js';
 import { renderV1Spellbook, initV1Spellbook } from './src/v1/rendering/spellbook.js';
 import { preloadSpellData as preloadV1SpellData } from './src/v1/features/spells.js';
 import { preloadSpellData as preloadV2SpellData } from './src/v2/features/spells.js';
-import { fetchClassFile } from './src/v1/data/sources.js';
+import { fetchClassFile as fetchClassFileV1 } from './src/v1/data/sources.js';
+import { fetchClassFile as fetchClassFileV2 } from './src/v2/data/sources.js';
 import { renderV1CompanionPanel, initCompanionPanel } from './src/v1/rendering/companion.js';
 import { listCustomSpecies, createCustomSpecies, updateCustomSpecies, deleteCustomSpecies, blankCustomSpecies } from './src/v1/features/customSpecies.js';
 import { CREATURE_TYPES as V1_CREATURE_TYPES, DAMAGE_TYPES, ABILITY_KEYS as V1_ABILITY_KEYS, ABILITY_LABELS as V1_ABILITY_LABELS } from './src/v1/core/constants.js';
@@ -90,6 +91,7 @@ function togglePower() {
         loadSpellTrackerDisabled();
         loadSendAttributesOnRoll();
         loadSpellInjectEnabled();
+        loadSidekickSlotsEnabled();
         loadAutoLongRest();
         refreshHeaderFromChat();
         if (!spellTrackerDisabled) refreshSpellLog();
@@ -2344,6 +2346,7 @@ function onChatChanged() {
     loadSpellTrackerDisabled();
     loadSendAttributesOnRoll();
     loadSpellInjectEnabled();
+    loadSidekickSlotsEnabled();
     loadAutoLongRest();
     loadSpellLog();
     loadSpellbook();
@@ -2404,7 +2407,7 @@ function preloadV1Assets() {
         fetchFeats(),
         fetchEquipmentItems().then(() => fetchMagicItems()),
     ];
-    if (characterV1?.classFile) tasks.push(fetchClassFile(characterV1.classFile));
+    if (characterV1?.classFile) tasks.push(fetchClassFileV1(characterV1.classFile));
     return Promise.all(tasks).then(() => {
         renderV1Spellbook();
         renderV1CharacterPanel();
@@ -2418,7 +2421,7 @@ function preloadV2Assets() {
         fetchFeats(),
         fetchEquipmentItems().then(() => fetchMagicItems()),
     ];
-    if (characterV2?.classFile) tasks.push(fetchClassFile(characterV2.classFile));
+    if (characterV2?.classFile) tasks.push(fetchClassFileV2(characterV2.classFile));
     return Promise.all(tasks).then(() => {
         renderV2Spellbook();
         renderV2CharacterPanel();
@@ -3012,6 +3015,7 @@ async function initUI() {
     loadSpellTrackerDisabled();
     loadSendAttributesOnRoll();
     loadSpellInjectEnabled();
+    loadSidekickSlotsEnabled();
     loadAutoLongRest();
     loadSpellLog();
     loadAutoBackgrounds();
@@ -3694,6 +3698,7 @@ async function initUI() {
             $('#dnd-setting-send-attributes').prop('checked', sendAttributesOnRoll);
         }
         $('#dnd-setting-spell-inject').prop('checked', spellInjectEnabled);
+        $('#dnd-setting-sidekick-slots').prop('checked', sidekickSlotsEnabled);
         $('#dnd-setting-auto-long-rest').prop('checked', autoLongRestEnabled);
         $('#dnd-setting-noncombat-dice').prop('checked', extensionSettings.nonCombatDiceEnabled ?? false);
         $('#dnd-setting-random-events').prop('checked', extensionSettings.randomEventsEnabled ?? false);
@@ -3736,6 +3741,10 @@ async function initUI() {
     $('#dnd-setting-spell-inject').on('change', function () {
         setSpellInjectEnabled($(this).prop('checked'));
         saveSpellInjectEnabled(spellInjectEnabled);
+    });
+    $('#dnd-setting-sidekick-slots').on('change', function () {
+        setSidekickSlotsEnabled($(this).prop('checked'));
+        saveSidekickSlotsEnabled(sidekickSlotsEnabled);
     });
     $('#dnd-setting-auto-long-rest').on('change', function () {
         setAutoLongRestEnabled($(this).prop('checked'));
