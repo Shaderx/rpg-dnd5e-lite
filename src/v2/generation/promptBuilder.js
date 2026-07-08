@@ -183,7 +183,7 @@ add: add a new item to inventory:
 update: modify an existing item. Only include fields that are CHANGING — omit unchanged fields:
   {"tool":"inventory","action":"update","index":1,"quantity_change":-1}
   quantity_change: +/- relative change (e.g. -1 to consume one). Prefer over absolute quantity.
-  notes: static factual description of what the item is or does. Only set when the description itself needs rewriting. Never echo existing notes back. Never narrative or usage history.
+  notes: static factual description of what the item is or does. Only set when the description itself needs rewriting. Never narrative prose.
 
 equip: {"tool":"inventory","action":"equip","index":1}
 unequip: {"tool":"inventory","action":"unequip","index":1}

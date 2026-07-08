@@ -1931,6 +1931,11 @@
     padding-top: 0.3em;
     padding-bottom: 0.25em;
 }
+.dnd-add-quest-row.dnd-section-input-bar,
+.dnd-add-inventory-row.dnd-section-input-bar {
+    position: static;
+    z-index: auto;
+}
 .dnd-section-action-btn {
     background: none;
     border: none;

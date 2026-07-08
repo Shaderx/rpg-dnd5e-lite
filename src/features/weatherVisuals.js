@@ -357,12 +357,19 @@ const PARTICLE_CONFIGURATORS = {
         span.style.opacity = `${0.35 + Math.random() * 0.6}`;
     },
     wind(span) {
-        const w = 4 + Math.random() * 8;
+        // Increased width: now between 15px and 35px (was 4px to 12px)
+        const w = 15 + Math.random() * 20; 
         span.style.top = `${Math.random() * 100}%`;
         span.style.left = '0';
         span.style.width = `${w}px`;
-        span.style.height = `${1 + Math.random() * 2}px`;
-        span.style.animationDuration = `${2 + Math.random() * 3}s`;
+        
+        // Increased height: now between 2px and 5px (was 1px to 3px)
+        span.style.height = `${2 + Math.random() * 3}px`;
+        
+        // Increased duration to slow it down: now 4s to 10s (was 2s to 5s)
+        span.style.animationDuration = `${4 + Math.random() * 6}s`;
+        
+        // Left the delay and opacity the same, but you can tweak if needed
         span.style.animationDelay = `${Math.random() * -6}s`;
         span.style.opacity = `${0.2 + Math.random() * 0.5}`;
     },
