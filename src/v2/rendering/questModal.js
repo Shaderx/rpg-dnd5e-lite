@@ -273,6 +273,9 @@ export function openQuestEditModal(idx) {
     const deleteBtn = document.getElementById('dnd-v2-quest-edit-delete');
     if (deleteBtn) deleteBtn.style.display = isNew ? 'none' : '';
 
+    const saveBtn = document.getElementById('dnd-v2-quest-edit-save');
+    if (saveBtn) saveBtn.textContent = isNew ? 'Add' : 'Save';
+
     overlay.style.display = 'flex';
     bindEditModalEvents();
 }

@@ -7,12 +7,12 @@ import { getContext, renderExtensionTemplateAsync } from '../../../extensions.js
 import { eventSource, event_types, saveSettingsDebounced } from '../../../../script.js';
 import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, sidekickSlotsEnabled, setSidekickSlotsEnabled, autoLongRestEnabled, setAutoLongRestEnabled, character, sidekicks, headerInfo, lastEventRoll, lastNonCombatRoll, migrateSettingsToMode, syncModeFlags } from './src/core/state.js';
 import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled, saveSendAttributesOnRoll, loadSendAttributesOnRoll, saveSpellInjectEnabled, loadSpellInjectEnabled, saveSidekickSlotsEnabled, loadSidekickSlotsEnabled, saveAutoLongRest, loadAutoLongRest, loadSpellbook, loadCharacter, saveSidekicks, loadSidekicks, loadRandomEventState, saveRandomEventState, loadAutoBackgrounds } from './src/core/persistence.js';
-import { importSpellbook, clearSpellbook, ensureSpellData } from './src/features/spellbook.js';
+import { importSpellbook, clearSpellbook, ensureSpellData, clearSpellbookCache } from './src/features/spellbook.js';
 import { renderSpellbook, hideSpellTooltip } from './src/rendering/spellbook.js';
 import { fetchClassIndex, fetchClassData, listClasses, getSubclasses, saveCharacterConfig, clearCharacter, ensureCharacterData } from './src/features/character.js';
 import { renderCharacter } from './src/rendering/character.js';
 import { renderSidekickCards, renderSidekickDetail } from './src/rendering/sidekick.js';
-import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, CREATURE_TYPES, SPELL_SCHOOLS, SIDEKICK_MAX_ATTUNEMENT, getSidekickAttunedCount, fetchBestiaryIndex, fetchBestiarySource, preloadBestiarySources, getAvailableSourceKeys, getLoadedSourceKeys, searchCreatures, findCreatureVersions, getCreatureStats, fetchEquipmentItems, fetchMagicItems, isMagicWeaponsLoaded, extractCreatureActions, extractCreatureTraits, extractCreatureSkillProficiencies, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, preloadSpellData, getSpellsForClass, getAllLoadedSpells, spellSchoolLabel, searchEquipment, searchMagicItems, weaponFromItem, armorFromItem, shieldFromItem, computeEquippedAC, DND_LANGUAGES, parseCreatureLanguages, getSpellDamageInfo, fetchFeats, getLoadedFeats, parseFeatAbility, checkFeatPrereqs, lookupFeatByName, lookupItemByName } from './src/features/sidekick.js';
+import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, CREATURE_TYPES, SPELL_SCHOOLS, SIDEKICK_MAX_ATTUNEMENT, getSidekickAttunedCount, fetchBestiaryIndex, fetchBestiarySource, preloadBestiarySources, getAvailableSourceKeys, getLoadedSourceKeys, searchCreatures, findCreatureVersions, getCreatureStats, fetchEquipmentItems, fetchMagicItems, isMagicWeaponsLoaded, extractCreatureActions, extractCreatureTraits, extractCreatureSkillProficiencies, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, preloadSpellData, getSpellsForClass, getAllLoadedSpells, spellSchoolLabel, searchEquipment, searchMagicItems, weaponFromItem, armorFromItem, shieldFromItem, computeEquippedAC, DND_LANGUAGES, parseCreatureLanguages, getSpellDamageInfo, fetchFeats, getLoadedFeats, parseFeatAbility, checkFeatPrereqs, lookupFeatByName, lookupItemByName, clearSpellSourceMemory as clearSidekickSourceMemory } from './src/features/sidekick.js';
 import { getFeatUIDescriptor, DND_TOOLS } from './src/features/featEffects.js';
 import { bindTooltipEvents, hideTooltip, showEventTooltip } from './src/rendering/tooltip.js';
 import { onGenerationStarted, clearExtensionPrompts } from './src/generation/injector.js';
@@ -34,10 +34,11 @@ import { renderV1CharacterPanel } from './src/v1/rendering/character.js';
 import { renderV1DetailModal } from './src/v1/rendering/detail.js';
 import { openV1ConfigModal } from './src/v1/rendering/configModal.js';
 import { renderV1Spellbook, initV1Spellbook } from './src/v1/rendering/spellbook.js';
-import { preloadSpellData as preloadV1SpellData } from './src/v1/features/spells.js';
-import { preloadSpellData as preloadV2SpellData } from './src/v2/features/spells.js';
-import { fetchClassFile as fetchClassFileV1 } from './src/v1/data/sources.js';
-import { fetchClassFile as fetchClassFileV2 } from './src/v2/data/sources.js';
+import { preloadSpellData as preloadV1SpellData, clearSpellMemory as clearV1SpellMemory } from './src/v1/features/spells.js';
+import { preloadSpellData as preloadV2SpellData, clearSpellMemory as clearV2SpellMemory } from './src/v2/features/spells.js';
+import { fetchClassFile as fetchClassFileV1, clearSpellSourceMemory as clearV1SourceMemory } from './src/v1/data/sources.js';
+import { fetchClassFile as fetchClassFileV2, clearSpellSourceMemory as clearV2SourceMemory } from './src/v2/data/sources.js';
+import { clearSpellCache, getCacheInfo } from './src/core/spellCache.js';
 import { renderV1CompanionPanel, initCompanionPanel } from './src/v1/rendering/companion.js';
 import { listCustomSpecies, createCustomSpecies, updateCustomSpecies, deleteCustomSpecies, blankCustomSpecies } from './src/v1/features/customSpecies.js';
 import { CREATURE_TYPES as V1_CREATURE_TYPES, DAMAGE_TYPES, ABILITY_KEYS as V1_ABILITY_KEYS, ABILITY_LABELS as V1_ABILITY_LABELS } from './src/v1/core/constants.js';
@@ -47,7 +48,8 @@ import { v2Quests, v2Inventory } from './src/v2/core/state.js';
 import { loadV2Quests, loadV2Inventory, saveV2Quests, saveV2Inventory, getChatDataVersion, loadV2Companions } from './src/v2/core/persistence.js';
 import { hasV1DataToMigrate, isChatV2, executeV2Migration } from './src/v2/core/migration.js';
 import { parseAndApplyGameActions, hasGameActionBackup, revertGameActions } from './src/v2/tools/inlineParser.js';
-import { renderV2Quests, addV2QuestFromInput } from './src/v2/rendering/quests.js';
+import { renderV2Quests } from './src/v2/rendering/quests.js';
+import { openQuestEditModal } from './src/v2/rendering/questModal.js';
 import { renderV2Inventory, addV2InventoryItemFromInput } from './src/v2/rendering/inventory.js';
 import { showV2MigrationModal } from './src/v2/rendering/migration.js';
 import { characterV2, setCharacterV2 } from './src/v2/core/characterState.js';
@@ -1077,10 +1079,13 @@ function renderItemsList() {
     let html = '';
     for (let i = 0; i < _skTempItems.length; i++) {
         const it = _skTempItems[i];
+        const qty = it.quantity || 1;
         const rarity = it.rarity && !RARITY_HIDDEN.has(it.rarity) ? ` (${it.rarity})` : '';
         const attuneBtn = `<button class="dnd-sk-attune-toggle${it.attuned ? ' active' : ''}" data-item-idx="${i}" title="${it.attuned ? 'Attuned — click to unattune' : 'Click to attune'}"><i class="fa-solid fa-sun"></i></button>`;
+        const qtyControls = `<span class="dnd-sk-item-qty-group"><button class="dnd-sk-item-qty-btn" data-item-idx="${i}" data-delta="-1" title="Decrease">−</button><span class="dnd-sk-item-qty-val">${qty}</span><button class="dnd-sk-item-qty-btn" data-item-idx="${i}" data-delta="1" title="Increase">+</button></span>`;
         html += `<div class="dnd-sk-equip-item${it.attuned ? ' dnd-sk-attuned' : ''}" data-item-name="${escHtml(it.name)}">
             <span>${escHtml(it.name)}${rarity}</span>
+            ${qtyControls}
             ${attuneBtn}
             <button class="dnd-sk-item-remove" data-item-idx="${i}" title="Remove"><i class="fa-solid fa-xmark"></i></button>
             <input type="text" class="dnd-sk-item-notes" data-item-idx="${i}" placeholder="Notes (e.g. bound spell)" value="${escHtml(it.customNotes || '')}" />
@@ -1092,6 +1097,15 @@ function renderItemsList() {
         if (idx >= 0 && idx < _skTempItems.length) {
             _skTempItems[idx].customNotes = /** @type {string} */ ($(this).val()).trim();
         }
+    });
+    $list.find('.dnd-sk-item-qty-btn').on('click', function() {
+        const idx = parseInt($(this).data('item-idx'));
+        const delta = parseInt($(this).data('delta'));
+        if (idx < 0 || idx >= _skTempItems.length) return;
+        const it = _skTempItems[idx];
+        const newQty = Math.max(1, (it.quantity || 1) + delta);
+        it.quantity = newQty;
+        renderItemsList();
     });
     $list.find('.dnd-sk-attune-toggle').on('click', function() {
         const idx = parseInt($(this).data('item-idx'));
@@ -1117,7 +1131,7 @@ function addItemCustom() {
         toastr.warning(`${name} is already in the list`);
         return;
     }
-    _skTempItems.push({ name, rarity: null, source: null });
+    _skTempItems.push({ name, quantity: 1, rarity: null, source: null });
     renderItemsList();
     $('#dnd-sk-item-input').val('');
     $('#dnd-sk-item-results').html('');
@@ -1132,7 +1146,7 @@ function addItemFromSearch(itemName) {
     }
     const cdnItem = lookupItemByName(itemName);
     const autoAttune = cdnItem?.reqAttune && getTempAttunedCount() < SIDEKICK_MAX_ATTUNEMENT;
-    _skTempItems.push({ name: item.name, rarity: item.rarity || null, source: item.source || null, attuned: !!autoAttune });
+    _skTempItems.push({ name: item.name, quantity: 1, rarity: item.rarity || null, source: item.source || null, attuned: !!autoAttune });
     renderItemsList();
     $('#dnd-sk-item-input').val('');
     $('#dnd-sk-item-results').html('');
@@ -2208,9 +2222,10 @@ function migrateSidekickData() {
             delete sk.hasShield;
             dirty = true;
         }
-        // Backfill attunement fields on items, weapons, armor, and shield
+        // Backfill attunement and quantity fields on items
         for (const it of (sk.items || [])) {
             if (it.attuned === undefined) { it.attuned = false; dirty = true; }
+            if (it.quantity === undefined) { it.quantity = 1; dirty = true; }
         }
         for (const w of (sk.weapons || [])) {
             if (w.attuned === undefined) { w.attuned = false; dirty = true; }
@@ -2456,7 +2471,9 @@ function updateRandomEventDisplay() {
     }
 
     const hasSeverity = !!roll.severity;
-    const label = `${roll.roll}`;
+    const label = roll.cooldownActive
+        ? `CD${roll.cooldownRemaining ?? ''}`
+        : `${roll.roll ?? '-'}`;
     const severityClass = enabled && hasSeverity ? `dnd-event-${roll.severity.id}` : '';
 
     for (const $tag of [$stripTag, $panelTag]) {
@@ -2850,6 +2867,8 @@ function updatePanelTitle() {
 function applyV2Mode() {
     const v2 = extensionSettings.v2Enabled;
     const $compContainer = $('#dnd-v2-companion-container');
+    $('#dnd-v2-quest-add').toggle(v2);
+    $('#dnd-add-quest-row').toggle(!v2);
     if (v2) {
         loadV2Quests();
         loadV2Inventory();
@@ -3005,6 +3024,8 @@ async function initUI() {
     // Layout
     applyPanelPosition();
     setupCollapseToggle();
+    $('#dnd-v2-quest-add').toggle(!!extensionSettings.v2Enabled);
+    $('#dnd-add-quest-row').toggle(!extensionSettings.v2Enabled);
     updatePanelVisibility();
     updateStripWidgetClass();
     setupMobileFab();
@@ -3231,23 +3252,23 @@ async function initUI() {
         $(this).closest('.dnd-collapsible').toggleClass('dnd-collapsed');
     });
 
-    // Quest — inline add
+    // V2 Quest add button
+    $('#dnd-v2-quest-add').on('click', (e) => {
+        e.stopPropagation();
+        openQuestEditModal(-1);
+    });
+
+    // Quest — inline add (V1 only)
     $('#dnd-add-quest-btn').on('click', () => {
-        if (extensionSettings.v2Enabled) {
-            addV2QuestFromInput();
-        } else {
-            addQuestFromInput();
-        }
+        if (extensionSettings.v2Enabled) return;
+        addQuestFromInput();
         updateStripWidgets();
     });
     $('#dnd-add-quest-input').on('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            if (extensionSettings.v2Enabled) {
-                addV2QuestFromInput();
-            } else {
-                addQuestFromInput();
-            }
+            if (extensionSettings.v2Enabled) return;
+            addQuestFromInput();
             updateStripWidgets();
         }
     });
@@ -3876,6 +3897,48 @@ async function initUI() {
     $(document).on('change', '.dnd-auto-bg-day, .dnd-auto-bg-night, .dnd-auto-bg-name-input', function () {
         saveAutoBackgroundModal();
     });
+
+    // Force Refresh Spell Database
+    $('#dnd-force-refresh-spelldb').on('click', async function () {
+        const $btn = $(this);
+        $btn.prop('disabled', true).find('i').removeClass('fa-rotate').addClass('fa-spinner fa-spin');
+        try {
+            await clearSpellCache();
+            clearSpellbookCache();
+            clearSidekickSourceMemory();
+            clearV1SourceMemory();
+            clearV2SourceMemory();
+            clearV1SpellMemory();
+            clearV2SpellMemory();
+            await Promise.all([
+                preloadSpellData(),
+                preloadV1SpellData(),
+                preloadV2SpellData(),
+                ensureSpellData(),
+            ]);
+            updateSpellDbCacheInfo();
+            toastr.success('Spell database refreshed from CDN');
+        } catch (err) {
+            console.error('[D&D 5e Lite] Force refresh failed:', err);
+            toastr.error('Spell database refresh failed');
+        } finally {
+            $btn.prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-rotate');
+        }
+    });
+
+    updateSpellDbCacheInfo();
+}
+
+async function updateSpellDbCacheInfo() {
+    const info = await getCacheInfo();
+    const $el = $('#dnd-spelldb-cache-info');
+    if (!$el.length) return;
+    if (info.entries === 0) {
+        $el.text('No cached data — will fetch from CDN on next load');
+    } else {
+        const date = info.lastFetched ? new Date(info.lastFetched).toLocaleDateString() : 'unknown';
+        $el.text(`${info.entries} sources cached — last updated ${date}`);
+    }
 }
 
 function populateDebugModules() {

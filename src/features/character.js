@@ -6,6 +6,7 @@
 
 import { character, classDataCache, setCharacter } from '../core/state.js';
 import { saveCharacter } from '../core/persistence.js';
+import { fetchWithCache } from '../core/spellCache.js';
 
 const CDN_BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/class';
 const CDN_DATA = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data';
@@ -27,8 +28,7 @@ const ABILITY_NAMES = {
 export async function fetchClassIndex() {
     if (_classIndex) return _classIndex;
     if (_indexInflight) return _indexInflight;
-    _indexInflight = fetch(`${CDN_BASE}/index.json`, { signal: AbortSignal.timeout(10000) })
-        .then(r => r.ok ? r.json() : null)
+    _indexInflight = fetchWithCache(`${CDN_BASE}/index.json`, 'legacy-class-index', 10000)
         .then(data => { _classIndex = data; return data; })
         .catch(err => { console.warn('[D&D 5e Lite] Class index fetch failed:', err); return null; })
         .finally(() => { _indexInflight = null; });
@@ -43,10 +43,8 @@ export async function fetchClassIndex() {
 export async function fetchClassData(filename) {
     if (classDataCache.has(filename)) return classDataCache.get(filename);
     try {
-        const r = await fetch(`${CDN_BASE}/${filename}`, { signal: AbortSignal.timeout(20000) });
-        if (!r.ok) return null;
-        const data = await r.json();
-        classDataCache.set(filename, data);
+        const data = await fetchWithCache(`${CDN_BASE}/${filename}`, `legacy-class-${filename}`, 20000);
+        if (data) classDataCache.set(filename, data);
         return data;
     } catch (err) {
         console.warn(`[D&D 5e Lite] Class data fetch failed for "${filename}":`, err);
@@ -60,8 +58,7 @@ export async function fetchClassData(filename) {
 export async function fetchOptionalFeatures() {
     if (_optFeatures) return _optFeatures;
     if (_optFeatInflight) return _optFeatInflight;
-    _optFeatInflight = fetch(`${CDN_DATA}/optionalfeatures.json`, { signal: AbortSignal.timeout(15000) })
-        .then(r => r.ok ? r.json() : null)
+    _optFeatInflight = fetchWithCache(`${CDN_DATA}/optionalfeatures.json`, 'legacy-optionalfeatures', 15000)
         .then(data => {
             if (data?.optionalfeature) {
                 _optFeatures = new Map();

@@ -5501,6 +5501,50 @@
     color: rgba(255, 100, 100, 1);
 }
 
+/* ── Sidekick item quantity controls ─────────────────────── */
+.dnd-sk-item-qty-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15em;
+    flex-shrink: 0;
+    margin: 0 0.25em;
+}
+
+.dnd-sk-item-qty-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    font-size: 0.8em;
+    width: 1.4em;
+    height: 1.4em;
+    padding: 0;
+    line-height: 1;
+    text-align: center;
+}
+
+.dnd-sk-item-qty-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 1);
+}
+
+.dnd-sk-item-qty-val {
+    min-width: 1.2em;
+    text-align: center;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* Quantity badge in sidekick detail modal */
+.dnd-sk-det-qty {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    margin-left: 0.3em;
+}
+
 /* ── Sidekick attunement toggle ──────────────────────────── */
 .dnd-sk-attune-toggle {
     background: none;

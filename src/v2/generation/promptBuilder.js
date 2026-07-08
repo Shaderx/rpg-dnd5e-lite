@@ -6,7 +6,7 @@
  */
 
 import { v2Quests, v2Inventory, v2Companions, isItemEquipped } from '../core/state.js';
-import { extensionSettings } from '../../core/state.js';
+import { extensionSettings, sidekicks } from '../../core/state.js';
 import { RARITY_LABELS, normalizeRarity } from '../../features/inventoryRarity.js';
 import { getComputedStats, CATEGORY_META } from '../features/companion.js';
 
@@ -193,7 +193,7 @@ charges: modify charges on a magic item:
   {"tool":"inventory","action":"charges","index":1,"op":"reduce","value":3}
   ops: set (absolute), reduce (subtract), increase (add), reset (restore to value)
 
-== RULES ==${msNote}
+${buildSidekickInventoryInstructions()}== RULES ==${msNote}
 - Only output game_actions when state actually changed. Omit entirely if nothing changed.
 - In update actions, only include fields whose values are changing. Never echo back unchanged fields.
 - Do NOT mention game_actions in prose. It is invisible metadata. You will not see previous turn game_actions.
@@ -201,6 +201,32 @@ charges: modify charges on a magic item:
 - Equipment type auto-resolves stats from D&D database. Only 1 armor + 1 shield can be equipped.
 - No gold/currency in inventory. Track items only.
 </game_state_actions>`;
+}
+
+function buildSidekickInventoryInstructions() {
+    if (!sidekicks || !sidekicks.some(sk => sk.enabled)) return '';
+
+    return `
+== SIDEKICK INVENTORY (tool:"sidekick_inventory") ==
+Target a sidekick by name. [#N] from sidekick gear lists = "index".
+Equipment (armor/shield/weapon) has no quantity. General items track quantity.
+
+add: give an item to a sidekick:
+  {"tool":"sidekick_inventory","action":"add","sidekick":"Thorn","name":"Potion of Healing","quantity":2,"rarity":"common"}
+  {"tool":"sidekick_inventory","action":"add","sidekick":"Thorn","name":"Longsword","type":"weapon","location":"equipped"}
+  Required: sidekick, name
+  Optional: quantity (default 1), type (none/armor/shield/weapon, default none), rarity, magic, notes, location (equipped/stored)
+
+update: modify existing gear. Only include changing fields:
+  {"tool":"sidekick_inventory","action":"update","sidekick":"Thorn","index":4,"quantity_change":-1}
+  quantity_change: +/- relative (preferred). quantity: absolute override. Item removed if quantity reaches 0.
+  notes: static factual description of what the item is or does. Only set when the description itself needs rewriting. Never narrative prose.
+
+remove: {"tool":"sidekick_inventory","action":"remove","sidekick":"Thorn","index":3}
+equip: {"tool":"sidekick_inventory","action":"equip","sidekick":"Thorn","index":2}
+unequip: {"tool":"sidekick_inventory","action":"unequip","sidekick":"Thorn","index":1}
+
+`;
 }
 
 /**

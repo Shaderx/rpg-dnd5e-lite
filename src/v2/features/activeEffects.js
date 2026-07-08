@@ -279,7 +279,7 @@ function resolveCastStatus(entry, ctx) {
     const hardcodedAbilityDur = NON_SPELL_DURATION_OVERRIDES[effectKey];
 
     if (!spell && !overrideDur && !hardcodedAbilityDur) {
-        return { status: 'unknown', remainingMinutes: null, concentration: false, spell: null, castLevel: null };
+        return { status: 'instant', remainingMinutes: null, concentration: false, spell: null, castLevel: null };
     }
 
     const dur = overrideDur || spell?.duration?.[0] || hardcodedAbilityDur;

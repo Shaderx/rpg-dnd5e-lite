@@ -667,31 +667,6 @@ export function buildSidekickSection() {
             for (const t of enabledTraits) lines.push(`  ${t.name}: ${t.text}`);
         }
 
-        const equipParts = [];
-        if (sk.equippedArmor) {
-            const armorTag = sk.equippedArmor.attuned ? ' [attuned]' : '';
-            equipParts.push(`${sk.equippedArmor.name}${armorTag}`);
-        }
-        if (sk.equippedShield) {
-            const shieldTag = sk.equippedShield.attuned ? ' [attuned]' : '';
-            equipParts.push(`${sk.equippedShield.name || 'Shield'} (+${sk.equippedShield.ac ?? 2} AC)${shieldTag}`);
-        }
-        if (equipParts.length > 0) lines.push(`Armor: ${equipParts.join(', ')}`);
-
-        const cWeapons = stats.computedWeapons || [];
-        if (cWeapons.length > 0) {
-            const wpnParts = cWeapons.map(w => {
-                const hit = w.computedHit >= 0 ? `+${w.computedHit}` : `${w.computedHit}`;
-                let desc = `${hit} to hit, ${w.computedDamage} ${w.damageType}`;
-                if (w.computedVersatile) desc += ` (versatile: ${w.computedVersatile})`;
-                if (w.range) desc += `, ${w.attackType?.includes('mw') ? 'thrown' : 'range'} ${w.range}`;
-                const attuneTag = w.attuned ? ' [attuned]' : '';
-                const notes = w.customNotes ? ` [${w.customNotes}]` : '';
-                return `${w.name}${attuneTag} (${desc})${notes}`;
-            });
-            lines.push(`Weapons: ${wpnParts.join('; ')}`);
-        }
-
         const cActions = (stats.computedActions || []).filter(a => a.enabled);
         if (cActions.length > 0) {
             lines.push('Creature Actions:');
@@ -705,13 +680,73 @@ export function buildSidekickSection() {
             }
         }
 
-        if (sk.items?.length > 0) {
-            const itemDescs = sk.items.map(it => {
-                const attuneTag = it.attuned ? ' [attuned]' : '';
-                const notes = it.customNotes ? ` [${it.customNotes}]` : '';
-                return `${it.name}${attuneTag}${notes}`;
-            });
-            lines.push(`Items: ${itemDescs.join(', ')}`);
+        const cWeapons = stats.computedWeapons || [];
+
+        if (extensionSettings.v2Enabled) {
+            // V2: unified indexed gear list for LLM game_actions
+            const hasGear = sk.equippedArmor || sk.equippedShield || cWeapons.length > 0 || sk.items?.length > 0;
+            if (hasGear) {
+                lines.push('Gear:');
+                let gearIdx = 1;
+                if (sk.equippedArmor) {
+                    const attuneTag = sk.equippedArmor.attuned ? ' [attuned]' : '';
+                    lines.push(`  [#${gearIdx++}] ${sk.equippedArmor.name} {armor}${attuneTag}`);
+                }
+                if (sk.equippedShield) {
+                    const attuneTag = sk.equippedShield.attuned ? ' [attuned]' : '';
+                    lines.push(`  [#${gearIdx++}] ${sk.equippedShield.name || 'Shield'} (+${sk.equippedShield.ac ?? 2} AC) {shield}${attuneTag}`);
+                }
+                for (const w of cWeapons) {
+                    const hit = w.computedHit >= 0 ? `+${w.computedHit}` : `${w.computedHit}`;
+                    let desc = `${hit} to hit, ${w.computedDamage} ${w.damageType}`;
+                    if (w.computedVersatile) desc += ` (versatile: ${w.computedVersatile})`;
+                    if (w.range) desc += `, ${w.attackType?.includes('mw') ? 'thrown' : 'range'} ${w.range}`;
+                    const attuneTag = w.attuned ? ' [attuned]' : '';
+                    const notes = w.customNotes ? ` [${w.customNotes}]` : '';
+                    lines.push(`  [#${gearIdx++}] ${w.name} {weapon} (${desc})${attuneTag}${notes}`);
+                }
+                for (const it of (sk.items || [])) {
+                    const qty = (it.quantity || 1) > 1 ? ` (x${it.quantity})` : '';
+                    const attuneTag = it.attuned ? ' [attuned]' : '';
+                    const notes = it.customNotes ? ` [${it.customNotes}]` : '';
+                    lines.push(`  [#${gearIdx++}] ${it.name}${qty}${attuneTag}${notes}`);
+                }
+            }
+        } else {
+            // Legacy: flat text gear listing
+            const equipParts = [];
+            if (sk.equippedArmor) {
+                const armorTag = sk.equippedArmor.attuned ? ' [attuned]' : '';
+                equipParts.push(`${sk.equippedArmor.name}${armorTag}`);
+            }
+            if (sk.equippedShield) {
+                const shieldTag = sk.equippedShield.attuned ? ' [attuned]' : '';
+                equipParts.push(`${sk.equippedShield.name || 'Shield'} (+${sk.equippedShield.ac ?? 2} AC)${shieldTag}`);
+            }
+            if (equipParts.length > 0) lines.push(`Armor: ${equipParts.join(', ')}`);
+
+            if (cWeapons.length > 0) {
+                const wpnParts = cWeapons.map(w => {
+                    const hit = w.computedHit >= 0 ? `+${w.computedHit}` : `${w.computedHit}`;
+                    let desc = `${hit} to hit, ${w.computedDamage} ${w.damageType}`;
+                    if (w.computedVersatile) desc += ` (versatile: ${w.computedVersatile})`;
+                    if (w.range) desc += `, ${w.attackType?.includes('mw') ? 'thrown' : 'range'} ${w.range}`;
+                    const attuneTag = w.attuned ? ' [attuned]' : '';
+                    const notes = w.customNotes ? ` [${w.customNotes}]` : '';
+                    return `${w.name}${attuneTag} (${desc})${notes}`;
+                });
+                lines.push(`Weapons: ${wpnParts.join('; ')}`);
+            }
+
+            if (sk.items?.length > 0) {
+                const itemDescs = sk.items.map(it => {
+                    const qty = (it.quantity || 1) > 1 ? ` x${it.quantity}` : '';
+                    const attuneTag = it.attuned ? ' [attuned]' : '';
+                    const notes = it.customNotes ? ` [${it.customNotes}]` : '';
+                    return `${it.name}${qty}${attuneTag}${notes}`;
+                });
+                lines.push(`Items: ${itemDescs.join(', ')}`);
+            }
         }
 
         const attuneCount = getSidekickAttunedCount(sk);
@@ -885,10 +920,10 @@ export function buildRandomEventSection(eventResult) {
     const { roll, severity, category, categoryMeta, examples, cooldownActive, cooldownRemaining } = eventResult;
 
     if (!severity) {
-        const cdNote = cooldownActive
-            ? ` (Cooldown: ${cooldownRemaining} turn${cooldownRemaining !== 1 ? 's' : ''} remaining)`
-            : '';
-        return `<random_world_event>\n[d100: ${roll} | No Event${cdNote}]\nNo random world event this turn. Continue the narrative based on the player's actions and current situation.\n</random_world_event>`;
+        if (cooldownActive) {
+            return `<random_world_event>\n[No Roll | Cooldown: ${cooldownRemaining} turn${cooldownRemaining !== 1 ? 's' : ''} remaining]\nRandom event roll is skipped while cooldown is active. Continue the narrative based on the player's actions and current situation.\n</random_world_event>`;
+        }
+        return `<random_world_event>\n[d100: ${roll} | No Event]\nNo random world event this turn. Continue the narrative based on the player's actions and current situation.\n</random_world_event>`;
     }
 
     const lines = [];

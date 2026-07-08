@@ -20,6 +20,7 @@ import {
     collectSpellScalingText,
     isPlayerChosenDamageType,
 } from './spellScaling.js';
+import { fetchWithCache } from '../core/spellCache.js';
 
 const CDN_DATA = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data';
 
@@ -122,8 +123,7 @@ let _bestiaryIndexInflight = null;
 export async function fetchBestiaryIndex() {
     if (_bestiaryIndex) return _bestiaryIndex;
     if (_bestiaryIndexInflight) return _bestiaryIndexInflight;
-    _bestiaryIndexInflight = fetch(`${CDN_DATA}/bestiary/index.json`, { signal: AbortSignal.timeout(15000) })
-        .then(r => r.ok ? r.json() : null)
+    _bestiaryIndexInflight = fetchWithCache(`${CDN_DATA}/bestiary/index.json`, 'sk-bestiary-index', 15000)
         .then(data => { _bestiaryIndex = data; return data; })
         .catch(err => { console.warn('[D&D 5e Lite] Bestiary index fetch failed:', err); return null; })
         .finally(() => { _bestiaryIndexInflight = null; });
@@ -143,7 +143,7 @@ export async function fetchBestiarySource(sourceKey) {
     if (!filename) return null;
 
     const promise = Promise.all([
-        fetch(`${CDN_DATA}/bestiary/${filename}`, { signal: AbortSignal.timeout(30000) }).then(r => r.ok ? r.json() : null),
+        fetchWithCache(`${CDN_DATA}/bestiary/${filename}`, `sk-bestiary-${sourceKey}`, 30000),
         fetchTemplateData(),
     ])
         .then(([data]) => {
@@ -175,8 +175,7 @@ let _templateInflight = null;
 async function fetchTemplateData() {
     if (_templateData) return _templateData;
     if (_templateInflight) return _templateInflight;
-    _templateInflight = fetch(`${CDN_DATA}/bestiary/template.json`, { signal: AbortSignal.timeout(15000) })
-        .then(r => r.ok ? r.json() : null)
+    _templateInflight = fetchWithCache(`${CDN_DATA}/bestiary/template.json`, 'sk-bestiary-template', 15000)
         .then(data => { _templateData = data; return data; })
         .catch(err => { console.warn('[D&D 5e Lite] Template fetch failed:', err); return null; })
         .finally(() => { _templateInflight = null; });
@@ -516,8 +515,7 @@ let _equipItemInflight = null;
 export async function fetchEquipmentItems() {
     if (equipmentItemCache) return equipmentItemCache;
     if (_equipItemInflight) return _equipItemInflight;
-    _equipItemInflight = fetch(`${CDN_DATA}/items-base.json`, { signal: AbortSignal.timeout(20000) })
-        .then(r => r.ok ? r.json() : null)
+    _equipItemInflight = fetchWithCache(`${CDN_DATA}/items-base.json`, 'sk-items-base', 20000)
         .then(data => {
             const items = data?.baseitem || [];
             const cache = new Map();
@@ -559,12 +557,10 @@ export async function fetchMagicItems() {
     if (_magicItemInflight) return _magicItemInflight;
     _magicItemInflight = (async () => {
         try {
-            const [itemsResp, variantsResp] = await Promise.all([
-                fetch(`${CDN_DATA}/items.json`, { signal: AbortSignal.timeout(25000) }),
-                fetch(`${CDN_DATA}/magicvariants.json`, { signal: AbortSignal.timeout(20000) }),
+            const [itemsData, variantsData] = await Promise.all([
+                fetchWithCache(`${CDN_DATA}/items.json`, 'sk-items', 25000),
+                fetchWithCache(`${CDN_DATA}/magicvariants.json`, 'sk-magicvariants', 20000),
             ]);
-            const itemsData = itemsResp.ok ? await itemsResp.json() : {};
-            const variantsData = variantsResp.ok ? await variantsResp.json() : {};
 
             const weaponCache = new Map();
             const armorCache = new Map();
@@ -1647,10 +1643,9 @@ let _featInflight = null;
 export async function fetchFeats() {
     if (_featCache) return _featCache;
     if (_featInflight) return _featInflight;
-    _featInflight = fetch(`${CDN_DATA}/feats.json`, { signal: AbortSignal.timeout(20000) })
-        .then(r => r.ok ? r.json() : {})
+    _featInflight = fetchWithCache(`${CDN_DATA}/feats.json`, 'sk-feats', 20000)
         .then(data => {
-            _featCache = (data.feat || []).filter(f => f.source === 'XPHB');
+            _featCache = (data?.feat || []).filter(f => f.source === 'XPHB');
             return _featCache;
         })
         .catch(() => { _featCache = []; return []; })
@@ -1736,9 +1731,10 @@ let _spellClassLookupInflight = null;
 export async function fetchSpellSource(source) {
     if (_spellSourceCache.has(source)) return _spellSourceCache.get(source);
     if (_spellSourceInflight.has(source)) return _spellSourceInflight.get(source);
-    const filename = `spells-${source.toLowerCase()}.json`;
-    const promise = fetch(`${CDN_DATA}/spells/${filename}`, { signal: AbortSignal.timeout(20000) })
-        .then(r => r.ok ? r.json() : null)
+    const key = source.toLowerCase();
+    const url = `${CDN_DATA}/spells/spells-${key}.json`;
+    const cacheKey = `sk-spells-${key}`;
+    const promise = fetchWithCache(url, cacheKey, 20000)
         .then(data => {
             const spells = data?.spell || [];
             _spellSourceCache.set(source, spells);
@@ -1753,12 +1749,12 @@ export async function fetchSpellSource(source) {
 async function fetchSpellClassLookup() {
     if (_spellClassLookup) return _spellClassLookup;
     if (_spellClassLookupInflight) return _spellClassLookupInflight;
-    _spellClassLookupInflight = fetch(
+    _spellClassLookupInflight = fetchWithCache(
         `${CDN_DATA}/generated/gendata-spell-source-lookup.json`,
-        { signal: AbortSignal.timeout(25000) },
+        'sk-spell-class-lookup',
+        25000,
     )
-        .then(r => r.ok ? r.json() : {})
-        .then(data => { _spellClassLookup = data; return data; })
+        .then(data => { _spellClassLookup = data || {}; return _spellClassLookup; })
         .catch(() => { _spellClassLookup = {}; return {}; })
         .finally(() => { _spellClassLookupInflight = null; });
     return _spellClassLookupInflight;
@@ -1787,6 +1783,13 @@ export async function preloadSpellData() {
         fetchSpellClassLookup(),
         ...SPELL_SOURCES.map(s => fetchSpellSource(s)),
     ]);
+}
+
+export function clearSpellSourceMemory() {
+    _spellSourceCache.clear();
+    _spellSourceInflight = new Map();
+    _spellClassLookup = null;
+    _spellClassLookupInflight = null;
 }
 
 export function getAllLoadedSpells() {

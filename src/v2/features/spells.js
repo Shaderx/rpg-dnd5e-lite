@@ -25,6 +25,11 @@ const V1_SPELL_SOURCES = ['xphb', 'xge'];
 let _allSpells = null;
 let _allSpellsInflight = null;
 
+export function clearSpellMemory() {
+    _allSpells = null;
+    _allSpellsInflight = null;
+}
+
 /**
  * Preload all spell data from configured sources, deduplicating by name.
  */

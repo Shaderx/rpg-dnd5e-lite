@@ -27,6 +27,11 @@ const DATA_URLS = [
 const _inflight = new Map();
 const _failedSources = new Set();
 
+export function clearSpellbookCache() {
+    spellDataCache.clear();
+    _failedSources.clear();
+}
+
 /**
  * Parse a 5e.tools spell hash into { name, source }.
  * Hash format: `{urlEncodedName}_{sourceId}` — split on the LAST underscore.

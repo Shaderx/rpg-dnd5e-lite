@@ -446,13 +446,18 @@ function buildEventTooltip(eventRoll, enabled = true) {
     const controlsHint = '<div class="dnd-tt-divider"></div><div class="dnd-tt-field" style="font-size:0.9em;color:rgba(255,255,255,0.6)">Click: toggle injection<br>Shift-click: edit thresholds</div>';
 
     if (!severity) {
+        const title = cooldownActive ? 'No Roll' : `d100: ${roll}`;
+        const subtitle = cooldownActive ? 'Cooldown Active' : 'No Event';
         const cdNote = cooldownActive
             ? `<div class="dnd-tt-field" style="color:rgba(255,255,255,0.5)">Cooldown: ${cooldownRemaining} turn${cooldownRemaining !== 1 ? 's' : ''} remaining</div>`
             : '';
-        return `<div class="dnd-tt-name" style="color:#999">d100: ${roll}</div>
-<div class="dnd-tt-sub">No Event</div>${cdNote}
+        const desc = cooldownActive
+            ? 'Random event roll skipped this turn because cooldown is active.'
+            : 'Roll below event threshold. Narrative continues normally.';
+        return `<div class="dnd-tt-name" style="color:#999">${title}</div>
+<div class="dnd-tt-sub">${subtitle}</div>${cdNote}
 <div class="dnd-tt-divider"></div>
-<div class="dnd-tt-desc" style="color:rgba(255,255,255,0.45)">Roll below event threshold. Narrative continues normally.</div>
+<div class="dnd-tt-desc" style="color:rgba(255,255,255,0.45)">${desc}</div>
 <div class="dnd-tt-field" style="color:${enabled ? 'rgba(102,187,106,0.95)' : 'rgba(239,83,80,0.95)'}">${stateText}</div>${controlsHint}`;
     }
 
@@ -532,7 +537,7 @@ export function bindTooltipEvents(container) {
         if (!name) return;
         if (type === 'creature') showCreatureTooltip(this, name);
         else if (type === 'spell') showSpellTooltip(this, name, $(this).data('tt-text') || '');
-        else if (type === 'equipment') showEquipmentTooltip(this, name);
+        else if (type === 'equipment') showEquipmentTooltip(this, name, $(this).data('tt-text') || '');
         else if (type === 'feature') {
             const text = $(this).data('tt-text') || '';
             showFeatureTooltip(this, name, text);

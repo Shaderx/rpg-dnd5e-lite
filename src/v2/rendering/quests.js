@@ -4,7 +4,7 @@
  * objective progress, giver/location subtitle, and click-to-view detail modal.
  */
 
-import { v2Quests, createDefaultQuest } from '../core/state.js';
+import { v2Quests } from '../core/state.js';
 import { saveV2Quests } from '../core/persistence.js';
 import { openQuestDetailModal } from './questModal.js';
 
@@ -239,17 +239,3 @@ function bindV2QuestEvents(container) {
     });
 }
 
-/**
- * Add a new V2 quest from the inline input.
- */
-export function addV2QuestFromInput() {
-    const input = document.getElementById('dnd-add-quest-input');
-    if (!input) return;
-    const text = input.value.trim();
-    if (!text) return;
-
-    v2Quests.push(createDefaultQuest({ title: text }));
-    input.value = '';
-    persist();
-    renderV2Quests();
-}

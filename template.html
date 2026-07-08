@@ -370,12 +370,15 @@
                     <i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>
                     <i class="fa-solid fa-scroll"></i>
                     <span>Quests</span>
+                    <button id="dnd-v2-quest-add" class="dnd-section-action-btn" title="Add quest" style="display:none;">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
                 </div>
                 <div class="dnd-collapsible-body">
                     <div id="dnd-quests-list" class="dnd-quests-list">
                         <div class="dnd-empty-state">No quests yet</div>
                     </div>
-                    <div class="dnd-add-quest-row dnd-section-input-bar">
+                    <div id="dnd-add-quest-row" class="dnd-add-quest-row dnd-section-input-bar">
                         <input type="text" id="dnd-add-quest-input" class="dnd-add-quest-input" placeholder="New quest..." />
                         <button id="dnd-add-quest-btn" class="dnd-btn-small" title="Add quest">
                             <i class="fa-solid fa-plus"></i>
@@ -600,6 +603,16 @@
                     <i class="fa-solid fa-image"></i>
                     Auto Background Switching
                 </button>
+            </div>
+
+            <div style="margin-top:0.8em; padding-top:0.8em; border-top:1px solid var(--dnd-border);">
+                <div style="display:flex; align-items:center; gap:0.5em;">
+                    <button id="dnd-force-refresh-spelldb" class="dnd-btn dnd-btn-block">
+                        <i class="fa-solid fa-rotate"></i>
+                        Force Refresh Spell Database
+                    </button>
+                </div>
+                <span id="dnd-spelldb-cache-info" style="display:block; margin-top:0.3em; font-size:0.75em; opacity:0.6;"></span>
             </div>
         </div>
     </div>

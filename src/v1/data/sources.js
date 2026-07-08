@@ -4,6 +4,7 @@
  */
 
 import { CDN_DATA, V1_SOURCES } from '../core/constants.js';
+import { fetchWithCache } from '../../core/spellCache.js';
 
 const FETCH_TIMEOUT = 20000;
 
@@ -29,7 +30,7 @@ let _racesInflight = null;
 export async function fetchRaces() {
     if (_racesCache) return _racesCache;
     if (_racesInflight) return _racesInflight;
-    _racesInflight = fetchJson(`${CDN_DATA}/races.json`)
+    _racesInflight = fetchWithCache(`${CDN_DATA}/races.json`, 'v1-races', FETCH_TIMEOUT)
         .then(data => { _racesCache = data; return data; })
         .catch(() => null)
         .finally(() => { _racesInflight = null; });
@@ -44,7 +45,7 @@ let _backgroundsInflight = null;
 export async function fetchBackgrounds() {
     if (_backgroundsCache) return _backgroundsCache;
     if (_backgroundsInflight) return _backgroundsInflight;
-    _backgroundsInflight = fetchJson(`${CDN_DATA}/backgrounds.json`)
+    _backgroundsInflight = fetchWithCache(`${CDN_DATA}/backgrounds.json`, 'v1-backgrounds', FETCH_TIMEOUT)
         .then(data => { _backgroundsCache = data; return data; })
         .catch(() => null)
         .finally(() => { _backgroundsInflight = null; });
@@ -59,7 +60,7 @@ let _featsInflight = null;
 export async function fetchFeats() {
     if (_featsCache) return _featsCache;
     if (_featsInflight) return _featsInflight;
-    _featsInflight = fetchJson(`${CDN_DATA}/feats.json`)
+    _featsInflight = fetchWithCache(`${CDN_DATA}/feats.json`, 'v1-feats', FETCH_TIMEOUT)
         .then(data => {
             _featsCache = data?.feat ? data.feat.filter(f => V1_SOURCES.includes(f.source)) : [];
             return _featsCache;
@@ -77,7 +78,7 @@ let _classIndexInflight = null;
 export async function fetchClassIndex() {
     if (_classIndex) return _classIndex;
     if (_classIndexInflight) return _classIndexInflight;
-    _classIndexInflight = fetchJson(`${CDN_DATA}/class/index.json`)
+    _classIndexInflight = fetchWithCache(`${CDN_DATA}/class/index.json`, 'v1-class-index', FETCH_TIMEOUT)
         .then(data => { _classIndex = data; return data; })
         .catch(() => null)
         .finally(() => { _classIndexInflight = null; });
@@ -88,7 +89,7 @@ const _classFileCache = new Map();
 
 export async function fetchClassFile(filename) {
     if (_classFileCache.has(filename)) return _classFileCache.get(filename);
-    const data = await fetchJson(`${CDN_DATA}/class/${filename}`);
+    const data = await fetchWithCache(`${CDN_DATA}/class/${filename}`, `v1-class-${filename}`, FETCH_TIMEOUT);
     if (data) _classFileCache.set(filename, data);
     return data;
 }
@@ -106,10 +107,16 @@ const _spellSourceCache = new Map();
 export async function fetchSpellSource(source) {
     const key = source.toLowerCase();
     if (_spellSourceCache.has(key)) return _spellSourceCache.get(key);
-    const data = await fetchJson(`${CDN_DATA}/spells/spells-${key}.json`);
+    const url = `${CDN_DATA}/spells/spells-${key}.json`;
+    const cacheKey = `v1-spells-${key}`;
+    const data = await fetchWithCache(url, cacheKey, FETCH_TIMEOUT);
     const spells = data?.spell || [];
     _spellSourceCache.set(key, spells);
     return spells;
+}
+
+export function clearSpellSourceMemory() {
+    _spellSourceCache.clear();
 }
 
 let _spellClassLookup = null;
@@ -118,7 +125,11 @@ let _spellClassLookupInflight = null;
 export async function fetchSpellClassLookup() {
     if (_spellClassLookup) return _spellClassLookup;
     if (_spellClassLookupInflight) return _spellClassLookupInflight;
-    _spellClassLookupInflight = fetchJson(`${CDN_DATA}/generated/gendata-spell-source-lookup.json`)
+    _spellClassLookupInflight = fetchWithCache(
+        `${CDN_DATA}/generated/gendata-spell-source-lookup.json`,
+        'v1-spell-class-lookup',
+        FETCH_TIMEOUT,
+    )
         .then(data => { _spellClassLookup = data; return data; })
         .catch(() => null)
         .finally(() => { _spellClassLookupInflight = null; });
@@ -133,7 +144,7 @@ let _equipInflight = null;
 export async function fetchEquipment() {
     if (_equipCache) return _equipCache;
     if (_equipInflight) return _equipInflight;
-    _equipInflight = fetchJson(`${CDN_DATA}/items-base.json`)
+    _equipInflight = fetchWithCache(`${CDN_DATA}/items-base.json`, 'v1-items-base', FETCH_TIMEOUT)
         .then(data => { _equipCache = data; return data; })
         .catch(() => null)
         .finally(() => { _equipInflight = null; });
@@ -149,8 +160,8 @@ export async function fetchMagicItems() {
     if (_magicItemsCache) return _magicItemsCache;
     if (_magicItemsInflight) return _magicItemsInflight;
     _magicItemsInflight = Promise.all([
-        fetchJson(`${CDN_DATA}/items.json`),
-        fetchJson(`${CDN_DATA}/magicvariants.json`),
+        fetchWithCache(`${CDN_DATA}/items.json`, 'v1-items', FETCH_TIMEOUT),
+        fetchWithCache(`${CDN_DATA}/magicvariants.json`, 'v1-magicvariants', FETCH_TIMEOUT),
     ])
         .then(([items, variants]) => {
             _magicItemsCache = { items: items?.item || [], variants: variants?.magicvariant || [] };
@@ -169,7 +180,7 @@ let _optFeatInflight = null;
 export async function fetchOptionalFeatures() {
     if (_optFeatCache) return _optFeatCache;
     if (_optFeatInflight) return _optFeatInflight;
-    _optFeatInflight = fetchJson(`${CDN_DATA}/optionalfeatures.json`)
+    _optFeatInflight = fetchWithCache(`${CDN_DATA}/optionalfeatures.json`, 'v1-optionalfeatures', FETCH_TIMEOUT)
         .then(data => {
             _optFeatCache = data?.optionalfeature ? data.optionalfeature.filter(f => V1_SOURCES.includes(f.source)) : [];
             return _optFeatCache;

@@ -229,9 +229,11 @@ export function renderSidekickDetail(sidekickId) {
     const RARITY_HIDE = new Set(['unknown', 'unknown (magic)', 'none']);
     if (sk.items?.length > 0) {
         const iLines = sk.items.map(it => {
+            const qty = (it.quantity || 1) > 1 ? ` <span class="dnd-sk-det-qty">x${it.quantity}</span>` : '';
             const rarity = it.rarity && !RARITY_HIDE.has(it.rarity) ? ` (${it.rarity})` : '';
             const itemAttuneTag = it.attuned ? ' <span class="dnd-sk-det-attune-tag"><i class="fa-solid fa-sun"></i> attuned</span>' : '';
-            return `<div class="dnd-sk-det-weapon${it.attuned ? ' dnd-sk-det-attuned' : ''}"><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${escHtml(it.name)}">${escHtml(it.name)}</span>${rarity}${itemAttuneTag}</div>`;
+            const notesAttr = it.customNotes ? ` data-tt-text="${escHtml(it.customNotes)}"` : '';
+            return `<div class="dnd-sk-det-weapon${it.attuned ? ' dnd-sk-det-attuned' : ''}"><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${escHtml(it.name)}"${notesAttr}>${escHtml(it.name)}</span>${qty}${rarity}${itemAttuneTag}</div>`;
         });
         sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Items</div>${iLines.join('')}</div>`);
     }

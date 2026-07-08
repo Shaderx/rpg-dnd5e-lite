@@ -6,11 +6,15 @@
  */
 
 import { v2Quests, v2Inventory, setV2Quests, setV2Inventory } from '../core/state.js';
+import { sidekicks, setSidekicks } from '../../core/state.js';
 import { saveV2Quests, saveV2Inventory } from '../core/persistence.js';
+import { saveSidekicks } from '../../core/persistence.js';
 import { renderV2Quests } from '../rendering/quests.js';
 import { renderV2Inventory } from '../rendering/inventory.js';
+import { renderSidekickCards } from '../../rendering/sidekick.js';
 import { handleQuestAction } from './questTool.js';
 import { handleInventoryAction } from './inventoryTool.js';
+import { handleSidekickInventoryAction } from './sidekickInventoryTool.js';
 
 const GAME_ACTIONS_REGEX = /<details>\s*<summary>game_actions<\/summary>([\s\S]*?)<\/details>/i;
 
@@ -73,6 +77,7 @@ export function parseAndApplyGameActions(messageText) {
     _backup = {
         quests: JSON.parse(JSON.stringify(v2Quests)),
         inventory: JSON.parse(JSON.stringify(v2Inventory)),
+        sidekicks: JSON.parse(JSON.stringify(sidekicks)),
     };
 
     for (const action of actions) {
@@ -91,6 +96,12 @@ export function parseAndApplyGameActions(messageText) {
                         args.rarity = normalizeRarityValue(args.rarity);
                     }
                     response = handleInventoryAction(args);
+                    break;
+                case 'sidekick_inventory':
+                    if (args.rarity !== undefined) {
+                        args.rarity = normalizeRarityValue(args.rarity);
+                    }
+                    response = handleSidekickInventoryAction(args);
                     break;
                 default:
                     response = `Unknown tool: ${tool}`;
@@ -136,6 +147,12 @@ export function revertGameActions() {
     saveV2Inventory(_backup.inventory);
     renderV2Quests();
     renderV2Inventory();
+
+    if (_backup.sidekicks) {
+        setSidekicks(_backup.sidekicks);
+        saveSidekicks(_backup.sidekicks);
+        renderSidekickCards();
+    }
 
     console.log('[D&D 5e V2] Reverted to pre-parse backup');
     _backup = null;

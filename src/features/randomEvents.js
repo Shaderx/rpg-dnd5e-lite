@@ -1,6 +1,7 @@
 /**
  * D&D 5e Lite - Random Events Module
- * Rolls a d100 each generation to determine if a random event fires.
+ * Rolls a d100 when cooldown is inactive to determine if a random event fires.
+ * Skips rolling while cooldown is active.
  * Always produces a result object (event or no-event) for <Random_Event> injection.
  */
 
@@ -72,15 +73,14 @@ export function sampleExamples(categoryKey, severityId, count = 3) {
  * Always returns a result — either an event or a no-event marker.
  * Respects and manages cooldown state.
  *
- * @returns {{ roll: number, severity: object|null, category: string|null, categoryMeta: object|null, examples: string[], cooldownActive: boolean }}
+ * @returns {{ roll: number|null, severity: object|null, category: string|null, categoryMeta: object|null, examples: string[], cooldownActive: boolean }}
  */
 export function rollRandomEvent() {
-    const roll = secureRoll(100);
     const cd = eventCooldown;
 
     if (cd > 0) {
         const result = {
-            roll,
+            roll: null,
             severity: null,
             category: null,
             categoryMeta: null,
@@ -94,6 +94,7 @@ export function rollRandomEvent() {
         return result;
     }
 
+    const roll = secureRoll(100);
     const severity = getSeverity(roll);
 
     if (!severity) {
@@ -105,6 +106,7 @@ export function rollRandomEvent() {
             examples: [],
             cooldownActive: false,
         };
+        setEventCooldown(DEFAULT_COOLDOWN);
         setLastEventRoll(result);
         saveRandomEventState();
         return result;
