@@ -26,7 +26,12 @@ function normalizeType(val) {
 function findSidekickByName(name) {
     if (!name || !sidekicks?.length) return null;
     const lower = name.toLowerCase().trim();
-    return sidekicks.find(sk => sk.enabled && sk.name?.toLowerCase().trim() === lower) || null;
+    const enabled = sidekicks.filter(sk => sk.enabled);
+    // Exact match
+    const exact = enabled.find(sk => sk.name?.toLowerCase().trim() === lower);
+    if (exact) return exact;
+    // Partial: LLM sent first name only (e.g. "Lyra" matches "Lyra Ashwood")
+    return enabled.find(sk => sk.name?.toLowerCase().trim().startsWith(lower + ' ')) || null;
 }
 
 /**
