@@ -8,7 +8,7 @@
 import { sidekicks } from '../../core/state.js';
 import { saveSidekicks } from '../../core/persistence.js';
 import { renderSidekickCards, renderSidekickDetail } from '../../rendering/sidekick.js';
-import { normalizeRarity } from '../../features/inventoryRarity.js';
+import { RARITY_LABELS, normalizeRarity } from '../../features/inventoryRarity.js';
 import {
     searchEquipment, fuzzyLookupItem, lookupItemByName,
     weaponFromItem, armorFromItem, shieldFromItem,
@@ -103,7 +103,8 @@ function handleAdd(args) {
 
     const type = normalizeType(args.type);
     const magic = !!args.magic;
-    const rarity = args.rarity !== undefined ? normalizeRarity(args.rarity) : null;
+    const rarityIdx = args.rarity !== undefined ? normalizeRarity(args.rarity) : -1;
+    const rarityStr = rarityIdx >= 1 ? (RARITY_LABELS[rarityIdx] || null) : null;
     const notes = (args.notes || '').trim();
 
     if (type === 'armor') {
@@ -167,7 +168,7 @@ function handleAdd(args) {
     sk.items.push({
         name: canonicalName,
         quantity: Math.max(1, parseInt(args.quantity) || 1),
-        rarity: rarity !== null ? String(rarity) : null,
+        rarity: rarityStr,
         source: null,
         attuned,
         customNotes: notes,
@@ -187,7 +188,10 @@ function handleUpdate(args) {
     const item = entry.item;
 
     if (args.name !== undefined) item.name = args.name.trim();
-    if (args.rarity !== undefined) item.rarity = String(normalizeRarity(args.rarity));
+    if (args.rarity !== undefined) {
+        const ri = normalizeRarity(args.rarity);
+        item.rarity = ri >= 1 ? (RARITY_LABELS[ri] || null) : null;
+    }
 
     if (args.notes !== undefined) {
         const newNotes = args.notes.trim();
