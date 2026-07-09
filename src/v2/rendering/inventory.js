@@ -305,6 +305,7 @@ function openItemInfoModal(idx) {
     // State
     let selectedType = currentType;
     let pendingMatch = null;
+    let baseItemCleared = false;
 
     // Elements
     const tabs = overlay.querySelectorAll('.dnd-item-info-tab');
@@ -388,6 +389,7 @@ function openItemInfoModal(idx) {
                 const matchObj = matches.find(m => m.name === el.dataset.name);
                 if (matchObj) {
                     pendingMatch = matchObj;
+                    baseItemCleared = false;
                     baseName.textContent = matchObj.name;
                     baseDisplay.style.display = '';
                     searchInput.value = matchObj.name;
@@ -411,6 +413,7 @@ function openItemInfoModal(idx) {
     // Clear base item
     overlay.querySelector('.dnd-item-info-base-clear').addEventListener('click', () => {
         pendingMatch = null;
+        baseItemCleared = true;
         baseDisplay.style.display = 'none';
         baseName.textContent = '';
     });
@@ -439,7 +442,7 @@ function openItemInfoModal(idx) {
             if (pendingMatch._magic && !magicCheck.checked) {
                 magicCheck.checked = true;
             }
-        } else if (!pendingMatch && selectedType === 'none') {
+        } else if (baseItemCleared && selectedType === 'none') {
             item.equipmentData = null;
         }
 
