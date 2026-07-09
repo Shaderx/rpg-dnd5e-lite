@@ -157,11 +157,13 @@ export function renderCompanionDetail(compId) {
     </div>`);
 
     let speedDisplay = computed.speed || comp.speed || '';
+    const baseType = computed.creatureType || comp.baseCreatureType || '';
+    const sizeDisplay = baseType ? `${comp.size || 'M'} ${baseType}` : (comp.size || 'M');
     sections.push(`<div class="dnd-comp-det-row dnd-comp-det-combat">
         <span>HP <strong>${computed.hp}</strong></span>
         <span>AC <strong>${computed.ac}</strong></span>
         <span>Speed <strong>${esc(speedDisplay)}</strong></span>
-        <span>Size <strong>${esc(comp.size || 'M')}</strong></span>
+        <span>Size <strong>${esc(sizeDisplay)}</strong></span>
     </div>`);
 
     if (comp.category !== 'familiar') {

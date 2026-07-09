@@ -255,7 +255,9 @@ function renderCompanionBlock(active) {
     lines.push(`[${active.name || 'Unnamed'} (${active.creatureName}), ${ctypeLabel} ${meta.label}, Owner: ${ownerLabel}]`);
 
     const speedStr = computed.speed || active.speed || '';
-    lines.push(`HP: ${computed.hp} | AC: ${computed.ac} | Speed: ${speedStr} | Size: ${active.size || 'M'}`);
+    const baseType = computed.creatureType || active.baseCreatureType || '';
+    const sizeStr = baseType ? `${active.size || 'M'} ${baseType}` : (active.size || 'M');
+    lines.push(`HP: ${computed.hp} | AC: ${computed.ac} | Speed: ${speedStr} | Size: ${sizeStr}`);
 
     const ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
     const abilLine = ABILITY_KEYS.map(a => {

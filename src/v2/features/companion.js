@@ -113,6 +113,7 @@ export function buildFamiliarCompanion(creatureKey, customName, creatureType) {
         creatureName: creature.label,
         creatureSource: creatureKey,
         creatureType: creature.chainOnly ? creature.type.toLowerCase() : (creatureType || 'fey'),
+        baseCreatureType: creature.type || '',
         hp: { average: creature.hp, formula: '' },
         ac: creature.ac,
         speed: creature.speed,
@@ -143,6 +144,7 @@ export function buildPrimalCompanion(templateKey, customName, rangerLevel) {
         creatureName: base.label,
         creatureSource: templateKey,
         creatureType: 'beast',
+        baseCreatureType: base.type || '',
         hp: { average: stats.hp, formula: `${base.baseHP} + ${base.hpPerLevel} x ranger level` },
         ac: stats.ac,
         speed: base.speed,
@@ -170,6 +172,7 @@ export function buildSteedCompanion(customName, creatureType, slotLevel) {
         creatureName: STEED_TEMPLATE.label,
         creatureSource: 'steed',
         creatureType: creatureType || 'celestial',
+        baseCreatureType: stats.type || '',
         hp: { average: stats.hp, formula: `${STEED_TEMPLATE.baseHp} + ${STEED_TEMPLATE.hpPerSlot} x slot level` },
         ac: stats.ac,
         speed: stats.speed,
@@ -206,6 +209,7 @@ export function getComputedStats(companion) {
                 traits: stats.traits,
                 attackBonus: stats.attackBonus,
                 profBonus: stats.profBonus,
+                creatureType: stats.type,
             };
         }
     }
@@ -223,6 +227,7 @@ export function getComputedStats(companion) {
             attackBonus: stats.attackBonus,
             profBonus: stats.profBonus,
             hasFly: stats.hasFly,
+            creatureType: stats.type,
         };
     }
 
