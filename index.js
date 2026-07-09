@@ -3149,14 +3149,14 @@ async function initUI() {
     // V2 Companion detail modal
     $('#dnd-v2-comp-detail-close').on('click', () => { hideTooltip(); $('#dnd-v2-comp-detail-popup').hide(); });
     $('#dnd-v2-comp-detail-edit').on('click', () => {
-        const id = $('#dnd-v2-comp-detail-body').data('companionId') || $('#dnd-v2-comp-detail-body').attr('data-companion-id');
+        const id = $('#dnd-v2-comp-detail-body').attr('data-companion-id');
         if (id) {
             $('#dnd-v2-comp-detail-popup').hide();
             openCompanionEditModal(id);
         }
     });
     $('#dnd-v2-comp-detail-delete').on('click', () => {
-        const id = $('#dnd-v2-comp-detail-body').data('companionId') || $('#dnd-v2-comp-detail-body').attr('data-companion-id');
+        const id = $('#dnd-v2-comp-detail-body').attr('data-companion-id');
         if (id) {
             deleteCompanion(id);
             renderCompanionCards();
