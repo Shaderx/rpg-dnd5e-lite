@@ -13,6 +13,7 @@ import { rollRandomEvent, getLastEventRoll } from '../features/randomEvents.js';
 import { buildCharacterSection } from '../v1/generation/promptBuilder.js';
 import { buildV2QuestSection, buildV2InventorySection, buildToolInstructionsSection, buildCompanionSection } from '../v2/generation/promptBuilder.js';
 import { buildV2CharacterSection } from '../v2/generation/characterPrompt.js';
+import { revertGameActions } from '../v2/tools/inlineParser.js';
 
 const LEGACY_KEYS = [
     'dnd5e-quests',
@@ -132,6 +133,7 @@ export function onGenerationStarted(type) {
 
     const isRegenerate = type === 'swipe' || type === 'regenerate';
     if (isRegenerate) {
+        if (extensionSettings.v2Enabled) revertGameActions();
         refreshHeaderFromChat({ skipLastAssistant: true });
         if (!spellTrackerDisabled) refreshSpellLog({ skipLastAssistant: true });
     } else {

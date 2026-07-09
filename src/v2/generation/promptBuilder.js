@@ -144,6 +144,9 @@ Each object needs "tool" + "action". [#N] from lists above = "index" for existin
 
 == QUEST (tool:"quest") ==
 Priority levels: 1=Reminder, 2=Side Quest, 3=Main Quest
+Main quest - Quest that alludes to the {{user}}'s plot background
+Side quest - Any quest that !Main Quest
+Reminder - A promise, hired ship/wagon, obligation, etc
 
 add: create a new quest:
   {"tool":"quest","action":"add","title":"Slay the Manticore","priority":3,"giver":"Liora","location":"Northern Wastes","date":"15 Mirtul","duration":"3 days","description":"Hunt the beast threatening the village","objectives":[{"text":"Travel north"},{"text":"Find lair"}],${rewardsEx}}
@@ -187,6 +190,9 @@ update: modify an existing item. Only include fields that are CHANGING — omit 
 
 equip: {"tool":"inventory","action":"equip","index":1}
 unequip: {"tool":"inventory","action":"unequip","index":1}
+attune: {"tool":"inventory","action":"attune","index":1}
+unattune: {"tool":"inventory","action":"unattune","index":1}
+  Attunement requires a short rest. Only attune/unattune when narratively appropriate (e.g. during a rest).
 remove: {"tool":"inventory","action":"remove","index":2}
 
 charges: modify charges on a magic item:

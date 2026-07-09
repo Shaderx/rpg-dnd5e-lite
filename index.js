@@ -2343,8 +2343,9 @@ function onMessageSwiped(messageIndex) {
     applyWeatherVisuals();
     evaluateAutoBackground();
 
-    // V2: re-parse inline game_actions from the new swipe
+    // V2: revert the previous swipe's game_actions, then apply the new swipe's
     if (extensionSettings.v2Enabled) {
+        revertGameActions();
         parseAndApplyGameActions(message.mes);
         updateV2RevertButton();
     }

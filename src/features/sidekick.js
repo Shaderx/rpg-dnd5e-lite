@@ -21,6 +21,7 @@ import {
     isPlayerChosenDamageType,
 } from './spellScaling.js';
 import { fetchWithCache } from '../core/spellCache.js';
+import { collectSidekickWondrousEffects } from '../v2/features/wondrousEffects.js';
 
 const CDN_DATA = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data';
 
@@ -923,7 +924,7 @@ export function shieldFromItem(item) {
  * @param {{ mediumArmorMaster?: boolean, featAcBonus?: number }} [overrides]
  */
 export function computeEquippedAC(equippedArmor, shieldOrFlag, dexMod, baseAc, warriorDefBonus, overrides) {
-    const { mediumArmorMaster = false, featAcBonus = 0 } = overrides || {};
+    const { mediumArmorMaster = false, featAcBonus = 0, wondrousAcBonus = 0 } = overrides || {};
     let ac;
     if (!equippedArmor) {
         ac = baseAc ?? (10 + dexMod);
@@ -943,6 +944,7 @@ export function computeEquippedAC(equippedArmor, shieldOrFlag, dexMod, baseAc, w
     }
     if (warriorDefBonus) ac += warriorDefBonus;
     ac += featAcBonus;
+    ac += wondrousAcBonus;
     return ac;
 }
 
@@ -1188,11 +1190,16 @@ export function computeSidekickStats(sidekick, level) {
         + featEffects.hpBonus,
     );
 
+    const wondrousEffects = collectSidekickWondrousEffects(sidekick, {
+        hasArmor: !!sidekick.equippedArmor,
+        hasShield: !!sidekick.equippedShield,
+    });
+
     const saves = {};
     const sharpMindSave = (sidekick.type === 'expert' && level >= 18) ? sidekick.sharpMindSave : null;
     for (const a of abilities) {
         const isProficient = sidekick.saveProficiency === a || sharpMindSave === a;
-        saves[a] = { mod: mods[a] + (isProficient ? proficiency : 0), proficient: isProficient };
+        saves[a] = { mod: mods[a] + (isProficient ? proficiency : 0) + wondrousEffects.saveBonus, proficient: isProficient };
     }
 
     const skills = {};
@@ -1252,6 +1259,7 @@ export function computeSidekickStats(sidekick, level) {
         {
             mediumArmorMaster: !!featEffects.meta.mediumArmorMaster,
             featAcBonus: featEffects.acBonus || 0,
+            wondrousAcBonus: wondrousEffects.acBonus,
         },
     );
 
@@ -1286,6 +1294,7 @@ export function computeSidekickStats(sidekick, level) {
         empoweredMod,
         chosenFeats,
         featEffects,
+        wondrousEffects,
     };
 }
 

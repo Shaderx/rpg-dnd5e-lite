@@ -46,6 +46,7 @@ function normalizeRarityValue(val) {
  */
 export function parseAndApplyGameActions(messageText) {
     const result = { applied: 0, errors: [] };
+    _backup = null;
     if (!messageText) return result;
 
     const match = messageText.match(GAME_ACTIONS_REGEX);

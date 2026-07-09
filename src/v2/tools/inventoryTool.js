@@ -13,14 +13,6 @@ import { searchEquipment, fuzzyLookupItem, searchMagicItems, lookupSpellByName, 
 
 const VALID_TYPES = new Set(['none', 'armor', 'shield', 'weapon']);
 
-/** Auto-promote equipped magic items to attuned if the CDN says they require attunement. */
-function autoAttune(item) {
-    if (item.location !== 'equipped' || !item.magic) return;
-    const cdnItem = lookupItemByName(item.name)
-        || (item.equipmentData?.name && lookupItemByName(item.equipmentData.name));
-    if (cdnItem?.reqAttune) item.location = 'attuned';
-}
-
 /**
  * Attempt to resolve LLM-generated item names to canonical D&D names.
  * Tries direct lookup, then common reorderings.
@@ -244,6 +236,8 @@ export function handleInventoryAction(args) {
         case 'remove': return handleRemove(args);
         case 'equip': return handleEquip(args, 'equipped');
         case 'unequip': return handleEquip(args, 'stored');
+        case 'attune': return handleAttune(args);
+        case 'unattune': return handleUnattune(args);
         case 'charges': return handleCharges(args);
         default: return `Unknown inventory action: ${action}`;
     }
@@ -279,7 +273,6 @@ function handleAdd(args) {
         if (type === 'armor') enforceSingleArmor(idx);
         if (type === 'shield') enforceSingleShield(idx);
     }
-    autoAttune(item);
 
     persist();
     return `Item added: "${item.name}" x${item.quantity}${type !== 'none' ? ` [${type}]` : ''}`;
@@ -323,7 +316,6 @@ function handleUpdate(args) {
     if (args.magic === false && item.location === 'attuned') {
         item.location = 'equipped';
     }
-    autoAttune(item);
 
     if (args.quantity_change !== undefined) {
         const change = parseInt(args.quantity_change) || 0;
@@ -359,9 +351,35 @@ function handleEquip(args, location) {
         if (item.type === 'armor') enforceSingleArmor(idx);
         if (item.type === 'shield') enforceSingleShield(idx);
     }
-    autoAttune(item);
     persist();
     return `Item ${isItemEquipped(item) ? 'equipped' : 'unequipped'}: "${item.name}"`;
+}
+
+function handleAttune(args) {
+    const idx = resolveIndex(args.index);
+    if (idx < 0 || idx >= v2Inventory.length) return `Error: item not found at index ${args.index}`;
+
+    const item = v2Inventory[idx];
+    if (item.location === 'attuned') return `"${item.name}" is already attuned`;
+    if (!isItemEquipped(item)) {
+        item.location = 'equipped';
+        if (item.type === 'armor') enforceSingleArmor(idx);
+        if (item.type === 'shield') enforceSingleShield(idx);
+    }
+    item.location = 'attuned';
+    persist();
+    return `Item attuned: "${item.name}"`;
+}
+
+function handleUnattune(args) {
+    const idx = resolveIndex(args.index);
+    if (idx < 0 || idx >= v2Inventory.length) return `Error: item not found at index ${args.index}`;
+
+    const item = v2Inventory[idx];
+    if (item.location !== 'attuned') return `"${item.name}" is not attuned`;
+    item.location = 'equipped';
+    persist();
+    return `Item unattuned: "${item.name}" (still equipped)`;
 }
 
 function handleRemove(args) {

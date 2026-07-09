@@ -128,3 +128,36 @@ export function collectWondrousEffects(context) {
 
     return { acBonus: totalAcBonus, saveBonus: totalSaveBonus, items };
 }
+
+/**
+ * Collect aggregate wondrous item bonuses from a sidekick's items.
+ * Sidekick items use a boolean `attuned` flag instead of location-based attunement.
+ * @param {object} sk - Sidekick object
+ * @param {{ hasArmor: boolean, hasShield: boolean }} context
+ * @returns {{ acBonus: number, saveBonus: number, items: Array<{ name: string, acBonus: number, saveBonus: number }> }}
+ */
+export function collectSidekickWondrousEffects(sk, context) {
+    let totalAcBonus = 0;
+    let totalSaveBonus = 0;
+    const items = [];
+
+    for (const item of (sk.items || [])) {
+        if (!item.attuned) continue;
+
+        const cdnItem = lookupItemByName(item.name);
+        if (!cdnItem) continue;
+
+        const { acBonus, saveBonus, conditions } = extractBonuses(cdnItem);
+        if (!acBonus && !saveBonus) continue;
+
+        let effectiveAc = acBonus;
+        if (conditions.noArmor && context.hasArmor) effectiveAc = 0;
+        if (conditions.noShield && context.hasShield) effectiveAc = 0;
+
+        totalAcBonus += effectiveAc;
+        totalSaveBonus += saveBonus;
+        items.push({ name: item.name, acBonus: effectiveAc, saveBonus });
+    }
+
+    return { acBonus: totalAcBonus, saveBonus: totalSaveBonus, items };
+}

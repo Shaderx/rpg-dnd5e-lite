@@ -10,7 +10,7 @@ import { saveSidekicks } from '../../core/persistence.js';
 import { renderSidekickCards, renderSidekickDetail } from '../../rendering/sidekick.js';
 import { RARITY_LABELS, normalizeRarity } from '../../features/inventoryRarity.js';
 import {
-    searchEquipment, fuzzyLookupItem, lookupItemByName,
+    searchEquipment, fuzzyLookupItem,
     weaponFromItem, armorFromItem, shieldFromItem,
     getSidekickAttunedCount, SIDEKICK_MAX_ATTUNEMENT,
 } from '../../features/sidekick.js';
@@ -63,11 +63,6 @@ function resolveGearByIndex(sk, index) {
     return idx >= 0 && idx < list.length ? list[idx] : null;
 }
 
-function autoAttuneSidekickItem(item) {
-    const cdnItem = lookupItemByName(item.name);
-    return cdnItem?.reqAttune || false;
-}
-
 function persist() {
     saveSidekicks(sidekicks);
     renderSidekickCards();
@@ -90,6 +85,8 @@ export function handleSidekickInventoryAction(args) {
         case 'remove': return handleRemove(args);
         case 'equip': return handleEquip(args);
         case 'unequip': return handleUnequip(args);
+        case 'attune': return handleAttune(args);
+        case 'unattune': return handleUnattune(args);
         default: return `Unknown sidekick_inventory action: ${action}`;
     }
 }
@@ -113,9 +110,6 @@ function handleAdd(args) {
         if (cdnItem) {
             const armor = armorFromItem(cdnItem);
             armor.attuned = false;
-            if (magic && autoAttuneSidekickItem({ name: armor.name }) && getSidekickAttunedCount(sk) < SIDEKICK_MAX_ATTUNEMENT) {
-                armor.attuned = true;
-            }
             sk.equippedArmor = armor;
         } else {
             sk.equippedArmor = { name: rawName, type: 'LA', ac: 10, stealthDisadv: false, strReq: 0, attuned: false };
@@ -130,9 +124,6 @@ function handleAdd(args) {
         if (cdnItem) {
             const shield = shieldFromItem(cdnItem);
             shield.attuned = false;
-            if (magic && autoAttuneSidekickItem({ name: shield.name }) && getSidekickAttunedCount(sk) < SIDEKICK_MAX_ATTUNEMENT) {
-                shield.attuned = true;
-            }
             sk.equippedShield = shield;
         } else {
             sk.equippedShield = { name: rawName, ac: 2, rarity: null, attuned: false };
@@ -149,9 +140,6 @@ function handleAdd(args) {
             weapon = weaponFromItem(cdnItem);
             weapon.attuned = false;
             weapon.customNotes = notes;
-            if (magic && autoAttuneSidekickItem({ name: weapon.name }) && getSidekickAttunedCount(sk) < SIDEKICK_MAX_ATTUNEMENT) {
-                weapon.attuned = true;
-            }
         } else {
             weapon = { name: rawName, attackType: 'mw', damageDice: '1d6', damageType: 'slashing', properties: [], versatileDice: null, range: null, finesse: false, bonus: null, rarity: null, attuned: false, customNotes: notes };
         }
@@ -164,13 +152,12 @@ function handleAdd(args) {
     // type === 'none' (general item)
     const canonicalName = fuzzyLookupItem(rawName)?.name || rawName;
     if (!sk.items) sk.items = [];
-    const attuned = magic && autoAttuneSidekickItem({ name: canonicalName }) && getSidekickAttunedCount(sk) < SIDEKICK_MAX_ATTUNEMENT;
     sk.items.push({
         name: canonicalName,
         quantity: Math.max(1, parseInt(args.quantity) || 1),
         rarity: rarityStr,
         source: null,
-        attuned,
+        attuned: false,
         customNotes: notes,
     });
     const qty = sk.items[sk.items.length - 1].quantity;
@@ -338,4 +325,36 @@ function handleUnequip(args) {
     sk.items.push(demoted);
     persist();
     return `Gear unequipped on ${sk.name}: "${demoted.name}" moved to items`;
+}
+
+function handleAttune(args) {
+    const sk = findSidekickByName(args.sidekick);
+    if (!sk) return `Error: sidekick "${args.sidekick}" not found`;
+
+    const entry = resolveGearByIndex(sk, args.index);
+    if (!entry) return `Error: gear not found at index ${args.index} on ${sk.name}`;
+
+    if (entry.item.attuned) return `"${entry.item.name}" is already attuned on ${sk.name}`;
+
+    if (getSidekickAttunedCount(sk) >= SIDEKICK_MAX_ATTUNEMENT) {
+        return `Error: ${sk.name} already has ${SIDEKICK_MAX_ATTUNEMENT} attuned items (max reached)`;
+    }
+
+    entry.item.attuned = true;
+    persist();
+    return `Item attuned on ${sk.name}: "${entry.item.name}"`;
+}
+
+function handleUnattune(args) {
+    const sk = findSidekickByName(args.sidekick);
+    if (!sk) return `Error: sidekick "${args.sidekick}" not found`;
+
+    const entry = resolveGearByIndex(sk, args.index);
+    if (!entry) return `Error: gear not found at index ${args.index} on ${sk.name}`;
+
+    if (!entry.item.attuned) return `"${entry.item.name}" is not attuned on ${sk.name}`;
+
+    entry.item.attuned = false;
+    persist();
+    return `Item unattuned on ${sk.name}: "${entry.item.name}"`;
 }

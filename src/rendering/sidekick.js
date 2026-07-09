@@ -167,7 +167,9 @@ export function renderSidekickDetail(sidekickId) {
     </div>`);
 
     const shieldNote = sk.equippedShield ? ` + ${sk.equippedShield.name || 'Shield'}` : '';
-    const armorNote = sk.equippedArmor ? `(${sk.equippedArmor.name}${shieldNote})` : (sk.equippedShield ? `(${sk.equippedShield.name || 'Shield'})` : '');
+    const wondrousAcSources = (stats.wondrousEffects?.items || []).filter(w => w.acBonus > 0).map(w => w.name);
+    const wondrousAcNote = wondrousAcSources.length ? ' + ' + wondrousAcSources.join(' + ') : '';
+    const armorNote = sk.equippedArmor ? `(${sk.equippedArmor.name}${shieldNote}${wondrousAcNote})` : (sk.equippedShield || wondrousAcSources.length ? `(${[sk.equippedShield ? (sk.equippedShield.name || 'Shield') : '', ...wondrousAcSources].filter(Boolean).join(' + ')})` : '');
     sections.push(`<div class="dnd-sk-det-row dnd-sk-det-combat">
         <span>HP <strong>${stats.hp}</strong></span>
         <span>AC <strong>${stats.ac}</strong> ${armorNote}</span>
@@ -191,7 +193,11 @@ export function renderSidekickDetail(sidekickId) {
             return `${a.toUpperCase()} ${sign}${s.mod}${mark}`;
         });
     if (saveItems.length > 0) {
-        sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Saves</div><div>${saveItems.join(', ')}</div></div>`);
+        const wondrousSaveSources = (stats.wondrousEffects?.items || []).filter(w => w.saveBonus > 0);
+        const saveAnnotation = wondrousSaveSources.length
+            ? ` <span class="dnd-sk-det-wondrous-note">(includes ${wondrousSaveSources.map(w => `+${w.saveBonus} ${w.name}`).join(', ')})</span>`
+            : '';
+        sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Saves</div><div>${saveItems.join(', ')}${saveAnnotation}</div></div>`);
     }
 
     const skillItems = ALL_SKILLS
