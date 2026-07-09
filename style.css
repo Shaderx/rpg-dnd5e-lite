@@ -1891,6 +1891,12 @@
 .dnd-collapsible.dnd-collapsed {
     flex: 0 0 auto;
 }
+
+/* Keep card-grid modules content-sized rather than filling remaining column space. */
+#dnd-sidekick-container,
+#dnd-v2-companion-container {
+    flex: 0 0 auto;
+}
 .dnd-collapsible-header {
     display: flex;
     align-items: center;
@@ -4492,6 +4498,9 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.35em;
     padding: 0.15em 0;
+    align-content: start;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .dnd-sidekick-card {
@@ -4688,6 +4697,9 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.35em;
     padding: 0.15em 0;
+    align-content: start;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .dnd-comp-card {

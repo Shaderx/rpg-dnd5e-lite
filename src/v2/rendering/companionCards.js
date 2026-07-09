@@ -22,12 +22,46 @@ import { character } from '../../core/state.js';
 import { bindTooltipEvents } from '../../rendering/tooltip.js';
 
 const ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+const GRID_ROW_EPSILON_PX = 1;
+const companionGridObservers = new WeakMap();
 
 function esc(str) {
     if (!str) return '';
     const div = document.createElement('div');
     div.textContent = String(str);
     return div.innerHTML;
+}
+
+function capGridToSingleRow(container, cardSelector) {
+    const cards = container.querySelectorAll(cardSelector);
+    if (!cards.length) {
+        container.style.maxHeight = '';
+        return;
+    }
+
+    const firstRowTop = cards[0].offsetTop;
+    let firstRowBottom = firstRowTop + cards[0].offsetHeight;
+
+    for (let i = 1; i < cards.length; i += 1) {
+        const card = cards[i];
+        if (card.offsetTop > firstRowTop + GRID_ROW_EPSILON_PX) break;
+        firstRowBottom = Math.max(firstRowBottom, card.offsetTop + card.offsetHeight);
+    }
+
+    const styles = window.getComputedStyle(container);
+    const paddingBottom = Number.parseFloat(styles.paddingBottom) || 0;
+    container.style.maxHeight = `${Math.ceil(firstRowBottom + paddingBottom)}px`;
+}
+
+function ensureGridRowObserver(container, cardSelector) {
+    if (typeof ResizeObserver === 'undefined') return;
+    if (companionGridObservers.has(container)) return;
+
+    const observer = new ResizeObserver(() => {
+        capGridToSingleRow(container, cardSelector);
+    });
+    observer.observe(container);
+    companionGridObservers.set(container, observer);
 }
 
 function modStr(score) {
@@ -45,6 +79,7 @@ export function renderCompanionCards() {
 
     if (!v2Companions || v2Companions.length === 0) {
         container.innerHTML = '<div class="dnd-empty-state">No companions</div>';
+        container.style.maxHeight = '';
         return;
     }
 
@@ -83,6 +118,8 @@ export function renderCompanionCards() {
     });
 
     container.innerHTML = cards.join('');
+    capGridToSingleRow(container, '.dnd-comp-card');
+    ensureGridRowObserver(container, '.dnd-comp-card');
 }
 
 // ============================================================

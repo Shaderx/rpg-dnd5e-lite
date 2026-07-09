@@ -7,6 +7,40 @@ import { sidekicks, headerInfo } from '../core/state.js';
 import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, getSidekickAttunedCount, SIDEKICK_MAX_ATTUNEMENT } from '../features/sidekick.js';
 
 const TYPE_ICONS = { expert: 'fa-hat-wizard', spellcaster: 'fa-wand-sparkles', warrior: 'fa-shield-halved' };
+const GRID_ROW_EPSILON_PX = 1;
+const sidekickGridObservers = new WeakMap();
+
+function capGridToSingleRow(container, cardSelector) {
+    const cards = container.querySelectorAll(cardSelector);
+    if (!cards.length) {
+        container.style.maxHeight = '';
+        return;
+    }
+
+    const firstRowTop = cards[0].offsetTop;
+    let firstRowBottom = firstRowTop + cards[0].offsetHeight;
+
+    for (let i = 1; i < cards.length; i += 1) {
+        const card = cards[i];
+        if (card.offsetTop > firstRowTop + GRID_ROW_EPSILON_PX) break;
+        firstRowBottom = Math.max(firstRowBottom, card.offsetTop + card.offsetHeight);
+    }
+
+    const styles = window.getComputedStyle(container);
+    const paddingBottom = Number.parseFloat(styles.paddingBottom) || 0;
+    container.style.maxHeight = `${Math.ceil(firstRowBottom + paddingBottom)}px`;
+}
+
+function ensureGridRowObserver(container, cardSelector) {
+    if (typeof ResizeObserver === 'undefined') return;
+    if (sidekickGridObservers.has(container)) return;
+
+    const observer = new ResizeObserver(() => {
+        capGridToSingleRow(container, cardSelector);
+    });
+    observer.observe(container);
+    sidekickGridObservers.set(container, observer);
+}
 
 export function renderSidekickCards() {
     const container = document.getElementById('dnd-sidekick-cards');
@@ -14,6 +48,7 @@ export function renderSidekickCards() {
 
     if (!sidekicks || sidekicks.length === 0) {
         container.innerHTML = '<div class="dnd-empty-state">No sidekicks configured</div>';
+        container.style.maxHeight = '';
         return;
     }
 
@@ -103,6 +138,8 @@ export function renderSidekickCards() {
     });
 
     container.innerHTML = cards.join('');
+    capGridToSingleRow(container, '.dnd-sidekick-card');
+    ensureGridRowObserver(container, '.dnd-sidekick-card');
 }
 
 export function renderSidekickDetail(sidekickId) {
