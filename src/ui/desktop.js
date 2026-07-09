@@ -4,7 +4,7 @@
  */
 
 import { extensionSettings, quests, headerInfo } from '../core/state.js';
-import { hasCurrency, formatCurrencyStrip, formatCurrencyTitle } from '../features/currencyParser.js';
+import { hasCurrency, formatCurrencyStrip, formatCurrencyTitle, buildCurrencyOmniHtml } from '../features/currencyParser.js';
 import { rollD20, updateDiceDisplay, clearDiceRoll, formatDiceSetTooltip } from '../features/dice.js';
 import { applyWeatherVisuals } from '../features/weatherVisuals.js';
 
@@ -456,23 +456,7 @@ function omniTextWeight(text, hasEmoji) {
 }
 
 function buildCurrencyItemHtml(currency) {
-    const chips = [];
-    if (currency.gold > 0) {
-        chips.push(`<span class="dnd-coin-chip dnd-coin-gold" title="${currency.gold} gp">${currency.gold}<i class="dnd-coin-dot"></i></span>`);
-    }
-    if (currency.silver > 0) {
-        chips.push(`<span class="dnd-coin-chip dnd-coin-silver" title="${currency.silver} sp">${currency.silver}<i class="dnd-coin-dot"></i></span>`);
-    }
-    if (currency.copper > 0) {
-        chips.push(`<span class="dnd-coin-chip dnd-coin-copper" title="${currency.copper} cp">${currency.copper}<i class="dnd-coin-dot"></i></span>`);
-    }
-    if (chips.length === 0) {
-        chips.push(`<span class="dnd-coin-chip dnd-coin-gold" title="0 gp">0<i class="dnd-coin-dot"></i></span>`);
-    }
-    return `<div class="dnd-sec-currency-inner">
-        <span class="dnd-currency-wallet" aria-hidden="true">💰</span>
-        <div class="dnd-currency-row">${chips.join('')}</div>
-    </div>`;
+    return buildCurrencyOmniHtml(currency);
 }
 
 function renderSecondaryGrid(container, currency, extras) {

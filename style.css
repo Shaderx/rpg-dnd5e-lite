@@ -756,7 +756,7 @@
 }
 .dnd-panel-header h3 {
     margin: 0;
-    font-size: 0.8em;
+    font-size: 0.6em;
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -1314,75 +1314,83 @@
     overflow: hidden;
 }
 
-/* Currency-specific — compact 1-col single-line row */
+/* Currency — fills full omni row height; up to 5 denomination micro-segments */
 .dnd-sec-currency {
-    padding: 0.3em 0.35em;
-    gap: 0.3em;
+    padding: 1px 3px;
+    gap: 0;
+    height: 100%;
+    min-height: 15px;
     background: linear-gradient(165deg, rgba(255, 215, 0, 0.07) 0%, rgba(255, 255, 255, 0.02) 55%, rgba(0, 0, 0, 0.08) 100%);
     border-color: rgba(255, 215, 0, 0.12);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
-.dnd-sec-currency-inner {
+.dnd-currency-rail {
     display: flex;
-    flex-direction: row;
     align-items: center;
-    gap: 0.28em;
     width: 100%;
+    height: 100%;
+    min-height: 11px;
     min-width: 0;
+    gap: 1px;
 }
-.dnd-currency-wallet {
-    font-size: 0.72em;
-    line-height: 1;
-    flex-shrink: 0;
-    opacity: 0.92;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
-}
-.dnd-currency-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.18em;
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-}
-.dnd-coin-chip {
+.dnd-coin-seg {
     display: inline-flex;
     align-items: center;
-    gap: 0.15em;
-    padding: 0.06em 0.28em;
-    border-radius: 999px;
-    font-size: 0.58em;
+    justify-content: flex-end;
+    gap: 1px;
+    min-width: 0;
+    flex: 1 1 0;
+    overflow: hidden;
+    line-height: 1;
+}
+.dnd-coin-seg b {
+    font-size: 7px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.01em;
-    background: rgba(0, 0, 0, 0.22);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    line-height: 1.2;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: clip;
     white-space: nowrap;
-    flex-shrink: 0;
 }
-.dnd-coin-dot {
+.dnd-coin-seg i {
     display: block;
-    width: 0.42em;
-    height: 0.42em;
+    width: 4px;
+    height: 4px;
     border-radius: 50%;
     flex-shrink: 0;
 }
+/* Fewer active coins — don't stretch empty space across the rail */
+.dnd-currency-rail[data-count="1"] .dnd-coin-seg { flex: 0 1 auto; max-width: 100%; }
+.dnd-currency-rail[data-count="2"] .dnd-coin-seg { flex: 0 1 auto; max-width: 50%; }
+.dnd-currency-rail[data-count="3"] .dnd-coin-seg { flex: 1 1 0; max-width: 34%; }
+.dnd-currency-rail[data-count="4"] .dnd-coin-seg { flex: 1 1 0; max-width: 25%; }
+.dnd-currency-rail[data-count="5"] .dnd-coin-seg { flex: 1 1 0; max-width: 20%; }
 .dnd-coin-gold { color: #ffe566; }
-.dnd-coin-gold .dnd-coin-dot {
+.dnd-coin-gold i {
     background: linear-gradient(145deg, #fff0a0, #c9a000);
-    box-shadow: 0 0 4px rgba(255, 215, 0, 0.45);
+    box-shadow: 0 0 2px rgba(255, 215, 0, 0.5);
 }
 .dnd-coin-silver { color: #e8e8e8; }
-.dnd-coin-silver .dnd-coin-dot {
+.dnd-coin-silver i {
     background: linear-gradient(145deg, #f5f5f5, #9a9a9a);
-    box-shadow: 0 0 3px rgba(200, 200, 200, 0.35);
+    box-shadow: 0 0 2px rgba(200, 200, 200, 0.35);
 }
 .dnd-coin-copper { color: #e8a86a; }
-.dnd-coin-copper .dnd-coin-dot {
+.dnd-coin-copper i {
     background: linear-gradient(145deg, #e8b080, #8b4513);
-    box-shadow: 0 0 3px rgba(205, 127, 50, 0.35);
+    box-shadow: 0 0 2px rgba(205, 127, 50, 0.35);
+}
+.dnd-coin-platinum { color: #d4e8ff; }
+.dnd-coin-platinum i {
+    background: linear-gradient(145deg, #f0f8ff, #7eb8d4);
+    box-shadow: 0 0 2px rgba(176, 224, 255, 0.45);
+}
+.dnd-coin-electrum { color: #c8e6a0; }
+.dnd-coin-electrum i {
+    background: linear-gradient(145deg, #e8f0a8, #8a9a40);
+    box-shadow: 0 0 2px rgba(180, 200, 80, 0.35);
 }
 
 /* Omni emoji + text */
@@ -5555,6 +5563,12 @@
     font-weight: 600;
     color: rgba(255, 255, 255, 0.6);
     margin-left: 0.3em;
+}
+
+.dnd-sk-det-wondrous-note {
+    font-size: 0.85em;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 /* ── Sidekick attunement toggle ──────────────────────────── */
