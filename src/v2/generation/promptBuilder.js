@@ -236,14 +236,9 @@ unequip: {"tool":"sidekick_inventory","action":"unequip","sidekick":"Thorn","ind
 }
 
 /**
- * Build the <companion> section for the active companion.
- * Only included if a companion is enabled.
+ * Render a single enabled companion's stat block as a list of lines.
  */
-export function buildCompanionSection() {
-    if (!v2Companions || v2Companions.length === 0) return '';
-    const active = v2Companions.find(c => c.enabled);
-    if (!active) return '';
-
+function renderCompanionBlock(active) {
     const meta = CATEGORY_META[active.category] || CATEGORY_META.familiar;
     const computed = getComputedStats(active);
     const ctypeLabel = active.creatureType
@@ -281,6 +276,18 @@ export function buildCompanionSection() {
     }
 
     if (active.description) lines.push(`Notes: ${active.description}`);
+    return lines;
+}
 
-    return `<companion>\n${lines.join('\n')}\n</companion>`;
+/**
+ * Build the <companion> section for all enabled companions.
+ * Only included if at least one companion is enabled.
+ */
+export function buildCompanionSection() {
+    if (!v2Companions || v2Companions.length === 0) return '';
+    const enabled = v2Companions.filter(c => c.enabled);
+    if (enabled.length === 0) return '';
+
+    const blocks = enabled.map(renderCompanionBlock);
+    return `<companion>\n${blocks.map(b => b.join('\n')).join('\n\n')}\n</companion>`;
 }

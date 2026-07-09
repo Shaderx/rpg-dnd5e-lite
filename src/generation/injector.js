@@ -57,11 +57,9 @@ function buildConsolidatedPrompt(options) {
     const sidekickSection = buildSidekickSection();
     if (sidekickSection) sections.push(sidekickSection);
 
-    // 2b. V2 Companions (active companion)
-    if (extensionSettings.v2Enabled) {
-        const companionSection = buildCompanionSection();
-        if (companionSection) sections.push(companionSection);
-    }
+    // 2b. Companions (always active)
+    const companionSection = buildCompanionSection();
+    if (companionSection) sections.push(companionSection);
 
     // 3. Inventory (V2 or legacy)
     if (extensionSettings.v2Enabled) {

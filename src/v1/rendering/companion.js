@@ -174,7 +174,7 @@ export function renderV1CompanionPanel() {
     }
 
     const stats = computeCharacterStats(characterV1);
-    if (!stats || !stats.hasCompanionAccess) {
+    if (!stats) {
         container.style.display = 'none';
         return;
     }

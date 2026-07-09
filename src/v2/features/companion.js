@@ -241,18 +241,13 @@ export function getComputedStats(companion) {
 // ============================================================
 
 /**
- * Toggle a companion's enabled state, enforcing only-one-active.
+ * Toggle a companion's enabled state independently.
+ * Multiple companions may be enabled at the same time.
  */
 export function toggleCompanionEnabled(id) {
     const comp = v2Companions.find(c => c.id === id);
     if (!comp) return;
-
-    if (comp.enabled) {
-        comp.enabled = false;
-    } else {
-        for (const c of v2Companions) c.enabled = false;
-        comp.enabled = true;
-    }
+    comp.enabled = !comp.enabled;
     saveV2Companions(v2Companions);
 }
 

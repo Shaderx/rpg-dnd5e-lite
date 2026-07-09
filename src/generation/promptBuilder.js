@@ -22,6 +22,8 @@ import {
 } from '../v2/features/activeEffects.js';
 import { characterV2 } from '../v2/core/characterState.js';
 import { computeV2CharacterStats } from '../v2/features/character.js';
+import { v2Companions } from '../v2/core/state.js';
+import { getComputedStats, CATEGORY_META } from '../v2/features/companion.js';
 
 /**
  * Get spell damage bonuses from the active characterV2, if any.
@@ -861,6 +863,38 @@ export function buildSidekickSection() {
             }
             if (sk.hireDate) parts.push(`since ${sk.hireDate}`);
             lines.push(`Hire: ${parts.join(' ')}`);
+        }
+
+        if (sk.assignedCompanions?.length > 0 && v2Companions?.length > 0) {
+            const assigned = sk.assignedCompanions
+                .map(cid => v2Companions.find(c => c.id === cid))
+                .filter(Boolean);
+            if (assigned.length > 0) {
+                lines.push('Companions:');
+                for (const comp of assigned) {
+                    const meta = CATEGORY_META[comp.category] || CATEGORY_META.familiar;
+                    const computed = getComputedStats(comp);
+                    const ctypeLabel = comp.creatureType
+                        ? comp.creatureType.charAt(0).toUpperCase() + comp.creatureType.slice(1)
+                        : '';
+                    lines.push(`  [${comp.name || 'Unnamed'} (${comp.creatureName}), ${ctypeLabel} ${meta.label}]`);
+                    lines.push(`  HP: ${computed.hp} | AC: ${computed.ac} | Speed: ${computed.speed || comp.speed || ''}`);
+                    const abilLine = ['str','dex','con','int','wis','cha'].map(a => {
+                        const score = comp[a] ?? 10;
+                        const mod = Math.floor((score - 10) / 2);
+                        return `${a.toUpperCase()} ${score}(${mod >= 0 ? '+' : ''}${mod})`;
+                    }).join(' ');
+                    lines.push(`  ${abilLine}`);
+                    const traits = computed.traits || comp.traits || [];
+                    if (traits.length > 0) {
+                        for (const t of traits) lines.push(`  ${t.name}: ${t.desc}`);
+                    }
+                    const actions = computed.actions || comp.actions || [];
+                    if (actions.length > 0) {
+                        for (const a of actions) lines.push(`  ${a.name}: ${a.desc}`);
+                    }
+                }
+            }
         }
     }
 

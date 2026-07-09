@@ -44,7 +44,7 @@ import { listCustomSpecies, createCustomSpecies, updateCustomSpecies, deleteCust
 import { CREATURE_TYPES as V1_CREATURE_TYPES, DAMAGE_TYPES, ABILITY_KEYS as V1_ABILITY_KEYS, ABILITY_LABELS as V1_ABILITY_LABELS } from './src/v1/core/constants.js';
 
 // V2 Inline Game Actions
-import { v2Quests, v2Inventory } from './src/v2/core/state.js';
+import { v2Quests, v2Inventory, v2Companions } from './src/v2/core/state.js';
 import { loadV2Quests, loadV2Inventory, saveV2Quests, saveV2Inventory, getChatDataVersion, loadV2Companions } from './src/v2/core/persistence.js';
 import { hasV1DataToMigrate, isChatV2, executeV2Migration } from './src/v2/core/migration.js';
 import { parseAndApplyGameActions, hasGameActionBackup, revertGameActions } from './src/v2/tools/inlineParser.js';
@@ -374,6 +374,7 @@ let _skTempItems = [];
 let _skTempArmorAttuned = false;
 let _skSelectedShieldName = null;
 let _skTempShieldAttuned = false;
+let _skTempCompanions = [];
 
 function getTempAttunedCount() {
     let count = 0;
@@ -382,6 +383,31 @@ function getTempAttunedCount() {
     count += _skTempWeapons.filter(w => w.attuned).length;
     count += _skTempItems.filter(it => it.attuned).length;
     return count;
+}
+
+function populateCompanionSelect() {
+    const $select = $('#dnd-sk-companion-select');
+    $select.html('<option value="">-- Pick a companion --</option>');
+    if (!v2Companions || v2Companions.length === 0) return;
+    for (const comp of v2Companions) {
+        if (_skTempCompanions.includes(comp.id)) continue;
+        const label = escHtml(comp.name || comp.creatureName || 'Unnamed');
+        $select.append(`<option value="${escHtml(comp.id)}">${label}</option>`);
+    }
+}
+
+function renderCompanionAssignmentTags() {
+    const $el = $('#dnd-sk-companion-tags');
+    if (_skTempCompanions.length === 0) {
+        $el.html('<span class="dnd-sk-dd-empty">No companions assigned</span>');
+        return;
+    }
+    const tags = _skTempCompanions.map(cid => {
+        const comp = v2Companions.find(c => c.id === cid);
+        const label = comp ? (comp.name || comp.creatureName || 'Unnamed') : cid;
+        return `<span class="dnd-sk-spell-tag" data-comp-id="${escHtml(cid)}">${escHtml(label)} <button class="dnd-sk-comp-remove" data-comp-id="${escHtml(cid)}">&times;</button></span>`;
+    });
+    $el.html(tags.join(''));
 }
 
 function toggleSidekickEnabled(id) {
@@ -422,6 +448,7 @@ async function openSidekickConfigModal(editId) {
     _skTempSpells = [];
     _skTempChosenLanguages = [];
     _skTempItems = [];
+    _skTempCompanions = [];
     Object.keys(_skFeatSpellData).forEach(k => delete _skFeatSpellData[k]);
 
     const $popup = $('#dnd-sidekick-config-popup');
@@ -507,6 +534,7 @@ async function openSidekickConfigModal(editId) {
             _skTempWeapons = (sk.weapons || []).map(w => ({ ...w }));
             _skTempItems = (sk.items || []).slice();
             _skTempChosenLanguages = (sk.chosenLanguages || []).slice();
+            _skTempCompanions = (sk.assignedCompanions || []).slice();
 
             if (sk.creatureSource) {
                 if (!getCreatureStats(sk.creatureName, sk.creatureSource)) {
@@ -560,6 +588,9 @@ async function openSidekickConfigModal(editId) {
             }
         }
     }
+
+    populateCompanionSelect();
+    renderCompanionAssignmentTags();
 
     $popup.css('display', 'flex');
     bindTooltipEvents($popup[0]);
@@ -2098,6 +2129,7 @@ function saveSidekickFromModal() {
         sk.weapons = _skTempWeapons;
         sk.items = _skTempItems.slice();
         sk.chosenLanguages = _skTempChosenLanguages.slice();
+        sk.assignedCompanions = _skTempCompanions.slice();
 
         if (_skTempCreature) {
             if (_skTempCreature.name !== sk.creatureName) {
@@ -2133,6 +2165,7 @@ function saveSidekickFromModal() {
         newSk.weapons = _skTempWeapons;
         newSk.items = _skTempItems.slice();
         newSk.chosenLanguages = _skTempChosenLanguages.slice();
+        newSk.assignedCompanions = _skTempCompanions.slice();
         newSk.equippedArmor = equippedArmor;
         newSk.equippedShield = equippedShield;
         sidekicks.push(newSk);
@@ -2406,6 +2439,10 @@ function onChatChanged() {
     loadSidekicks();
     renderSidekickCards();
     fetchEquipmentItems().then(() => fetchMagicItems());
+
+    // Companions always active
+    loadV2Companions();
+    renderCompanionCards();
 
     loadRandomEventState();
     updateRandomEventDisplay();
@@ -2867,17 +2904,19 @@ function updatePanelTitle() {
 
 function applyV2Mode() {
     const v2 = extensionSettings.v2Enabled;
-    const $compContainer = $('#dnd-v2-companion-container');
     $('#dnd-v2-quest-add').toggle(v2);
     $('#dnd-add-quest-row').toggle(!v2);
+
+    // Companions are always active
+    loadV2Companions();
+    renderCompanionCards();
+    $('#dnd-v2-companion-container').show();
+
     if (v2) {
         loadV2Quests();
         loadV2Inventory();
-        loadV2Companions();
         renderV2Quests();
         renderV2Inventory();
-        renderCompanionCards();
-        $compContainer.show();
         $('#dnd-v1-companion-container').hide();
         loadCharacterV2();
         renderV2CharacterPanel();
@@ -2885,7 +2924,6 @@ function applyV2Mode() {
         renderV2Spellbook();
         preloadV2Assets();
     } else {
-        $compContainer.hide();
         renderQuests();
         renderInventory();
     }
@@ -3078,15 +3116,17 @@ async function initUI() {
         renderInventory();
     }
 
+    // Companions — always active regardless of mode
+    loadV2Companions();
+    renderCompanionCards();
+    $('#dnd-v2-companion-container').show();
+
     // V2 Inline Game Actions + Character
     if (extensionSettings.v2Enabled) {
         loadV2Quests();
         loadV2Inventory();
-        loadV2Companions();
         renderV2Quests();
         renderV2Inventory();
-        renderCompanionCards();
-        $('#dnd-v2-companion-container').show();
         $('#dnd-v1-companion-container').hide();
         loadCharacterV2();
         renderV2CharacterPanel();
@@ -3520,6 +3560,22 @@ async function initUI() {
     $('#dnd-sk-creature-source').on('change', onSkCreatureSourceChanged);
     $('#dnd-sk-load-source-btn').on('click', onSkLoadExtraSource);
     $('#dnd-sk-config-save').on('click', saveSidekickFromModal);
+
+    // Sidekick companion assignment
+    $('#dnd-sk-companion-add').on('click', () => {
+        const val = $('#dnd-sk-companion-select').val();
+        if (!val || _skTempCompanions.includes(val)) return;
+        _skTempCompanions.push(val);
+        populateCompanionSelect();
+        renderCompanionAssignmentTags();
+    });
+    $(document).on('click', '.dnd-sk-comp-remove', function () {
+        const cid = $(this).data('comp-id');
+        if (!cid) return;
+        _skTempCompanions = _skTempCompanions.filter(id => id !== cid);
+        populateCompanionSelect();
+        renderCompanionAssignmentTags();
+    });
 
     // Sidekick spell filter (fuzzy search in dropdown)
     let _skSpellDebounce = null;
