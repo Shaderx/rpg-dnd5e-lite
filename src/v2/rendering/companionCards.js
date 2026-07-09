@@ -18,7 +18,7 @@ import {
     addCompanion,
     updateCompanion,
 } from '../features/companion.js';
-import { character } from '../../core/state.js';
+import { character, sidekicks } from '../../core/state.js';
 import { bindTooltipEvents } from '../../rendering/tooltip.js';
 
 const ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
@@ -96,10 +96,16 @@ export function renderCompanionCards() {
             ? comp.creatureType.charAt(0).toUpperCase() + comp.creatureType.slice(1)
             : '';
 
+        let ownerTag = '';
+        if (comp.owner) {
+            const sk = sidekicks?.find(s => s.id === comp.owner);
+            ownerTag = ` <span class="dnd-comp-owner-tag">${esc(sk?.name || '?')}</span>`;
+        }
+
         return `<div class="dnd-comp-card ${enabledClass}" data-comp-id="${comp.id}" title="Click for details, Shift+click to toggle injection">
             <div class="dnd-comp-card-top">
                 <div class="dnd-comp-card-identity">
-                    <div class="dnd-comp-card-name">${esc(comp.name || 'Unnamed')}</div>
+                    <div class="dnd-comp-card-name">${esc(comp.name || 'Unnamed')}${ownerTag}</div>
                     <div class="dnd-comp-card-subtitle">${esc(comp.creatureName || '')}${creatureTypeLabel ? ' &mdash; ' + esc(creatureTypeLabel) : ''}</div>
                 </div>
                 <div class="dnd-comp-card-badge" title="${esc(meta.label)}" style="--badge-color:${meta.color}">
@@ -243,6 +249,15 @@ export function openCompanionEditModal(compId) {
         $levelRow.hide();
     }
 
+    const $ownerSelect = $popup.find('#dnd-v2-comp-edit-owner');
+    $ownerSelect.html('<option value="">Player</option>');
+    if (sidekicks && sidekicks.length > 0) {
+        for (const sk of sidekicks) {
+            $ownerSelect.append(`<option value="${esc(sk.id)}">${esc(sk.name || 'Unnamed')}</option>`);
+        }
+    }
+    $ownerSelect.val(comp.owner || '');
+
     $popup.find('#dnd-v2-comp-edit-title').text(`Edit ${comp.name || 'Companion'}`);
 
     $popup.css('display', 'flex');
@@ -259,6 +274,7 @@ export function saveCompanionFromEditModal() {
     const updates = {
         name: $popup.find('#dnd-v2-comp-edit-name').val().trim() || comp.name,
         description: $popup.find('#dnd-v2-comp-edit-desc').val().trim(),
+        owner: $popup.find('#dnd-v2-comp-edit-owner').val() || null,
     };
 
     const $ctypeRow = $popup.find('#dnd-v2-comp-edit-ctype-row');
@@ -380,6 +396,7 @@ function buildFamiliarForm() {
             <label>Custom Name:</label>
             <input type="text" id="dnd-comp-wiz-fam-name" placeholder="Leave blank for creature name" />
         </div>
+        ${_buildOwnerSelect()}
         <div id="dnd-comp-wiz-fam-preview" class="dnd-comp-wiz-preview"></div>
         <div class="dnd-comp-wiz-actions">
             <button id="dnd-comp-wiz-back" class="dnd-btn">Back</button>
@@ -424,9 +441,11 @@ function bindFamiliarFormEvents(container) {
         const customName = container.querySelector('#dnd-comp-wiz-fam-name').value.trim();
         const creature = FAMILIAR_CREATURES[key];
         const ctype = creature?.chainOnly ? creature.type.toLowerCase() : ctypeSelect.value;
+        const owner = container.querySelector('#dnd-comp-wiz-owner')?.value || null;
 
         const comp = buildFamiliarCompanion(key, customName, ctype);
         if (comp) {
+            comp.owner = owner;
             addCompanion(comp);
             renderCompanionCards();
             $('#dnd-v2-comp-wizard-popup').css('display', 'none');
@@ -458,6 +477,7 @@ function buildPrimalForm() {
                 <label>Ranger Level:</label>
                 <input type="number" id="dnd-comp-wiz-primal-level" value="${charLevel}" min="3" max="20" />
             </div>
+            ${_buildOwnerSelect()}
             <div class="dnd-comp-wiz-actions">
                 <button id="dnd-comp-wiz-back" class="dnd-btn">Back</button>
                 <button id="dnd-comp-wiz-primal-save" class="dnd-btn dnd-btn-primary">Add Companion</button>
@@ -488,9 +508,11 @@ function bindPrimalFormEvents(container) {
         if (!selectedTemplate) return;
         const customName = container.querySelector('#dnd-comp-wiz-primal-name').value.trim();
         const level = parseInt(container.querySelector('#dnd-comp-wiz-primal-level').value, 10) || 3;
+        const owner = container.querySelector('#dnd-comp-wiz-owner')?.value || null;
 
         const comp = buildPrimalCompanion(selectedTemplate, customName, level);
         if (comp) {
+            comp.owner = owner;
             addCompanion(comp);
             renderCompanionCards();
             $('#dnd-v2-comp-wizard-popup').css('display', 'none');
@@ -519,6 +541,7 @@ function buildSteedForm() {
             <label>Spell Slot Level:</label>
             <input type="number" id="dnd-comp-wiz-steed-slot" value="2" min="2" max="9" />
         </div>
+        ${_buildOwnerSelect()}
         <div class="dnd-comp-wiz-actions">
             <button id="dnd-comp-wiz-back" class="dnd-btn">Back</button>
             <button id="dnd-comp-wiz-steed-save" class="dnd-btn dnd-btn-primary">Add Steed</button>
@@ -536,9 +559,11 @@ function bindSteedFormEvents(container) {
         const ctype = container.querySelector('#dnd-comp-wiz-steed-ctype').value;
         const customName = container.querySelector('#dnd-comp-wiz-steed-name').value.trim();
         const slotLevel = parseInt(container.querySelector('#dnd-comp-wiz-steed-slot').value, 10) || 2;
+        const owner = container.querySelector('#dnd-comp-wiz-owner')?.value || null;
 
         const comp = buildSteedCompanion(customName, ctype, slotLevel);
         if (comp) {
+            comp.owner = owner;
             addCompanion(comp);
             renderCompanionCards();
             $('#dnd-v2-comp-wizard-popup').css('display', 'none');
@@ -547,6 +572,19 @@ function bindSteedFormEvents(container) {
 }
 
 // ---- Helpers ----
+
+function _buildOwnerSelect() {
+    let opts = '<option value="">Player</option>';
+    if (sidekicks && sidekicks.length > 0) {
+        for (const sk of sidekicks) {
+            opts += `<option value="${esc(sk.id)}">${esc(sk.name || 'Unnamed')}</option>`;
+        }
+    }
+    return `<div class="dnd-setting-row">
+        <label>Owner:</label>
+        <select id="dnd-comp-wiz-owner">${opts}</select>
+    </div>`;
+}
 
 function _hasPactChain() {
     if (characterV2?.levelChoices) {

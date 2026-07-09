@@ -77,6 +77,7 @@ export function createDefaultCompanion(overrides = {}) {
         traits: [],
         scalingLevel: null,
         enabled: false,
+        owner: null,
         ...overrides,
     };
 }

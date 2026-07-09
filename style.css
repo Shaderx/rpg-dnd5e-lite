@@ -4766,6 +4766,15 @@
     text-overflow: ellipsis;
 }
 
+.dnd-comp-owner-tag {
+    font-weight: 400;
+    font-size: 0.8em;
+    color: rgba(180, 200, 230, 0.7);
+    margin-left: 0.3em;
+}
+.dnd-comp-owner-tag::before { content: '('; }
+.dnd-comp-owner-tag::after { content: ')'; }
+
 .dnd-comp-card-subtitle {
     font-size: 0.62em;
     color: rgba(160, 185, 210, 0.6);

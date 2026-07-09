@@ -245,8 +245,14 @@ function renderCompanionBlock(active) {
         ? active.creatureType.charAt(0).toUpperCase() + active.creatureType.slice(1)
         : '';
 
+    let ownerLabel = 'Player';
+    if (active.owner) {
+        const sk = sidekicks?.find(s => s.id === active.owner);
+        ownerLabel = sk ? sk.name : 'Unknown';
+    }
+
     const lines = [];
-    lines.push(`[${active.name || 'Unnamed'} (${active.creatureName}), ${ctypeLabel} ${meta.label}]`);
+    lines.push(`[${active.name || 'Unnamed'} (${active.creatureName}), ${ctypeLabel} ${meta.label}, Owner: ${ownerLabel}]`);
 
     const speedStr = computed.speed || active.speed || '';
     lines.push(`HP: ${computed.hp} | AC: ${computed.ac} | Speed: ${speedStr} | Size: ${active.size || 'M'}`);
