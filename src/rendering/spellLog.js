@@ -92,11 +92,20 @@ export function renderSpellLog() {
             let statusBadge = '';
             if (resolved && resolved.status !== 'instant') {
                 const tag = formatEffectStatusTag(resolved);
+                const isDismissable = resolved.status === 'active' || resolved.status === 'unknown' || resolved.status === 'dismissed';
                 const badgeClass = resolved.status === 'active' || resolved.status === 'unknown'
                     ? 'dnd-spell-log-status-active'
-                    : 'dnd-spell-log-status-expired';
+                    : resolved.status === 'dismissed'
+                        ? 'dnd-spell-log-status-dismissed'
+                        : 'dnd-spell-log-status-expired';
                 const shortTag = tag.replace(/^\[|\]$/g, '');
-                statusBadge = ` <span class="dnd-spell-log-status ${badgeClass}">${escapeHtml(shortTag)}</span>`;
+                const clickableClass = isDismissable ? ' dnd-spell-log-status-clickable' : '';
+                const clickAttr = isDismissable ? ` data-dismiss-idx="${i}"` : '';
+                const title = isDismissable
+                    ? (resolved.status === 'dismissed' ? 'Click to reactivate' : 'Click to dismiss')
+                    : '';
+                const titleAttr = title ? ` title="${title}"` : '';
+                statusBadge = ` <span class="dnd-spell-log-status ${badgeClass}${clickableClass}"${clickAttr}${titleAttr}>${escapeHtml(shortTag)}</span>`;
             }
             label = `${present} <strong>${escapeHtml(entry.spell)}</strong>${elementTag}${detailStr}${statusBadge}`;
         }
@@ -125,6 +134,18 @@ export function renderSpellLog() {
 }
 
 function bindSpellLogEvents(container) {
+    container.querySelectorAll('[data-dismiss-idx]').forEach(badge => {
+        badge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(badge.dataset.dismissIdx);
+            if (spellLog[idx] && spellLog[idx].type === 'cast') {
+                spellLog[idx].dismissed = !spellLog[idx].dismissed;
+                persist();
+                renderSpellLog();
+            }
+        });
+    });
+
     container.querySelectorAll('.dnd-spell-log-delete').forEach(btn => {
         btn.addEventListener('click', () => {
             const idx = parseInt(btn.dataset.idx);

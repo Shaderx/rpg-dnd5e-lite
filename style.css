@@ -3218,7 +3218,25 @@
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
-.dnd-spell-log-item.dnd-spell-log-cast:has(.dnd-spell-log-status-expired) .dnd-spell-log-name strong {
+.dnd-spell-log-status-dismissed {
+    color: rgba(255, 190, 100, 0.7);
+    background: rgba(255, 190, 100, 0.08);
+    border: 1px solid rgba(255, 190, 100, 0.2);
+}
+.dnd-spell-log-status-clickable {
+    cursor: pointer;
+    user-select: none;
+    transition: filter 0.15s, transform 0.1s;
+}
+.dnd-spell-log-status-clickable:hover {
+    filter: brightness(1.3);
+    transform: scale(1.05);
+}
+.dnd-spell-log-status-clickable:active {
+    transform: scale(0.97);
+}
+.dnd-spell-log-item.dnd-spell-log-cast:has(.dnd-spell-log-status-expired) .dnd-spell-log-name strong,
+.dnd-spell-log-item.dnd-spell-log-cast:has(.dnd-spell-log-status-dismissed) .dnd-spell-log-name strong {
     opacity: 0.55;
 }
 .dnd-spell-log-icon-rest {

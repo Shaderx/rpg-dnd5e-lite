@@ -8,7 +8,7 @@ import { lookupSpellByName } from '../../features/sidekick.js';
 import { parseCastLevelFromTokens } from '../../features/spellTracker.js';
 import { lookupSpellSync } from './spells.js';
 
-/** @typedef {'active'|'expired'|'instant'|'unknown'} EffectStatus */
+/** @typedef {'active'|'expired'|'dismissed'|'instant'|'unknown'} EffectStatus */
 const ROUND_SECONDS = 6;
 const MINUTE_SECONDS = 60;
 
@@ -291,6 +291,10 @@ function resolveCastStatus(entry, ctx) {
         return { status: 'instant', remainingMinutes: null, concentration, spell: spellForUi, castLevel };
     }
 
+    if (entry.dismissed) {
+        return { status: 'dismissed', remainingMinutes: null, concentration, spell: spellForUi, castLevel, reason: 'dismissed' };
+    }
+
     const latest = ctx.latestCastBySpell.get(entry.spell.toLowerCase());
     if (latest !== entry) {
         return { status: 'expired', remainingMinutes: null, concentration, spell: spellForUi, castLevel, reason: 'superseded' };
@@ -349,6 +353,7 @@ export function formatEffectStatusTag(resolved) {
         return '[ACTIVE]';
     }
     if (resolved.status === 'unknown') return '[ACTIVE — duration unknown]';
+    if (resolved.status === 'dismissed') return '[DISMISSED]';
     if (resolved.status === 'expired') return '[EXPIRED]';
     return '';
 }
