@@ -11,7 +11,7 @@ import { extractSpellCasts, actionLabels } from '../features/spellTracker.js';
 import { MODIFIER_DEFS } from '../features/modifiers.js';
 import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, buildSidekickCombatNotes, lookupFeatByName, strip5eMarkup, lookupSpellByName, getSidekickAttunedCount, SIDEKICK_MAX_ATTUNEMENT, lookupItemByName } from '../features/sidekick.js';
 import { compressCombatNote } from './compress.js';
-import { getSpellDamageInfo as getV1SpellDamageInfo, lookupSpellSync, ordinal } from '../v1/features/spells.js';
+import { getSpellDamageInfo as getV1SpellDamageInfo, lookupSpellSync as lookupSpellSyncV1, ordinal } from '../v1/features/spells.js';
 import {
     getActiveEffectsList,
     getActiveConcentrationSpell,
@@ -22,6 +22,7 @@ import {
 } from '../v2/features/activeEffects.js';
 import { characterV2 } from '../v2/core/characterState.js';
 import { computeV2CharacterStats } from '../v2/features/character.js';
+import { lookupSpellSync as lookupSpellSyncV2 } from '../v2/features/spells.js';
 
 /**
  * Get spell damage bonuses from the active characterV2, if any.
@@ -251,7 +252,7 @@ function buildArmedReactionsList() {
     const armed = characterV2?.preparedReactions;
     if (!Array.isArray(armed) || armed.length === 0) return [];
     return armed.map(name => {
-        const spell = lookupSpellSync(name);
+        const spell = resolveSpellForPrompt(name);
         if (!spell) return null;
         const condition = spell.time?.[0]?.condition;
         const trigger = condition
@@ -524,11 +525,7 @@ function parseCastLevelFromDetails(details) {
 
 /** Resolve spell from imported spellbook, sidekick CDN cache, or V1 CDN cache. */
 function findSpellForInject(name) {
-    const fromBook = findSpellInCache(name);
-    if (fromBook && !fromBook._fallback) return fromBook;
-    const fromSk = lookupSpellByName(name);
-    if (fromSk) return fromSk;
-    return lookupSpellSync(name);
+    return resolveSpellForPrompt(name);
 }
 
 /**
@@ -961,6 +958,26 @@ function findSpellInCache(name) {
     const lower = name.toLowerCase();
     for (const [, spell] of spellDataCache) {
         if (spell.name?.toLowerCase() === lower) return spell;
+    }
+    return null;
+}
+
+const NO_CONC_SUFFIX_RE = /\s*\(No Conc\)\s*$/i;
+
+function resolveSpellForPrompt(name) {
+    if (!name) return null;
+    const fromBook = findSpellInCache(name);
+    if (fromBook && !fromBook._fallback) return fromBook;
+    const fromSk = lookupSpellByName(name);
+    if (fromSk) return fromSk;
+    const fromV2 = lookupSpellSyncV2(name);
+    if (fromV2) return fromV2;
+    const fromV1 = lookupSpellSyncV1(name);
+    if (fromV1) return fromV1;
+
+    if (NO_CONC_SUFFIX_RE.test(name)) {
+        const baseName = name.replace(NO_CONC_SUFFIX_RE, '');
+        return resolveSpellForPrompt(baseName);
     }
     return null;
 }
