@@ -143,10 +143,12 @@ Format: <details><summary>game_actions</summary>[...actions...]</details>
 Each object needs "tool" + "action". [#N] from lists above = "index" for existing entries.
 
 == QUEST (tool:"quest") ==
-Priority levels: 1=Reminder, 2=Side Quest, 3=Main Quest
-Main quest - Quest that alludes to the {{user}}'s plot background
-Side quest - Any quest that !Main Quest
-Reminder - A promise, hired ship/wagon, obligation, etc
+Priority levels:
+1: Reminder - A promise, hired ship/wagon, obligation, etc
+2: Side quest - Any quest that !Main Quest
+3: Main quest - Quest that alludes to the {{user}}'s plot background
+
+
 
 add: create a new quest:
   {"tool":"quest","action":"add","title":"Slay the Manticore","priority":3,"giver":"Liora","location":"Northern Wastes","date":"15 Mirtul","duration":"3 days","description":"Hunt the beast threatening the village","objectives":[{"text":"Travel north"},{"text":"Find lair"}],${rewardsEx}}
