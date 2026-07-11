@@ -112,7 +112,7 @@ function buildConsolidatedPrompt(options) {
 
     if (sections.length === 0) return '';
 
-    const header = `<dnd5e_game_state>`;
+    const header = '<dnd5e_game_state>';
     const footer = '</dnd5e_game_state>';
 
     return `${header}\n\n${sections.join('\n\n')}\n\n${footer}`;

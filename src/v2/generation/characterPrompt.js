@@ -58,7 +58,7 @@ export function buildV2CharacterSection(options = {}) {
     lines.push(`Saves: ${saveParts.join(', ')}${saveSuffix}`);
 
     const skillParts = [];
-    for (const [key, skill] of Object.entries(stats.skills)) {
+    for (const [, skill] of Object.entries(stats.skills)) {
         if (skill.proficient || skill.expertise) {
             const mark = skill.expertise ? '**' : '*';
             skillParts.push(`${skill.label} ${skill.mod >= 0 ? '+' : ''}${skill.mod}${mark}`);

@@ -358,17 +358,17 @@ const PARTICLE_CONFIGURATORS = {
     },
     wind(span) {
         // Increased width: now between 15px and 35px (was 4px to 12px)
-        const w = 15 + Math.random() * 20; 
+        const w = 15 + Math.random() * 20;
         span.style.top = `${Math.random() * 100}%`;
         span.style.left = '0';
         span.style.width = `${w}px`;
-        
+
         // Increased height: now between 2px and 5px (was 1px to 3px)
         span.style.height = `${2 + Math.random() * 3}px`;
-        
+
         // Increased duration to slow it down: now 4s to 10s (was 2s to 5s)
         span.style.animationDuration = `${4 + Math.random() * 6}s`;
-        
+
         // Left the delay and opacity the same, but you can tweak if needed
         span.style.animationDelay = `${Math.random() * -6}s`;
         span.style.opacity = `${0.2 + Math.random() * 0.5}`;
@@ -428,7 +428,6 @@ function buildParticles(weatherType, intensityMul = 1.0) {
 // ─── Public API ──────────────────────────────────────────
 
 let lastWeatherKey = null;
-let lastTimeOfDay = null;
 
 /**
  * Apply weather visuals + lighting overlay based on current headerInfo.
@@ -499,8 +498,6 @@ export function applyWeatherVisuals() {
 
     // Lighting overlay
     applyLightingOverlay(tod, headerInfo.time, { disableNightHue });
-
-    lastTimeOfDay = tod;
 }
 
 const VALID_BLEND_MODES = [
@@ -539,7 +536,6 @@ export function applyLightingOverlay(tod, timeStr = headerInfo.time, options = {
 export function destroyWeatherVisuals() {
     document.getElementById(`${PREFIX}-visuals`)?.remove();
     lastWeatherKey = null;
-    lastTimeOfDay = null;
 }
 
 /**

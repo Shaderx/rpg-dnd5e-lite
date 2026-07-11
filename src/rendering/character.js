@@ -56,10 +56,10 @@ export function renderCharacter() {
     let html = '';
 
     // Header stats
-    html += `<div class="dnd-char-stats">`;
+    html += '<div class="dnd-char-stats">';
     html += `<span class="dnd-char-stat"><strong>HD</strong> ${escapeHtml(hd)}</span>`;
     html += `<span class="dnd-char-stat"><strong>Saves</strong> ${escapeHtml(saves.join(', '))}</span>`;
-    html += `</div>`;
+    html += '</div>';
 
     // Class table
     html += renderClassTable(tableData);
@@ -126,7 +126,7 @@ function renderFeaturesByLevel(classFeats, subFeats, maxLevel) {
         const names = feats.map(f => f._sub ? `[${escapeHtml(f.name)}]` : escapeHtml(f.name)).join(', ');
         html += `<div class="dnd-char-level-group" data-level="${lvl}">`;
         html += `<div class="dnd-char-level-header"><i class="fa-solid fa-chevron-right dnd-char-expand-icon"></i> <strong>Level ${lvl}</strong> <span class="dnd-char-feat-names">${names}</span></div>`;
-        html += `<div class="dnd-char-level-body" style="display:none;">`;
+        html += '<div class="dnd-char-level-body" style="display:none;">';
         for (const f of feats) {
             const cls = f._sub ? ' dnd-char-subfeat' : '';
             const body = flattenEntries(f.entries);
@@ -136,13 +136,13 @@ function renderFeaturesByLevel(classFeats, subFeats, maxLevel) {
             if (needsTruncate) {
                 html += `<div class="dnd-char-feat-body dnd-char-feat-truncated">${body.substring(0, 500)}</div>`;
                 html += `<div class="dnd-char-feat-body dnd-char-feat-full" style="display:none;">${body}</div>`;
-                html += `<button class="dnd-char-feat-more">Show more</button>`;
+                html += '<button class="dnd-char-feat-more">Show more</button>';
             } else {
                 html += `<div class="dnd-char-feat-body">${body}</div>`;
             }
-            html += `</div>`;
+            html += '</div>';
         }
-        html += `</div></div>`;
+        html += '</div></div>';
     }
     html += '</div>';
     return html;

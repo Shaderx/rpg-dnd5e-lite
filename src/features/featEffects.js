@@ -17,8 +17,6 @@
  *   e.g. { selectedSkills: [...], selectedSpells: [...], spellList: 'Cleric' }
  */
 
-import { lookupFeatByName, lookupSpellByName } from './sidekick.js';
-
 // ─── Registry ───────────────────────────────────────────────
 
 const FEAT_EFFECTS = {};
@@ -245,7 +243,7 @@ register('Healer', (result) => {
 
 register('Chef', (result, _data, ctx) => {
     const mod = ctx.mods?.con ?? 0;
-    result.toolProficiencies.push("Cook's Utensils");
+    result.toolProficiencies.push('Cook\'s Utensils');
     result.promptNotes.push(`Chef: During short rest, creatures who eat and spend Hit Dice regain extra 1d8 HP. Can cook ${Math.max(1, mod)} treats (bonus action: eat for 1d8 temp HP).`);
 });
 
@@ -367,15 +365,15 @@ register('Spell Sniper', (result) => {
 // ─── Tool / Instrument Constants ────────────────────────────
 
 export const DND_TOOLS = [
-    "Alchemist's Supplies", "Brewer's Supplies", "Calligrapher's Supplies",
-    "Carpenter's Tools", "Cartographer's Tools", "Cobbler's Tools",
-    "Cook's Utensils", "Glassblower's Tools", "Jeweler's Tools",
-    "Leatherworker's Tools", "Mason's Tools", "Painter's Supplies",
-    "Potter's Tools", "Smith's Tools", "Tinker's Tools",
-    "Weaver's Tools", "Woodcarver's Tools",
-    "Disguise Kit", "Forgery Kit", "Herbalism Kit",
-    "Navigator's Tools", "Poisoner's Kit", "Thieves' Tools",
-    "Bagpipes", "Drum", "Dulcimer", "Flute", "Horn",
-    "Lute", "Lyre", "Pan Flute", "Shawm", "Viol",
-    "Dice Set", "Dragonchess Set", "Playing Card Set", "Three-Dragon Ante Set",
+    'Alchemist\'s Supplies', 'Brewer\'s Supplies', 'Calligrapher\'s Supplies',
+    'Carpenter\'s Tools', 'Cartographer\'s Tools', 'Cobbler\'s Tools',
+    'Cook\'s Utensils', 'Glassblower\'s Tools', 'Jeweler\'s Tools',
+    'Leatherworker\'s Tools', 'Mason\'s Tools', 'Painter\'s Supplies',
+    'Potter\'s Tools', 'Smith\'s Tools', 'Tinker\'s Tools',
+    'Weaver\'s Tools', 'Woodcarver\'s Tools',
+    'Disguise Kit', 'Forgery Kit', 'Herbalism Kit',
+    'Navigator\'s Tools', 'Poisoner\'s Kit', 'Thieves\' Tools',
+    'Bagpipes', 'Drum', 'Dulcimer', 'Flute', 'Horn',
+    'Lute', 'Lyre', 'Pan Flute', 'Shawm', 'Viol',
+    'Dice Set', 'Dragonchess Set', 'Playing Card Set', 'Three-Dragon Ante Set',
 ];

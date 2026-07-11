@@ -157,13 +157,11 @@ export function renderCompanionDetail(compId) {
     </div>`);
 
     let speedDisplay = computed.speed || comp.speed || '';
-    const baseType = computed.creatureType || comp.baseCreatureType || '';
-    const sizeDisplay = baseType ? `${comp.size || 'M'} ${baseType}` : (comp.size || 'M');
     sections.push(`<div class="dnd-comp-det-row dnd-comp-det-combat">
         <span>HP <strong>${computed.hp}</strong></span>
         <span>AC <strong>${computed.ac}</strong></span>
         <span>Speed <strong>${esc(speedDisplay)}</strong></span>
-        <span>Size <strong>${esc(sizeDisplay)}</strong></span>
+        <span>Size <strong>${esc(comp.size || 'M')}</strong></span>
     </div>`);
 
     if (comp.category !== 'familiar') {
@@ -186,7 +184,7 @@ export function renderCompanionDetail(compId) {
     const traits = computed.traits || comp.traits || [];
     if (traits.length > 0) {
         const tLines = traits.map(t =>
-            `<div class="dnd-comp-det-entry"><strong>${esc(t.name)}.</strong> ${esc(t.desc)}</div>`
+            `<div class="dnd-comp-det-entry"><strong>${esc(t.name)}.</strong> ${esc(t.desc)}</div>`,
         );
         sections.push(`<div class="dnd-comp-det-section"><div class="dnd-comp-det-label">Traits</div>${tLines.join('')}</div>`);
     }
@@ -194,7 +192,7 @@ export function renderCompanionDetail(compId) {
     const actions = computed.actions || comp.actions || [];
     if (actions.length > 0) {
         const aLines = actions.map(a =>
-            `<div class="dnd-comp-det-entry"><strong>${esc(a.name)}.</strong> ${esc(a.desc)}</div>`
+            `<div class="dnd-comp-det-entry"><strong>${esc(a.name)}.</strong> ${esc(a.desc)}</div>`,
         );
         sections.push(`<div class="dnd-comp-det-section"><div class="dnd-comp-det-label">Actions</div>${aLines.join('')}</div>`);
     }
@@ -382,7 +380,7 @@ function buildFamiliarForm() {
     }
 
     const ctypeOpts = CREATURE_TYPE_OPTIONS.map(ct =>
-        `<option value="${ct}"${ct === 'fey' ? ' selected' : ''}>${ct.charAt(0).toUpperCase() + ct.slice(1)}</option>`
+        `<option value="${ct}"${ct === 'fey' ? ' selected' : ''}>${ct.charAt(0).toUpperCase() + ct.slice(1)}</option>`,
     ).join('');
 
     return `<div class="dnd-comp-wiz-form">
@@ -463,7 +461,7 @@ function buildPrimalForm() {
             <i class="fa-solid ${key === 'land' ? 'fa-mountain' : key === 'sea' ? 'fa-water' : 'fa-feather'}"></i>
             <div class="dnd-comp-wiz-cat-label">${esc(base.label)}</div>
             <div class="dnd-comp-wiz-cat-desc">HP ${base.baseHP}+${base.hpPerLevel}/lv | AC 13+PB | ${esc(base.speed)}</div>
-        </button>`
+        </button>`,
     ).join('');
 
     const charLevel = character?.level || 3;

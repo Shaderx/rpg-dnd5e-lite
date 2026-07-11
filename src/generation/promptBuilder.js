@@ -9,7 +9,7 @@ import { RARITY_LABELS, normalizeRarity } from '../features/inventoryRarity.js';
 import { formatLevel, schoolName } from '../features/spellbook.js';
 import { extractSpellCasts, actionLabels } from '../features/spellTracker.js';
 import { MODIFIER_DEFS } from '../features/modifiers.js';
-import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, buildSidekickCombatNotes, lookupFeatByName, strip5eMarkup, lookupSpellByName, getSidekickAttunedCount, SIDEKICK_MAX_ATTUNEMENT, lookupItemByName } from '../features/sidekick.js';
+import { computeSidekickStats, getSidekickLevel, getModStr, SIDEKICK_TYPES, SKILL_LABELS, ALL_SKILLS, calculateHireCost, getSpellDamageInfo, buildSpellAnnotation, buildSidekickCombatNotes, lookupFeatByName, strip5eMarkup, lookupSpellByName, getSidekickAttunedCount, SIDEKICK_MAX_ATTUNEMENT } from '../features/sidekick.js';
 import { compressCombatNote } from './compress.js';
 import { getSpellDamageInfo as getV1SpellDamageInfo, lookupSpellSync as lookupSpellSyncV1, ordinal } from '../v1/features/spells.js';
 import {
@@ -291,7 +291,7 @@ export function buildCombatDiceSection() {
 
     const userName = getContext().name1 || 'User';
     const includeAttrs = sendAttributesOnRoll;
-    const lines = ['<dice>', '[Combat: use these pre-rolled values, if any missing use an average roll]'];
+    const lines = ['<dice>', '[Combat: use these pre-rolled values, the rolls are for this turn only, if any missing use an average roll]'];
 
     if (includeAttrs) {
         lines.push(`Attributes: ${buildAttributesString()}`);
@@ -623,12 +623,12 @@ export function buildSidekickSection() {
         lines.push(`\n[Hireling: ${sk.name} (${raceStr}${creatureStr}, ${typeLabel}${subLabel}) Lv ${level}]`);
         lines.push(`HP ${stats.hp} | AC ${stats.ac}${armorNote} | SPD ${sk.speedFull || sk.baseSpeed + 'ft'} | Prof +${stats.proficiency}`);
 
-        const abilLine = ['str','dex','con','int','wis','cha']
+        const abilLine = ['str', 'dex', 'con', 'int', 'wis', 'cha']
             .map(a => `${a.toUpperCase()} ${stats.scores[a]}(${getModStr(stats.scores[a])})`)
             .join(' ');
         lines.push(abilLine);
 
-        const saveParts = ['str','dex','con','int','wis','cha'].map(a => {
+        const saveParts = ['str', 'dex', 'con', 'int', 'wis', 'cha'].map(a => {
             const s = stats.saves[a];
             const mark = s.proficient ? '*' : '';
             return `${a.toUpperCase()} ${s.mod >= 0 ? '+' : ''}${s.mod}${mark}`;
@@ -859,7 +859,6 @@ export function buildSidekickSection() {
             if (sk.hireDate) parts.push(`since ${sk.hireDate}`);
             lines.push(`Hire: ${parts.join(' ')}`);
         }
-
     }
 
     lines.push('</sidekicks>');
@@ -911,18 +910,11 @@ export function buildCombatTacticsSection() {
  * @returns {string} Section content or empty string
  */
 export function buildRandomEventSection(eventResult) {
-    if (!eventResult) {
-        return '<random_world_event>\n[No Roll]\nRandom world events are active but no roll was produced this turn.\n</random_world_event>';
-    }
+    if (!eventResult) return '';
 
-    const { roll, severity, category, categoryMeta, examples, cooldownActive, cooldownRemaining } = eventResult;
+    const { roll, severity, categoryMeta, examples } = eventResult;
 
-    if (!severity) {
-        if (cooldownActive) {
-            return `<random_world_event>\n[No Roll | Cooldown: ${cooldownRemaining} turn${cooldownRemaining !== 1 ? 's' : ''} remaining]\nRandom event roll is skipped while cooldown is active. Continue the narrative based on the player's actions and current situation.\n</random_world_event>`;
-        }
-        return `<random_world_event>\n[d100: ${roll} | No Event]\nNo random world event this turn. Continue the narrative based on the player's actions and current situation.\n</random_world_event>`;
-    }
+    if (!severity) return '';
 
     const lines = [];
     lines.push('<random_world_event>');
@@ -931,9 +923,14 @@ export function buildRandomEventSection(eventResult) {
     lines.push(`<event_directive>${categoryMeta.directive}</event_directive>`);
 
     if (examples.length > 0) {
+        const hasMultipleExamples = examples.length > 1;
         lines.push('');
         lines.push('<event_table_entries>');
-        lines.push('The following are rolled event seeds from the world event table. Use one or combine elements from several to create the event. Adapt details to fit the current location, NPCs present, time of day, and ongoing narrative threads:');
+        lines.push(
+            hasMultipleExamples
+                ? 'The following are rolled event seeds from the world event table. Use one or combine elements from several to create the event. Adapt details to fit the current location, NPCs present, time of day, and ongoing narrative threads:'
+                : 'The following is a rolled event seed from the world event table. Use it as inspiration to create the event, adapting details to fit the current location, NPCs present, time of day, and ongoing narrative threads:',
+        );
         for (const ex of examples) {
             lines.push(`- ${ex}`);
         }

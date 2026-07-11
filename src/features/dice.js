@@ -89,7 +89,7 @@ export function rollD20() {
         npcRoll1: enemyRolls[0]?.roll1 ?? null,
         npcRoll2: enemyRolls[0]?.roll2 ?? null,
         rolls: allRolls,
-        timestamp: Date.now()
+        timestamp: Date.now(),
     };
     setPendingDiceRoll(rollData);
     extensionSettings.lastDiceRoll = { ...rollData };
@@ -136,9 +136,9 @@ export function updateDiceDisplay() {
             const label = users.length === 1 ? 'You' : `U${i + 1}`;
             userHtml += `<div class="dnd-roll-chip dnd-roll-chip-user" title="${label}: d20 ${u.roll1} / ${u.roll2}">`
                 + `<span class="dnd-roll-chip-val">${u.roll1}</span>`
-                + `<span class="dnd-roll-chip-sep">/</span>`
+                + '<span class="dnd-roll-chip-sep">/</span>'
                 + `<span class="dnd-roll-chip-val">${u.roll2}</span>`
-                + `</div>`;
+                + '</div>';
         }
         $userContainer.html(userHtml);
 
@@ -153,9 +153,9 @@ export function updateDiceDisplay() {
             const diceTip = a.dmg ? `\nDice: ${formatDiceSetTooltip(a.dmg)}` : '';
             allyHtml += `<div class="dnd-roll-chip dnd-roll-chip-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${diceTip}">`
                 + `<span class="dnd-roll-chip-val">${a.roll1}</span>`
-                + `<span class="dnd-roll-chip-sep">/</span>`
+                + '<span class="dnd-roll-chip-sep">/</span>'
                 + `<span class="dnd-roll-chip-val">${a.roll2}</span>`
-                + `</div>`;
+                + '</div>';
         }
         $allyContainer.html(allyHtml);
         $allyContainer.toggle(allies.length > 0);
@@ -171,9 +171,9 @@ export function updateDiceDisplay() {
             const diceTip = e.dmg ? `\nDice: ${formatDiceSetTooltip(e.dmg)}` : '';
             enemyHtml += `<div class="dnd-roll-chip dnd-roll-chip-enemy" title="${label}: d20 ${e.roll1} / ${e.roll2}${diceTip}">`
                 + `<span class="dnd-roll-chip-val">${e.roll1}</span>`
-                + `<span class="dnd-roll-chip-sep">/</span>`
+                + '<span class="dnd-roll-chip-sep">/</span>'
                 + `<span class="dnd-roll-chip-val">${e.roll2}</span>`
-                + `</div>`;
+                + '</div>';
         }
         $enemyContainer.html(enemyHtml);
         $enemyContainer.toggle(enemies.length > 0);
@@ -278,7 +278,7 @@ function dieChipHtml(sides, result, index) {
     return `<span class="dnd-pool-dice-chip" data-sides="${sides}" data-index="${index}" title="d${sides} — click to remove" role="button" tabindex="0">`
         + `<span class="dnd-pool-dice-chip-val" style="opacity:${opacity}">${result}</span>`
         + `<span class="dnd-pool-dice-chip-die">d${sides}</span>`
-        + `</span>`;
+        + '</span>';
 }
 
 function normalizeDamageRoll(roll) {
@@ -412,7 +412,7 @@ export function updateModifierDisplay() {
             html += `<span class="dnd-mod-chip" data-mod="${id}" title="${def.prompt.replace(/\{user\}/g, 'You')}">`
                 + `<span class="dnd-mod-chip-label">${def.label}</span>`
                 + `<span class="dnd-mod-chip-val">${valStr}${totalStr}</span>`
-                + `</span>`;
+                + '</span>';
         }
         $results.html(html).show();
     } else {

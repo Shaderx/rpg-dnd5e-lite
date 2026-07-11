@@ -37,9 +37,7 @@
  */
 
 
-
 const AMOUNT = String.raw`(\d+(?:,\d{3})*(?:\.\d+)?)`;
-
 
 
 const UNIT_ALTS = [
@@ -57,71 +55,59 @@ const UNIT_ALTS = [
 ];
 
 
-
 const AMOUNT_FIRST_RE = new RegExp(
 
     `${AMOUNT}\\s*(?:${UNIT_ALTS.join('|')})(?![a-z])`,
 
-    'giu'
+    'giu',
 
 );
-
 
 
 const WORD_FIRST_RE = new RegExp(
 
     String.raw`\b(gold|silver|copper|platinum|electrum|gp|sp|cp|pp|ep|pl|el)\b\s*[:=()]\s*${AMOUNT}`,
 
-    'giu'
+    'giu',
 
 );
-
 
 
 const EMOJI_TRIPLE_RE = new RegExp(
 
     `${AMOUNT}\\s*🟡\\s*${AMOUNT}\\s*⚪\\s*${AMOUNT}\\s*🟤`,
 
-    'u'
+    'u',
 
 );
-
 
 
 const BARE_AMOUNT_RE = new RegExp(
 
     String.raw`^${AMOUNT}\s*(?:gp|g|gold|pieces?)?\s*$`,
 
-    'iu'
+    'iu',
 
 );
-
 
 
 const BARE_NUMBER_RE = new RegExp(String.raw`^${AMOUNT}\s*$`);
 
 
-
 const LEADER_RE = /^(?:💰|🪙)\s*/u;
-
 
 
 const CURRENCY_SIGNAL_RE = /(?:\b(?:gold|silver|copper|platinum|electrum|gp|sp|cp|pp|ep|pl|el)\b|🟡|⚪|🟤|🍥|🪙)/iu;
 
 
-
 const EMPTY_CURRENCY = { gold: 0, silver: 0, copper: 0, platinum: 0, electrum: 0 };
 
 
-
 function parseAmount(str) {
-
     const n = parseFloat(String(str).replace(/,/g, ''));
 
     return Number.isFinite(n) ? Math.floor(n) : 0;
-
 }
-
 
 
 /**
@@ -135,15 +121,11 @@ function parseAmount(str) {
  */
 
 function addCoin(cur, field, amount) {
-
     if (amount > 0) cur[field] += amount;
-
 }
 
 
-
 function normaliseUnit(raw) {
-
     const u = raw.toLowerCase().replace(/\uFE0F/g, '').replace(/\s*(pieces?|coins?)\s*/g, '').trim();
 
     if (u === 'pp' || u === 'pl' || u === 'platinum' || u === '🍥') return 'platinum';
@@ -157,13 +139,10 @@ function normaliseUnit(raw) {
     if (u === 'cp' || u === 'c' || u === 'copper' || u === '🟤') return 'copper';
 
     return null;
-
 }
 
 
-
 function applyUnit(cur, rawUnit, amount) {
-
     const kind = normaliseUnit(rawUnit);
 
     if (!kind) return false;
@@ -171,9 +150,7 @@ function applyUnit(cur, rawUnit, amount) {
     addCoin(cur, kind, amount);
 
     return true;
-
 }
-
 
 
 /**
@@ -185,9 +162,7 @@ function applyUnit(cur, rawUnit, amount) {
  */
 
 export function extractCurrency(body) {
-
     if (!body) return null;
-
 
 
     const cur = { ...EMPTY_CURRENCY };
@@ -195,11 +170,9 @@ export function extractCurrency(body) {
     let found = false;
 
 
-
     const emojiTriple = body.match(EMOJI_TRIPLE_RE);
 
     if (emojiTriple) {
-
         return {
 
             ...EMPTY_CURRENCY,
@@ -211,9 +184,7 @@ export function extractCurrency(body) {
             copper: parseAmount(emojiTriple[3]),
 
         };
-
     }
-
 
 
     let m;
@@ -221,27 +192,20 @@ export function extractCurrency(body) {
     AMOUNT_FIRST_RE.lastIndex = 0;
 
     while ((m = AMOUNT_FIRST_RE.exec(body)) !== null) {
-
         const unit = m[0].replace(new RegExp(`^${AMOUNT}\\s*`, 'u'), '');
 
         if (applyUnit(cur, unit, parseAmount(m[1]))) found = true;
-
     }
-
 
 
     WORD_FIRST_RE.lastIndex = 0;
 
     while ((m = WORD_FIRST_RE.exec(body)) !== null) {
-
         if (applyUnit(cur, m[1], parseAmount(m[2]))) found = true;
-
     }
 
 
-
     if (found) return cur;
-
 
 
     const bareGp = body.match(BARE_AMOUNT_RE);
@@ -249,17 +213,13 @@ export function extractCurrency(body) {
     if (bareGp) return { ...EMPTY_CURRENCY, gold: parseAmount(bareGp[1]) };
 
 
-
     const bareNum = body.match(BARE_NUMBER_RE);
 
     if (bareNum) return { ...EMPTY_CURRENCY, gold: parseAmount(bareNum[1]) };
 
 
-
     return null;
-
 }
-
 
 
 /**
@@ -271,15 +231,12 @@ export function extractCurrency(body) {
  */
 
 export function parseCurrencySection(section) {
-
     if (!section || !LEADER_RE.test(section)) return null;
 
     const body = section.replace(LEADER_RE, '').trim();
 
     return body ? extractCurrency(body) : null;
-
 }
-
 
 
 /**
@@ -291,31 +248,24 @@ export function parseCurrencySection(section) {
  */
 
 export function hasCurrencySignal(text) {
-
     return CURRENCY_SIGNAL_RE.test(text);
-
 }
-
 
 
 /** @param {{ gold?: number, silver?: number, copper?: number, platinum?: number, electrum?: number } | null} c */
 
 export function hasCurrency(c) {
-
     return c != null && (
 
         c.gold > 0 || c.silver > 0 || c.copper > 0 || c.platinum > 0 || c.electrum > 0
 
     );
-
 }
-
 
 
 /** Compact strip label — only non-zero denominations (pp → gp → ep → sp → cp) */
 
 export function formatCurrencyStrip(c) {
-
     const parts = [];
 
     if (c.platinum > 0) parts.push(`${c.platinum}🍥`);
@@ -329,15 +279,12 @@ export function formatCurrencyStrip(c) {
     if (c.copper > 0) parts.push(`${c.copper}🟤`);
 
     return parts.length > 0 ? parts.join(' ') : '0🟡';
-
 }
-
 
 
 /** Tooltip / title for currency widget */
 
 export function formatCurrencyTitle(c) {
-
     const parts = [];
 
     if (c.platinum > 0) parts.push(`${c.platinum} pp`);
@@ -351,7 +298,6 @@ export function formatCurrencyTitle(c) {
     if (c.copper > 0) parts.push(`${c.copper} cp`);
 
     return parts.length > 0 ? parts.join(', ') : '0 gp';
-
 }
 
 /** Display order + styling for omni grid coin rail (pp → gp → ep → sp → cp). */
@@ -389,7 +335,7 @@ export function buildCurrencyOmniHtml(c) {
         return '<div class="dnd-currency-rail" data-count="1"><span class="dnd-coin-seg dnd-coin-gold"><b>0</b><i></i></span></div>';
     }
     const inner = segs.map((s) =>
-        `<span class="dnd-coin-seg ${s.cls}" title="${s.amount} ${s.label}"><b>${formatCoinCompact(s.amount)}</b><i></i></span>`
+        `<span class="dnd-coin-seg ${s.cls}" title="${s.amount} ${s.label}"><b>${formatCoinCompact(s.amount)}</b><i></i></span>`,
     ).join('');
     return `<div class="dnd-currency-rail" data-count="${segs.length}">${inner}</div>`;
 }

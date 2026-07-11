@@ -389,7 +389,7 @@ export async function openSpellSearchModal() {
     document.body.appendChild(overlay);
 
     const input = overlay.querySelector('.dnd-spell-search-input');
-    const resultsDiv = overlay.querySelector('.dnd-spell-search-results');
+    overlay.querySelector('.dnd-spell-search-results');
     const closeBtn = overlay.querySelector('.dnd-spell-search-close-btn');
     const lockBtn = overlay.querySelector('.dnd-spell-search-lock-btn');
     const filterBar = overlay.querySelector('.dnd-spell-search-level-filters');

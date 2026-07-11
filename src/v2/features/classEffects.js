@@ -657,7 +657,6 @@ register('ranger', 'Expertise', 9, {
 
 register('ranger', 'Tireless', 10, {
     promptNote: (stats) => {
-        const die = MARTIAL_ARTS_DIE ? `1d8` : '1d8';
         return `Tireless: Action to gain 1d8+${stats.mods.wis || 0} temp HP (WIS mod times/LR); reduce exhaustion by 1 on SR`;
     },
 });
@@ -680,7 +679,7 @@ register('ranger', 'Feral Senses', 18, {
 
 register('ranger', 'Foe Slayer', 20, {
     promptNote: (stats) =>
-        `Foe Slayer: Hunter\'s Mark damage becomes 1d10; once per turn add +${stats.mods.wis || 0} (WIS mod) to attack or damage roll vs marked target`,
+        `Foe Slayer: Hunter's Mark damage becomes 1d10; once per turn add +${stats.mods.wis || 0} (WIS mod) to attack or damage roll vs marked target`,
 });
 
 // Ranger Fighting Styles
@@ -980,7 +979,7 @@ export function getApplicableClassEffects(classKey, subclassName, level, chosenF
             const isChosen = chosenFeatures.some(f =>
                 f === effect.featureName ||
                 effect.featureName.includes(f) ||
-                f.includes(effect.featureName)
+                f.includes(effect.featureName),
             );
             if (!isChosen) continue;
         }

@@ -116,8 +116,6 @@ export function loadV2Companions() {
             if (c.enabled === undefined) c.enabled = false;
             if (!Array.isArray(c.actions)) c.actions = [];
             if (!Array.isArray(c.traits)) c.traits = [];
-            if (c.baseCreatureType === undefined) c.baseCreatureType = '';
-            if (c.owner === undefined) c.owner = null;
         }
         setV2Companions(stored);
     } else {

@@ -19,8 +19,8 @@ export { FAMILIAR_CREATURES, PRIMAL_COMPANIONS, computeCompanionStats };
 
 export const CATEGORY_META = {
     familiar: { label: 'Familiar', icon: 'fa-dove', color: '#8e6cef' },
-    primal:   { label: 'Primal Companion', icon: 'fa-paw', color: '#4da84d' },
-    steed:    { label: 'Otherworldly Steed', icon: 'fa-horse', color: '#d4943a' },
+    primal: { label: 'Primal Companion', icon: 'fa-paw', color: '#4da84d' },
+    steed: { label: 'Otherworldly Steed', icon: 'fa-horse', color: '#d4943a' },
 };
 
 export const CREATURE_TYPE_OPTIONS = ['celestial', 'fey', 'fiend'];
@@ -46,8 +46,8 @@ export const STEED_TEMPLATE = {
     attack: { name: 'Otherworldly Strike', reach: '5 ft', damageDice: '1d8', damageType: 'radiant, psychic, or necrotic' },
     traits: {
         celestial: { name: 'Healing Touch (1/Long Rest)', desc: 'The steed touches a creature and restores 2d8 + its spell slot level hit points.' },
-        fey:       { name: 'Fey Step (1/Long Rest)', desc: 'The steed teleports up to 60 feet to an unoccupied space it can see, carrying its rider along.' },
-        fiend:     { name: 'Fell Glare (1/Long Rest)', desc: 'The steed targets one creature within 30 feet. The target must succeed on a Wisdom saving throw or be frightened until the end of its next turn.' },
+        fey: { name: 'Fey Step (1/Long Rest)', desc: 'The steed teleports up to 60 feet to an unoccupied space it can see, carrying its rider along.' },
+        fiend: { name: 'Fell Glare (1/Long Rest)', desc: 'The steed targets one creature within 30 feet. The target must succeed on a Wisdom saving throw or be frightened until the end of its next turn.' },
     },
     sharedTraits: [
         { name: 'Life Bond', desc: 'When the steed drops to 0 hit points, it disappears, leaving behind no physical form. The steed reappears the next time you cast Find Steed.' },
@@ -113,7 +113,6 @@ export function buildFamiliarCompanion(creatureKey, customName, creatureType) {
         creatureName: creature.label,
         creatureSource: creatureKey,
         creatureType: creature.chainOnly ? creature.type.toLowerCase() : (creatureType || 'fey'),
-        baseCreatureType: creature.type || '',
         hp: { average: creature.hp, formula: '' },
         ac: creature.ac,
         speed: creature.speed,
@@ -144,7 +143,6 @@ export function buildPrimalCompanion(templateKey, customName, rangerLevel) {
         creatureName: base.label,
         creatureSource: templateKey,
         creatureType: 'beast',
-        baseCreatureType: base.type || '',
         hp: { average: stats.hp, formula: `${base.baseHP} + ${base.hpPerLevel} x ranger level` },
         ac: stats.ac,
         speed: base.speed,
@@ -172,7 +170,6 @@ export function buildSteedCompanion(customName, creatureType, slotLevel) {
         creatureName: STEED_TEMPLATE.label,
         creatureSource: 'steed',
         creatureType: creatureType || 'celestial',
-        baseCreatureType: stats.type || '',
         hp: { average: stats.hp, formula: `${STEED_TEMPLATE.baseHp} + ${STEED_TEMPLATE.hpPerSlot} x slot level` },
         ac: stats.ac,
         speed: stats.speed,
@@ -209,7 +206,6 @@ export function getComputedStats(companion) {
                 traits: stats.traits,
                 attackBonus: stats.attackBonus,
                 profBonus: stats.profBonus,
-                creatureType: stats.type,
             };
         }
     }
@@ -227,7 +223,6 @@ export function getComputedStats(companion) {
             attackBonus: stats.attackBonus,
             profBonus: stats.profBonus,
             hasFly: stats.hasFly,
-            creatureType: stats.type,
         };
     }
 

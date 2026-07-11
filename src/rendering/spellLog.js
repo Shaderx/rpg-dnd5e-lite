@@ -57,7 +57,6 @@ export function renderSpellLog() {
         const isShortRest = entry.type === 'short-rest';
         const isDispel = entry.type === 'dispel';
         const isDropConc = entry.type === 'drop-concentration';
-        const isAnyRest = isRest || isShortRest;
         let typeClass, icon, iconClass, label;
         if (isDropConc) {
             typeClass = 'dnd-spell-log-dispel';

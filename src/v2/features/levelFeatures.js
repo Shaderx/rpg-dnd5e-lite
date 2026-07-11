@@ -457,39 +457,39 @@ export const SUBCLASS_LEVEL_FEATURES = {
 
     'barbarian|Path of the Wild Heart': [
         { level: 3, id: 'animal-aspect-3', type: 'single-select', label: 'Rage Aspect (Level 3)',
-          description: 'Choose an animal aspect that manifests while you rage.',
-          options: [
-              { id: 'bear', label: 'Bear', desc: 'Resistance to all damage except psychic while raging' },
-              { id: 'eagle', label: 'Eagle', desc: 'Dash as bonus action, opportunity attacks against you have disadvantage' },
-              { id: 'wolf', label: 'Wolf', desc: 'Allies have advantage on melee attacks against enemies within 5ft of you' },
-          ] },
+            description: 'Choose an animal aspect that manifests while you rage.',
+            options: [
+                { id: 'bear', label: 'Bear', desc: 'Resistance to all damage except psychic while raging' },
+                { id: 'eagle', label: 'Eagle', desc: 'Dash as bonus action, opportunity attacks against you have disadvantage' },
+                { id: 'wolf', label: 'Wolf', desc: 'Allies have advantage on melee attacks against enemies within 5ft of you' },
+            ] },
         { level: 6, id: 'aspect-of-wilds', type: 'single-select', label: 'Aspect of the Wilds',
-          options: [
-              { id: 'owl', label: 'Owl', desc: 'Darkvision 60ft and advantage on Perception checks' },
-              { id: 'panther', label: 'Panther', desc: 'Climbing speed equal to walking speed' },
-              { id: 'salmon', label: 'Salmon', desc: 'Swimming speed equal to walking speed' },
-          ] },
+            options: [
+                { id: 'owl', label: 'Owl', desc: 'Darkvision 60ft and advantage on Perception checks' },
+                { id: 'panther', label: 'Panther', desc: 'Climbing speed equal to walking speed' },
+                { id: 'salmon', label: 'Salmon', desc: 'Swimming speed equal to walking speed' },
+            ] },
         { level: 14, id: 'animal-aspect-14', type: 'single-select', label: 'Rage Aspect (Level 14)',
-          options: [
-              { id: 'bear', label: 'Bear', desc: 'While raging, creatures within 5ft have disadvantage attacking others' },
-              { id: 'eagle', label: 'Eagle', desc: 'Fly speed equal to walking speed while raging (fall at end if airborne)' },
-              { id: 'wolf', label: 'Wolf', desc: 'While raging, bonus action to knock Large or smaller prone on hit' },
-          ] },
+            options: [
+                { id: 'bear', label: 'Bear', desc: 'While raging, creatures within 5ft have disadvantage attacking others' },
+                { id: 'eagle', label: 'Eagle', desc: 'Fly speed equal to walking speed while raging (fall at end if airborne)' },
+                { id: 'wolf', label: 'Wolf', desc: 'While raging, bonus action to knock Large or smaller prone on hit' },
+            ] },
     ],
 
     'barbarian|Path of the Zealot': [
         { level: 3, id: 'divine-fury-type', type: 'single-select', label: 'Divine Fury Damage Type',
-          description: 'Choose the damage type for your Divine Fury.',
-          options: [
-              { id: 'radiant', label: 'Radiant' },
-              { id: 'necrotic', label: 'Necrotic' },
-          ] },
+            description: 'Choose the damage type for your Divine Fury.',
+            options: [
+                { id: 'radiant', label: 'Radiant' },
+                { id: 'necrotic', label: 'Necrotic' },
+            ] },
     ],
 
     'barbarian|Path of the Storm Herald': [
         { level: 3, id: 'storm-aura', type: 'single-select', label: 'Storm Aura',
-          description: 'Choose a storm environment that manifests as a 10ft aura while raging.',
-          options: STORM_AURA_OPTIONS },
+            description: 'Choose a storm environment that manifests as a 10ft aura while raging.',
+            options: STORM_AURA_OPTIONS },
     ],
 
     // ----------------------------------------------------------
@@ -498,16 +498,16 @@ export const SUBCLASS_LEVEL_FEATURES = {
 
     'bard|College of Lore': [
         { level: 3, id: 'bonus-skills', type: 'proficiency-pick', label: 'Bonus Proficiencies',
-          description: 'Choose 3 additional skill proficiencies.',
-          count: 3, skillList: 'all' },
+            description: 'Choose 3 additional skill proficiencies.',
+            count: 3, skillList: 'all' },
         { level: 6, id: 'magical-discoveries', type: 'spell-pick', label: 'Magical Discoveries',
-          description: 'Choose 2 spells from the Cleric, Druid, or Wizard spell list (up to spell level you can cast).',
-          count: 2, spellFilter: { classes: ['cleric', 'druid', 'wizard'] } },
+            description: 'Choose 2 spells from the Cleric, Druid, or Wizard spell list (up to spell level you can cast).',
+            count: 2, spellFilter: { classes: ['cleric', 'druid', 'wizard'] } },
     ],
 
     'bard|College of Swords': [
         { level: 3, id: 'fighting-style', type: 'single-select', label: 'Fighting Style',
-          options: BARD_SWORDS_STYLES },
+            options: BARD_SWORDS_STYLES },
     ],
 
     // ----------------------------------------------------------
@@ -522,23 +522,23 @@ export const SUBCLASS_LEVEL_FEATURES = {
 
     'druid|Circle of the Land': [
         { level: 3, id: 'land-type', type: 'single-select', label: 'Land Type',
-          description: 'Choose the environment that shaped your druidic magic. This determines your bonus spells and later features.',
-          options: [
-              { id: 'arid', label: 'Arid', desc: 'Desert, badlands — fire spells' },
-              { id: 'polar', label: 'Polar', desc: 'Tundra, glacial — cold spells' },
-              { id: 'temperate', label: 'Temperate', desc: 'Forest, grassland — lightning/nature spells' },
-              { id: 'tropical', label: 'Tropical', desc: 'Jungle, swamp — poison/acid spells' },
-          ] },
+            description: 'Choose the environment that shaped your druidic magic. This determines your bonus spells and later features.',
+            options: [
+                { id: 'arid', label: 'Arid', desc: 'Desert, badlands — fire spells' },
+                { id: 'polar', label: 'Polar', desc: 'Tundra, glacial — cold spells' },
+                { id: 'temperate', label: 'Temperate', desc: 'Forest, grassland — lightning/nature spells' },
+                { id: 'tropical', label: 'Tropical', desc: 'Jungle, swamp — poison/acid spells' },
+            ] },
     ],
 
     'druid|Circle of the Stars': [
         { level: 3, id: 'starry-form', type: 'single-select', label: 'Default Starry Form',
-          description: 'Choose your default constellation form (you can change each use, but this is recorded as preferred).',
-          options: [
-              { id: 'archer', label: 'Archer', desc: 'Bonus action ranged attack: 1d8+WIS radiant (60ft)' },
-              { id: 'chalice', label: 'Chalice', desc: 'When you heal, you or adjacent ally regains 1d8+WIS' },
-              { id: 'dragon', label: 'Dragon', desc: 'Treat concentration/INT/WIS checks below 10 as 10' },
-          ] },
+            description: 'Choose your default constellation form (you can change each use, but this is recorded as preferred).',
+            options: [
+                { id: 'archer', label: 'Archer', desc: 'Bonus action ranged attack: 1d8+WIS radiant (60ft)' },
+                { id: 'chalice', label: 'Chalice', desc: 'When you heal, you or adjacent ally regains 1d8+WIS' },
+                { id: 'dragon', label: 'Dragon', desc: 'Treat concentration/INT/WIS checks below 10 as 10' },
+            ] },
     ],
 
     // ----------------------------------------------------------
@@ -547,42 +547,42 @@ export const SUBCLASS_LEVEL_FEATURES = {
 
     'fighter|Battle Master': [
         { level: 3, id: 'maneuvers', type: 'multi-select', label: 'Battle Master Maneuvers',
-          description: 'Choose maneuvers that enhance your attacks and tactical options.',
-          count: 3,
-          scaleCount: { 7: 5, 10: 7, 15: 9 },
-          options: BATTLE_MASTER_MANEUVERS },
+            description: 'Choose maneuvers that enhance your attacks and tactical options.',
+            count: 3,
+            scaleCount: { 7: 5, 10: 7, 15: 9 },
+            options: BATTLE_MASTER_MANEUVERS },
         { level: 3, id: 'tool-proficiency', type: 'proficiency-pick', label: 'Student of War',
-          description: 'Gain proficiency with one artisan\'s tool of your choice.',
-          count: 1, skillList: 'tools' },
+            description: 'Gain proficiency with one artisan\'s tool of your choice.',
+            count: 1, skillList: 'tools' },
     ],
 
     'fighter|Champion': [
         { level: 7, id: 'additional-style', type: 'single-select', label: 'Additional Fighting Style',
-          description: 'Choose a second Fighting Style.',
-          options: FIGHTER_STYLES },
+            description: 'Choose a second Fighting Style.',
+            options: FIGHTER_STYLES },
     ],
 
     'fighter|Arcane Archer': [
         { level: 3, id: 'arcane-shots', type: 'multi-select', label: 'Arcane Shot Options',
-          description: 'Choose Arcane Shot options to enhance your arrows with magic.',
-          count: 2,
-          scaleCount: { 7: 3, 10: 4, 15: 5, 18: 6 },
-          options: ARCANE_SHOT_OPTIONS },
+            description: 'Choose Arcane Shot options to enhance your arrows with magic.',
+            count: 2,
+            scaleCount: { 7: 3, 10: 4, 15: 5, 18: 6 },
+            options: ARCANE_SHOT_OPTIONS },
         { level: 3, id: 'skill-pick', type: 'proficiency-pick', label: 'Arcane Archer Lore',
-          description: 'Choose proficiency in Arcana or Nature.',
-          count: 1, skillList: ['arcana', 'nature'] },
+            description: 'Choose proficiency in Arcana or Nature.',
+            count: 1, skillList: ['arcana', 'nature'] },
     ],
 
     'fighter|Cavalier': [
         { level: 3, id: 'bonus-skill', type: 'proficiency-pick', label: 'Bonus Proficiency',
-          description: 'Choose proficiency in Animal Handling, History, Insight, Performance, or Persuasion.',
-          count: 1, skillList: ['animal-handling', 'history', 'insight', 'performance', 'persuasion'] },
+            description: 'Choose proficiency in Animal Handling, History, Insight, Performance, or Persuasion.',
+            count: 1, skillList: ['animal-handling', 'history', 'insight', 'performance', 'persuasion'] },
     ],
 
     'fighter|Samurai': [
         { level: 3, id: 'bonus-prof', type: 'proficiency-pick', label: 'Elegant Courtier',
-          description: 'Choose one skill proficiency or one language.',
-          count: 1, skillList: ['history', 'insight', 'performance', 'persuasion'] },
+            description: 'Choose one skill proficiency or one language.',
+            count: 1, skillList: ['history', 'insight', 'performance', 'persuasion'] },
     ],
 
     // ----------------------------------------------------------
@@ -591,32 +591,32 @@ export const SUBCLASS_LEVEL_FEATURES = {
 
     'monk|Way of the Kensei': [
         { level: 3, id: 'kensei-weapons', type: 'multi-select', label: 'Kensei Weapons',
-          description: 'Choose weapons to be your kensei weapons (not heavy or special).',
-          count: 2,
-          scaleCount: { 6: 3, 11: 4, 17: 5 },
-          options: [
-              { id: 'longsword', label: 'Longsword' },
-              { id: 'scimitar', label: 'Scimitar' },
-              { id: 'shortsword', label: 'Shortsword' },
-              { id: 'rapier', label: 'Rapier' },
-              { id: 'whip', label: 'Whip' },
-              { id: 'war-pick', label: 'War Pick' },
-              { id: 'battleaxe', label: 'Battleaxe' },
-              { id: 'handaxe', label: 'Handaxe' },
-              { id: 'longbow', label: 'Longbow' },
-              { id: 'shortbow', label: 'Shortbow' },
-          ] },
+            description: 'Choose weapons to be your kensei weapons (not heavy or special).',
+            count: 2,
+            scaleCount: { 6: 3, 11: 4, 17: 5 },
+            options: [
+                { id: 'longsword', label: 'Longsword' },
+                { id: 'scimitar', label: 'Scimitar' },
+                { id: 'shortsword', label: 'Shortsword' },
+                { id: 'rapier', label: 'Rapier' },
+                { id: 'whip', label: 'Whip' },
+                { id: 'war-pick', label: 'War Pick' },
+                { id: 'battleaxe', label: 'Battleaxe' },
+                { id: 'handaxe', label: 'Handaxe' },
+                { id: 'longbow', label: 'Longbow' },
+                { id: 'shortbow', label: 'Shortbow' },
+            ] },
     ],
 
     'monk|Way of the Elements': [
         { level: 17, id: 'element-resistance', type: 'single-select', label: 'Elemental Mastery Resistance',
-          options: [
-              { id: 'acid', label: 'Acid' },
-              { id: 'cold', label: 'Cold' },
-              { id: 'fire', label: 'Fire' },
-              { id: 'lightning', label: 'Lightning' },
-              { id: 'thunder', label: 'Thunder' },
-          ] },
+            options: [
+                { id: 'acid', label: 'Acid' },
+                { id: 'cold', label: 'Cold' },
+                { id: 'fire', label: 'Fire' },
+                { id: 'lightning', label: 'Lightning' },
+                { id: 'thunder', label: 'Thunder' },
+            ] },
     ],
 
     // ----------------------------------------------------------
@@ -625,34 +625,34 @@ export const SUBCLASS_LEVEL_FEATURES = {
 
     'ranger|Hunter': [
         { level: 3, id: 'hunters-prey', type: 'single-select', label: 'Hunter\'s Prey',
-          description: 'Choose your specialization against your favored quarry.',
-          options: HUNTER_PREY_OPTIONS },
+            description: 'Choose your specialization against your favored quarry.',
+            options: HUNTER_PREY_OPTIONS },
         { level: 7, id: 'defensive-tactics', type: 'single-select', label: 'Defensive Tactics',
-          options: HUNTER_DEFENSIVE_OPTIONS },
+            options: HUNTER_DEFENSIVE_OPTIONS },
     ],
 
     'ranger|Beast Master': [
         { level: 3, id: 'primal-companion', type: 'companion', label: 'Primal Companion',
-          description: 'Choose the form of your primal beast companion.',
-          options: [
-              { id: 'land', label: 'Beast of the Land', desc: 'Speed 40ft/climb 40ft, 1d8+PB slashing, Charge (prone)' },
-              { id: 'sea', label: 'Beast of the Sea', desc: 'Swim 60ft, 1d6+PB bludgeoning, Binding Strike (grapple)' },
-              { id: 'sky', label: 'Beast of the Sky', desc: 'Fly 60ft, 1d4+PB slashing, Flyby (no OA)' },
-          ] },
+            description: 'Choose the form of your primal beast companion.',
+            options: [
+                { id: 'land', label: 'Beast of the Land', desc: 'Speed 40ft/climb 40ft, 1d8+PB slashing, Charge (prone)' },
+                { id: 'sea', label: 'Beast of the Sea', desc: 'Swim 60ft, 1d6+PB bludgeoning, Binding Strike (grapple)' },
+                { id: 'sky', label: 'Beast of the Sky', desc: 'Fly 60ft, 1d4+PB slashing, Flyby (no OA)' },
+            ] },
     ],
 
     'ranger|Fey Wanderer': [
         { level: 3, id: 'fey-skill', type: 'proficiency-pick', label: 'Otherworldly Glamour',
-          description: 'Choose one skill: Deception, Performance, or Persuasion (add WIS to checks).',
-          count: 1, skillList: ['deception', 'performance', 'persuasion'] },
+            description: 'Choose one skill: Deception, Performance, or Persuasion (add WIS to checks).',
+            count: 1, skillList: ['deception', 'performance', 'persuasion'] },
     ],
 
     'ranger|Gloom Stalker': [
         { level: 11, id: 'stalkers-flurry', type: 'single-select', label: 'Stalker\'s Flurry',
-          options: [
-              { id: 'sudden-strike', label: 'Sudden Strike', desc: 'When you miss, make another weapon attack' },
-              { id: 'mass-fear', label: 'Shadowy Dodge', desc: 'Impose disadvantage on attack against you (reaction, no resource)' },
-          ] },
+            options: [
+                { id: 'sudden-strike', label: 'Sudden Strike', desc: 'When you miss, make another weapon attack' },
+                { id: 'mass-fear', label: 'Shadowy Dodge', desc: 'Impose disadvantage on attack against you (reaction, no resource)' },
+            ] },
     ],
 
     // ----------------------------------------------------------
@@ -661,8 +661,8 @@ export const SUBCLASS_LEVEL_FEATURES = {
 
     'rogue|Mastermind': [
         { level: 3, id: 'languages', type: 'proficiency-pick', label: 'Master of Intrigue',
-          description: 'Choose two languages.',
-          count: 2, skillList: 'languages' },
+            description: 'Choose two languages.',
+            count: 2, skillList: 'languages' },
     ],
 
     // ----------------------------------------------------------
@@ -671,20 +671,20 @@ export const SUBCLASS_LEVEL_FEATURES = {
 
     'sorcerer|Divine Soul': [
         { level: 3, id: 'divine-affinity', type: 'single-select', label: 'Divine Magic Affinity',
-          description: 'Choose an affinity for the source of your divine power. This grants an additional spell always prepared.',
-          options: DIVINE_AFFINITIES },
+            description: 'Choose an affinity for the source of your divine power. This grants an additional spell always prepared.',
+            options: DIVINE_AFFINITIES },
     ],
 
     'sorcerer|Draconic Bloodline': [
         { level: 3, id: 'draconic-element', type: 'single-select', label: 'Draconic Ancestry Element',
-          description: 'Choose the damage type associated with your draconic ancestry.',
-          options: DRACONIC_ELEMENTS },
+            description: 'Choose the damage type associated with your draconic ancestry.',
+            options: DRACONIC_ELEMENTS },
     ],
 
     'sorcerer|Draconic Sorcery': [
         { level: 3, id: 'draconic-element', type: 'single-select', label: 'Draconic Ancestry Element',
-          description: 'Choose the damage type associated with your draconic ancestry.',
-          options: DRACONIC_ELEMENTS },
+            description: 'Choose the damage type associated with your draconic ancestry.',
+            options: DRACONIC_ELEMENTS },
     ],
 
     // ----------------------------------------------------------
@@ -693,24 +693,24 @@ export const SUBCLASS_LEVEL_FEATURES = {
 
     'warlock|Fiend Patron': [
         { level: 10, id: 'fiendish-resilience', type: 'single-select', label: 'Fiendish Resilience',
-          description: 'Choose a damage type to resist (can change each short/long rest).',
-          options: [
-              { id: 'acid', label: 'Acid' }, { id: 'cold', label: 'Cold' },
-              { id: 'fire', label: 'Fire' }, { id: 'lightning', label: 'Lightning' },
-              { id: 'necrotic', label: 'Necrotic' }, { id: 'poison', label: 'Poison' },
-              { id: 'psychic', label: 'Psychic' }, { id: 'radiant', label: 'Radiant' },
-              { id: 'thunder', label: 'Thunder' },
-          ] },
+            description: 'Choose a damage type to resist (can change each short/long rest).',
+            options: [
+                { id: 'acid', label: 'Acid' }, { id: 'cold', label: 'Cold' },
+                { id: 'fire', label: 'Fire' }, { id: 'lightning', label: 'Lightning' },
+                { id: 'necrotic', label: 'Necrotic' }, { id: 'poison', label: 'Poison' },
+                { id: 'psychic', label: 'Psychic' }, { id: 'radiant', label: 'Radiant' },
+                { id: 'thunder', label: 'Thunder' },
+            ] },
     ],
 
     'warlock|Great Old One Patron': [
         { level: 10, id: 'hex-ability', type: 'single-select', label: 'Thought Shield Hex Ability',
-          description: 'Choose the ability score for Hex disadvantage from Eldritch Hex.',
-          options: [
-              { id: 'str', label: 'Strength' }, { id: 'dex', label: 'Dexterity' },
-              { id: 'con', label: 'Constitution' }, { id: 'int', label: 'Intelligence' },
-              { id: 'wis', label: 'Wisdom' }, { id: 'cha', label: 'Charisma' },
-          ] },
+            description: 'Choose the ability score for Hex disadvantage from Eldritch Hex.',
+            options: [
+                { id: 'str', label: 'Strength' }, { id: 'dex', label: 'Dexterity' },
+                { id: 'con', label: 'Constitution' }, { id: 'int', label: 'Intelligence' },
+                { id: 'wis', label: 'Wisdom' }, { id: 'cha', label: 'Charisma' },
+            ] },
     ],
 
     // ----------------------------------------------------------
@@ -719,13 +719,13 @@ export const SUBCLASS_LEVEL_FEATURES = {
 
     'wizard|School of Divination': [
         { level: 10, id: 'third-eye', type: 'single-select', label: 'The Third Eye',
-          description: 'Choose one enhanced sense (can change each short rest).',
-          options: [
-              { id: 'darkvision', label: 'Darkvision', desc: 'Gain 60ft darkvision' },
-              { id: 'ethereal-sight', label: 'Ethereal Sight', desc: 'See into the Ethereal Plane within 60ft' },
-              { id: 'see-invisibility', label: 'See Invisibility', desc: 'See invisible creatures/objects within 10ft' },
-              { id: 'read-languages', label: 'Read Languages', desc: 'Read any language' },
-          ] },
+            description: 'Choose one enhanced sense (can change each short rest).',
+            options: [
+                { id: 'darkvision', label: 'Darkvision', desc: 'Gain 60ft darkvision' },
+                { id: 'ethereal-sight', label: 'Ethereal Sight', desc: 'See into the Ethereal Plane within 60ft' },
+                { id: 'see-invisibility', label: 'See Invisibility', desc: 'See invisible creatures/objects within 10ft' },
+                { id: 'read-languages', label: 'Read Languages', desc: 'Read any language' },
+            ] },
     ],
 };
 
@@ -890,7 +890,7 @@ export function collectLevelChoiceEffects(levelChoices, classKey, subclassName, 
 
     if (!levelChoices) return result;
 
-    for (const [_lv, choices] of Object.entries(levelChoices)) {
+    for (const [, choices] of Object.entries(levelChoices)) {
         for (const [featureId, data] of Object.entries(choices || {})) {
             if (!data) continue;
 

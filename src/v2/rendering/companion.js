@@ -7,8 +7,8 @@
 import { characterV2 } from '../core/characterState.js';
 import { saveCharacterV2 } from '../core/characterPersist.js';
 import { computeV2CharacterStats } from '../features/character.js';
-import { FAMILIAR_CREATURES, PRIMAL_COMPANIONS, computeCompanionStats } from '../features/levelFeatures.js';
-import { ABILITY_KEYS, ABILITY_LABELS, getProficiencyBonus } from '../core/constants.js';
+import { FAMILIAR_CREATURES, PRIMAL_COMPANIONS } from '../features/levelFeatures.js';
+import { ABILITY_KEYS, ABILITY_LABELS } from '../core/constants.js';
 import { bindTooltipEvents } from '../../rendering/tooltip.js';
 
 function esc(str) {
@@ -67,7 +67,7 @@ function buildFamiliarStatBlock(familiar, customName, creatureType) {
         : `${familiar.size} ${familiar.type}`;
 
     const lines = [];
-    lines.push(`<div class="v1-companion-stat-block">`);
+    lines.push('<div class="v1-companion-stat-block">');
     lines.push(`<div class="v1-companion-header"><b><span class="dnd-tt-hover" data-tt-type="creature" data-tt-name="${esc(familiar.label)}">${esc(displayName)}</span></b></div>`);
     lines.push(`<div class="v1-companion-subheader">${esc(typeLabel)}</div>`);
     lines.push('<hr class="v1-divider" />');
@@ -120,7 +120,7 @@ function buildFamiliarStatBlock(familiar, customName, creatureType) {
 function buildPrimalStatBlock(companion) {
     const displayName = companion.customName || companion.name;
     const lines = [];
-    lines.push(`<div class="v1-companion-stat-block">`);
+    lines.push('<div class="v1-companion-stat-block">');
     lines.push(`<div class="v1-companion-header"><b>${esc(displayName)}</b></div>`);
     lines.push(`<div class="v1-companion-subheader">${esc(companion.size)} ${esc(companion.type)}</div>`);
     lines.push('<hr class="v1-divider" />');

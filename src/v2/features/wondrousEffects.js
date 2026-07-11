@@ -41,7 +41,7 @@ function flattenToText(entries) {
             parts.push(heading + flattenToText(e.entries));
         } else if (e?.type === 'list' && Array.isArray(e.items)) {
             parts.push(e.items.map(li =>
-                typeof li === 'string' ? stripMarkup(li) : flattenToText(li.entries || [])
+                typeof li === 'string' ? stripMarkup(li) : flattenToText(li.entries || []),
             ).join(' '));
         }
     }

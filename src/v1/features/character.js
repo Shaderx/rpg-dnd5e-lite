@@ -5,7 +5,7 @@
  */
 
 import {
-    ABILITY_KEYS, ABILITY_LABELS, ASI_LEVELS,
+    ABILITY_KEYS, ABILITY_LABELS,
     getProficiencyBonus, getModifier, getSpellSlots, CANTRIPS_KNOWN,
     SPELLS_KNOWN, PREPARED_CASTERS, getPreparedCount, SKILLS, SKILL_LABELS,
     HIT_DICE, SPELLCASTING_ABILITY, CASTER_TYPE, SPELLCASTING_SUBCLASSES,
@@ -176,7 +176,7 @@ export function computeCharacterStats(char) {
             levelChoiceEffects.companion,
             level,
             proficiency,
-            mods.wis || 0
+            mods.wis || 0,
         );
     }
 
@@ -205,7 +205,7 @@ export function computeCharacterStats(char) {
     }
 
     const classEffects = collectClassEffects(
-        classKey, char.subclassName, level, allChosenFeatures
+        classKey, char.subclassName, level, allChosenFeatures,
     );
 
     // Override draconic element from level choices if set
@@ -278,7 +278,7 @@ export function computeCharacterStats(char) {
             unarmoredFormula,
             defenseBonus,
             mediumArmorMaster: !!featEffects.meta.mediumArmorMaster,
-        }
+        },
     );
 
     // --- Saves ---

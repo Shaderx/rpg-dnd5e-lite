@@ -365,12 +365,12 @@ function openItemInfoModal(idx) {
 
         resultsDiv.innerHTML = matches.slice(0, 20).map(m => {
             let stat = '';
-            if (selectedType === 'armor') stat = m.ac ? ` — AC ${m.ac}` : '';
-            else if (selectedType === 'shield') {
+            if (selectedType === 'armor') {
+                stat = m.ac ? ` — AC ${m.ac}` : '';
+            } else if (selectedType === 'shield') {
                 const shieldBonusAc = m.bonusAc ? (parseInt(String(m.bonusAc).replace(/[^-\d]/g, '')) || 0) : 0;
                 stat = ` — +${(m.ac || 2) + shieldBonusAc} AC`;
-            }
-            else if (selectedType === 'weapon') {
+            } else if (selectedType === 'weapon') {
                 const dmg = m.dmg1 || m.damageDice || '';
                 const dtype = m.dmgType || m.damageType || '';
                 stat = dmg ? ` — ${dmg} ${dtype}`.trim() : '';
@@ -755,7 +755,6 @@ function bindV2InventoryEvents(container) {
             renderV2Inventory();
         });
     });
-
 }
 
 // ─── Equipment Data Refresh ──────────────────────────────────

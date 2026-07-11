@@ -4,8 +4,7 @@
  * Also migrates V1 character equipment into V2 inventory items.
  */
 
-import { chat_metadata, saveChatDebounced } from '../../../../../../../script.js';
-import { quests, inventory } from '../../core/state.js';
+import { chat_metadata } from '../../../../../../../script.js';
 import { setV2Quests, setV2Inventory, createDefaultQuest, createDefaultItem } from './state.js';
 import { getChatDataVersion, saveV2Quests, saveV2Inventory } from './persistence.js';
 

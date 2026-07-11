@@ -37,18 +37,18 @@ function setClockHands(hourEl, minuteEl, timeStr) {
 
 // Forgotten Realms calendar: 12 months mapped to season + month key
 const FR_MONTHS = {
-    hammer:    { num: 1,  season: 'winter', key: 'hammer' },
-    alturiak:  { num: 2,  season: 'winter', key: 'alturiak' },
-    ches:      { num: 3,  season: 'spring', key: 'ches' },
-    tarsakh:   { num: 4,  season: 'spring', key: 'tarsakh' },
-    mirtul:    { num: 5,  season: 'spring', key: 'mirtul' },
-    kythorn:   { num: 6,  season: 'summer', key: 'kythorn' },
+    hammer: { num: 1,  season: 'winter', key: 'hammer' },
+    alturiak: { num: 2,  season: 'winter', key: 'alturiak' },
+    ches: { num: 3,  season: 'spring', key: 'ches' },
+    tarsakh: { num: 4,  season: 'spring', key: 'tarsakh' },
+    mirtul: { num: 5,  season: 'spring', key: 'mirtul' },
+    kythorn: { num: 6,  season: 'summer', key: 'kythorn' },
     flamerule: { num: 7,  season: 'summer', key: 'flamerule' },
-    eleasis:   { num: 8,  season: 'summer', key: 'eleasis' },
-    eleint:    { num: 9,  season: 'autumn', key: 'eleint' },
+    eleasis: { num: 8,  season: 'summer', key: 'eleasis' },
+    eleint: { num: 9,  season: 'autumn', key: 'eleint' },
     marpenoth: { num: 10, season: 'autumn', key: 'marpenoth' },
-    uktar:     { num: 11, season: 'autumn', key: 'uktar' },
-    nightal:   { num: 12, season: 'winter', key: 'nightal' },
+    uktar: { num: 11, season: 'autumn', key: 'uktar' },
+    nightal: { num: 12, season: 'winter', key: 'nightal' },
 };
 
 function inferMonth(dateStr) {
@@ -329,7 +329,7 @@ export function updateHeaderWidgets() {
     setClockHands(
         document.getElementById('dnd-clock-hour'),
         document.getElementById('dnd-clock-minute'),
-        info.time
+        info.time,
     );
 
     // Digital time
@@ -548,7 +548,7 @@ function renderStripHeaderInfo($container) {
     setClockHands(
         $container.find('.dnd-strip-clock-hour')[0],
         $container.find('.dnd-strip-clock-minute')[0],
-        info.time
+        info.time,
     );
     $container.find('.dnd-strip-time-value')
         .text(info.time || '--:--').attr('title', info.time || '');
@@ -646,9 +646,9 @@ function renderStripDice($container) {
             allyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${diceTip}">`
                 + `<span class="dnd-strip-dice-row-label">${label}</span>`
                 + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">${a.roll1}</span>`
-                + `<span class="dnd-strip-dice-sep">/</span>`
+                + '<span class="dnd-strip-dice-sep">/</span>'
                 + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">${a.roll2}</span>`
-                + `</div>`;
+                + '</div>';
         }
         $allyRows.html(allyHtml);
 
@@ -662,9 +662,9 @@ function renderStripDice($container) {
             enemyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-enemy" title="${label}: d20 ${e.roll1} / ${e.roll2}${diceTip}">`
                 + `<span class="dnd-strip-dice-row-label">${label}</span>`
                 + `<span class="dnd-strip-dice-result dnd-strip-dice-npc">${e.roll1}</span>`
-                + `<span class="dnd-strip-dice-sep">/</span>`
+                + '<span class="dnd-strip-dice-sep">/</span>'
                 + `<span class="dnd-strip-dice-result dnd-strip-dice-npc">${e.roll2}</span>`
-                + `</div>`;
+                + '</div>';
         }
         $enemyRows.html(enemyHtml);
 
@@ -672,18 +672,18 @@ function renderStripDice($container) {
     } else {
         $r1.text('--').attr('title', '');
         $r2.text('--').attr('title', '');
-        $allyRows.html(`<div class="dnd-strip-dice-row dnd-strip-dice-row-ally">`
-            + `<span class="dnd-strip-dice-row-label">Ally</span>`
-            + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">--</span>`
-            + `<span class="dnd-strip-dice-sep">/</span>`
-            + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">--</span>`
-            + `</div>`);
-        $enemyRows.html(`<div class="dnd-strip-dice-row dnd-strip-dice-row-enemy">`
-            + `<span class="dnd-strip-dice-row-label">Foe</span>`
-            + `<span class="dnd-strip-dice-result dnd-strip-dice-npc">--</span>`
-            + `<span class="dnd-strip-dice-sep">/</span>`
-            + `<span class="dnd-strip-dice-result dnd-strip-dice-npc">--</span>`
-            + `</div>`);
+        $allyRows.html('<div class="dnd-strip-dice-row dnd-strip-dice-row-ally">'
+            + '<span class="dnd-strip-dice-row-label">Ally</span>'
+            + '<span class="dnd-strip-dice-result dnd-strip-dice-ally">--</span>'
+            + '<span class="dnd-strip-dice-sep">/</span>'
+            + '<span class="dnd-strip-dice-result dnd-strip-dice-ally">--</span>'
+            + '</div>');
+        $enemyRows.html('<div class="dnd-strip-dice-row dnd-strip-dice-row-enemy">'
+            + '<span class="dnd-strip-dice-row-label">Foe</span>'
+            + '<span class="dnd-strip-dice-result dnd-strip-dice-npc">--</span>'
+            + '<span class="dnd-strip-dice-sep">/</span>'
+            + '<span class="dnd-strip-dice-result dnd-strip-dice-npc">--</span>'
+            + '</div>');
         $clearBtn.hide();
     }
 

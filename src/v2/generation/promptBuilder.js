@@ -223,10 +223,10 @@ add: give an item to a sidekick:
   Required: sidekick, name
   Optional: quantity (default 1), type (none/armor/shield/weapon, default none), rarity, magic, notes, location (equipped/stored)
 
-update: modify existing gear. Only include changing fields:
+update: modify existing gear/inventory/ammo. Only include changing fields:
   {"tool":"sidekick_inventory","action":"update","sidekick":"Thorn","index":4,"quantity_change":-1}
   quantity_change: +/- relative (preferred). quantity: absolute override. Item removed if quantity reaches 0.
-  notes: static factual description of what the item is or does. Only set when the description itself needs rewriting. Never narrative prose.
+  notes: static factual description of what the item is or does. Only set when the description itself needs rewriting.
 
 remove: {"tool":"sidekick_inventory","action":"remove","sidekick":"Thorn","index":3}
 equip: {"tool":"sidekick_inventory","action":"equip","sidekick":"Thorn","index":2}
@@ -255,9 +255,7 @@ function renderCompanionBlock(active) {
     lines.push(`[${active.name || 'Unnamed'} (${active.creatureName}), ${ctypeLabel} ${meta.label}, Owner: ${ownerLabel}]`);
 
     const speedStr = computed.speed || active.speed || '';
-    const baseType = computed.creatureType || active.baseCreatureType || '';
-    const sizeStr = baseType ? `${active.size || 'M'} ${baseType}` : (active.size || 'M');
-    lines.push(`HP: ${computed.hp} | AC: ${computed.ac} | Speed: ${speedStr} | Size: ${sizeStr}`);
+    lines.push(`HP: ${computed.hp} | AC: ${computed.ac} | Speed: ${speedStr} | Size: ${active.size || 'M'}`);
 
     const ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
     const abilLine = ABILITY_KEYS.map(a => {

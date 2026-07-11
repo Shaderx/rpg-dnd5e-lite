@@ -189,7 +189,7 @@ const DMG_TYPES = { B: 'bludgeoning', P: 'piercing', S: 'slashing', N: 'necrotic
 const PROP_LABELS = { '2H': 'Two-Handed', A: 'Ammunition', AF: 'Ammunition', F: 'Finesse', H: 'Heavy', L: 'Light', LD: 'Loading', R: 'Reach', RLD: 'Reload', S: 'Special', T: 'Thrown', V: 'Versatile' };
 
 const ITEM_TYPE_LABELS = {
-    INS: 'Musical Instrument', AT: "Artisan's Tools", GS: 'Gaming Set', T: 'Tool',
+    INS: 'Musical Instrument', AT: 'Artisan\'s Tools', GS: 'Gaming Set', T: 'Tool',
     G: 'Adventuring Gear', SCF: 'Spellcasting Focus', P: 'Potion', RG: 'Ring',
     RD: 'Rod', WD: 'Wand', SC: 'Scroll', W: 'Wondrous Item', A: 'Ammunition',
     EXP: 'Explosive', FD: 'Food/Drink', TG: 'Trade Good', MNT: 'Mount/Vehicle',
@@ -240,7 +240,7 @@ function buildEquipmentTooltip(item) {
             const dexNote = item._armorType === 'LA' ? ' + Dex' : item._armorType === 'MA' ? ' + Dex (max 2)' : '';
             body += `<div class="dnd-tt-field"><strong>AC:</strong> ${acStr}${dexNote}</div>`;
         }
-        if (item.stealth) body += `<div class="dnd-tt-field"><strong>Stealth:</strong> Disadvantage</div>`;
+        if (item.stealth) body += '<div class="dnd-tt-field"><strong>Stealth:</strong> Disadvantage</div>';
         if (item.strength) body += `<div class="dnd-tt-field"><strong>Str Required:</strong> ${item.strength}</div>`;
         if (item.weight) body += `<div class="dnd-tt-field"><strong>Weight:</strong> ${item.weight} lb.</div>`;
     } else {
@@ -541,8 +541,7 @@ export function bindTooltipEvents(container) {
         else if (type === 'feature') {
             const text = $(this).data('tt-text') || '';
             showFeatureTooltip(this, name, text);
-        }
-        else if (type === 'feat') showFeatTooltip(this, name);
+        } else if (type === 'feat') showFeatTooltip(this, name);
         else if (type === 'trait') {
             const text = $(this).data('tt-text') || '';
             const sub = $(this).data('tt-sub') || 'Creature Trait';

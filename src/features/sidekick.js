@@ -42,9 +42,9 @@ export function getSidekickAttunedCount(sk) {
 }
 
 export const ASI_LEVELS = {
-    expert:      [4, 8, 10, 12, 16, 19],
+    expert: [4, 8, 10, 12, 16, 19],
     spellcaster: [4, 8, 12, 16, 18],
-    warrior:     [4, 8, 12, 14, 16, 19],
+    warrior: [4, 8, 12, 14, 16, 19],
 };
 
 export const ALL_SKILLS = [
@@ -106,14 +106,14 @@ export const SIDEKICK_TYPES = {
     },
 };
 
-export const CANTRIP_PROGRESSION    = [2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4];
-export const SPELLS_KNOWN_PROGRESSION = [1,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11];
+export const CANTRIP_PROGRESSION    = [2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+export const SPELLS_KNOWN_PROGRESSION = [1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11];
 export const SPELL_SLOT_TABLE = [
-    [2,0,0,0,0],[2,0,0,0,0],[3,0,0,0,0],[3,0,0,0,0],
-    [4,2,0,0,0],[4,2,0,0,0],[4,3,0,0,0],[4,3,0,0,0],
-    [4,3,2,0,0],[4,3,2,0,0],[4,3,3,0,0],[4,3,3,0,0],
-    [4,3,3,1,0],[4,3,3,1,0],[4,3,3,2,0],[4,3,3,2,0],
-    [4,3,3,3,1],[4,3,3,3,1],[4,3,3,3,2],[4,3,3,3,2],
+    [2, 0, 0, 0, 0], [2, 0, 0, 0, 0], [3, 0, 0, 0, 0], [3, 0, 0, 0, 0],
+    [4, 2, 0, 0, 0], [4, 2, 0, 0, 0], [4, 3, 0, 0, 0], [4, 3, 0, 0, 0],
+    [4, 3, 2, 0, 0], [4, 3, 2, 0, 0], [4, 3, 3, 0, 0], [4, 3, 3, 0, 0],
+    [4, 3, 3, 1, 0], [4, 3, 3, 1, 0], [4, 3, 3, 2, 0], [4, 3, 3, 2, 0],
+    [4, 3, 3, 3, 1], [4, 3, 3, 3, 1], [4, 3, 3, 3, 2], [4, 3, 3, 3, 2],
 ];
 
 // ─── Bestiary ───────────────────────────────────────────────
@@ -1226,7 +1226,7 @@ export function computeSidekickStats(sidekick, level) {
             const ab = subInfo.ability;
             const abMod = mods[ab] || 0;
             const idx = level - 1;
-            const slots = SPELL_SLOT_TABLE[idx] || [0,0,0,0,0];
+            const slots = SPELL_SLOT_TABLE[idx] || [0, 0, 0, 0, 0];
             const nonZeroSlots = slots.filter(s => s > 0);
             spellcasting = {
                 ability: ab,
@@ -1249,7 +1249,7 @@ export function computeSidekickStats(sidekick, level) {
     }
 
     const warriorDefBonus = (sidekick.type === 'warrior' && level >= 10) ? 1 : 0;
-    const shieldArg = sidekick.equippedShield || (sidekick.hasShield ? true : false);
+    const shieldArg = sidekick.equippedShield || (!!sidekick.hasShield);
     const ac = computeEquippedAC(
         sidekick.equippedArmor || null,
         shieldArg,
@@ -1518,16 +1518,16 @@ function buildTraitCombatNote(traitName, traitText, sidekickName, playerLabel) {
     if (key.includes('sunlight sensitivity')) {
         return 'Sunlight Sensitivity: In sunlight, attack rolls and sight-based Perception checks are made with disadvantage.';
     }
-    if (key.includes("dragon's resistance") || key.includes('dragons resistance')) {
+    if (key.includes('dragon\'s resistance') || key.includes('dragons resistance')) {
         const specificType = traitText?.match(/resistance to ([a-z]+) damage/i)?.[1]?.toLowerCase();
         const knownTypes = new Set(['acid', 'cold', 'fire', 'lightning', 'poison', 'necrotic', 'radiant', 'thunder', 'force', 'psychic', 'bludgeoning', 'piercing', 'slashing']);
         if (specificType && knownTypes.has(specificType)) {
             return `Dragon's Resistance: ${sidekickName} has resistance to ${specificType} damage.`;
         }
-        return "Dragon's Resistance: Has resistance to one dragon-linked damage type; confirm the active type when resolving damage.";
+        return 'Dragon\'s Resistance: Has resistance to one dragon-linked damage type; confirm the active type when resolving damage.';
     }
     if (key.includes('heart of the dragon')) {
-        return "Heart of the Dragon: If frightened or paralyzed, repeat the save at the start of turn; success also helps nearby kobolds and grants advantage on the next attack.";
+        return 'Heart of the Dragon: If frightened or paralyzed, repeat the save at the start of turn; success also helps nearby kobolds and grants advantage on the next attack.';
     }
     if (key.includes('aggressive')) {
         return 'Aggressive: Can use a bonus action to move up to speed toward a visible enemy.';
@@ -1637,7 +1637,7 @@ export function buildSidekickCombatNotes(sidekick, level, stats, playerName) {
 export function getMaxSpellLevel(sidekickLevel) {
     if (!sidekickLevel || sidekickLevel < 1) return 0;
     const idx = Math.min(sidekickLevel, 20) - 1;
-    const slots = SPELL_SLOT_TABLE[idx] || [0,0,0,0,0];
+    const slots = SPELL_SLOT_TABLE[idx] || [0, 0, 0, 0, 0];
     for (let i = slots.length - 1; i >= 0; i--) {
         if (slots[i] > 0) return i + 1;
     }
@@ -1678,7 +1678,7 @@ export function parseFeatAbility(feat) {
             choose = { from: entry.choose.from || [], count: entry.choose.count || entry.choose.amount || 1 };
         } else {
             for (const [ab, val] of Object.entries(entry)) {
-                if (['str','dex','con','int','wis','cha'].includes(ab)) {
+                if (['str', 'dex', 'con', 'int', 'wis', 'cha'].includes(ab)) {
                     fixed[ab] = (fixed[ab] || 0) + val;
                 }
             }

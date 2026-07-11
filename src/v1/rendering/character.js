@@ -147,7 +147,7 @@ function buildStatCard(stats) {
                 lines.push(`<div class="v1-row"><span class="v1-label">${esc(sec.title)}:</span><span>${
                     sec.items.map(o => o.desc
                         ? `<span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(o.label)}" data-tt-text="${esc(o.desc)}">${esc(o.label)}</span>`
-                        : esc(o.label)
+                        : esc(o.label),
                     ).join(', ')
                 }</span></div>`);
             }
@@ -258,7 +258,7 @@ function buildDetailContent(stats) {
 
     // All skills
     lines.push('<p><b>Skills:</b></p><ul>');
-    for (const [key, skill] of Object.entries(stats.skills)) {
+    for (const [, skill] of Object.entries(stats.skills)) {
         if (skill.proficient || skill.expertise) {
             const mark = skill.expertise ? ' (expertise)' : '';
             lines.push(`<li>${esc(skill.label)}: ${skill.mod >= 0 ? '+' : ''}${skill.mod}${mark}</li>`);

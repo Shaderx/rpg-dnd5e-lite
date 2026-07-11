@@ -113,7 +113,7 @@ function parseSubclass(sc) {
 
 /**
  * Extract and organize class features by level.
- * @returns {object} Map of level -> feature[] 
+ * @returns {object} Map of level -> feature[]
  */
 function extractClassFeatures(classFeatures, className, classSource) {
     const byLevel = {};

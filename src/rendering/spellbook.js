@@ -85,7 +85,7 @@ export function renderSpellbook() {
             `<span class="dnd-spellbook-lvl ${badgeClass}">${lvlChar}</span>` +
             `<span class="dnd-spellbook-name">${escapeHtml(name)}</span>` +
             (school ? `<span class="dnd-spellbook-school">${escapeHtml(school)}</span>` : '') +
-            `</div>`;
+            '</div>';
     }
 
     container.innerHTML = html;

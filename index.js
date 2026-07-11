@@ -5,14 +5,14 @@
 
 import { getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { eventSource, event_types, saveSettingsDebounced } from '../../../../script.js';
-import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, sidekickSlotsEnabled, setSidekickSlotsEnabled, autoLongRestEnabled, setAutoLongRestEnabled, character, sidekicks, headerInfo, lastEventRoll, lastNonCombatRoll, migrateSettingsToMode, syncModeFlags } from './src/core/state.js';
+import { extensionName, extensionSettings, chatAttributes, chatAttributeSchema, defaultAttributeSchema, buildDefaultAttributes, spellTrackerDisabled, setSpellTrackerDisabled, sendAttributesOnRoll, setSendAttributesOnRoll, spellInjectEnabled, setSpellInjectEnabled, sidekickSlotsEnabled, setSidekickSlotsEnabled, autoLongRestEnabled, setAutoLongRestEnabled, character, sidekicks, headerInfo, lastEventRoll, lastNonCombatRoll, migrateSettingsToMode } from './src/core/state.js';
 import { saveSettings, loadSettings, loadQuests, loadInventory, loadSpellLog, saveAttributes, loadAttributes, saveSpellTrackerDisabled, loadSpellTrackerDisabled, saveSendAttributesOnRoll, loadSendAttributesOnRoll, saveSpellInjectEnabled, loadSpellInjectEnabled, saveSidekickSlotsEnabled, loadSidekickSlotsEnabled, saveAutoLongRest, loadAutoLongRest, loadSpellbook, loadCharacter, saveSidekicks, loadSidekicks, loadRandomEventState, saveRandomEventState, loadAutoBackgrounds } from './src/core/persistence.js';
 import { importSpellbook, clearSpellbook, ensureSpellData, clearSpellbookCache } from './src/features/spellbook.js';
 import { renderSpellbook, hideSpellTooltip } from './src/rendering/spellbook.js';
 import { fetchClassIndex, fetchClassData, listClasses, getSubclasses, saveCharacterConfig, clearCharacter, ensureCharacterData } from './src/features/character.js';
 import { renderCharacter } from './src/rendering/character.js';
 import { renderSidekickCards, renderSidekickDetail } from './src/rendering/sidekick.js';
-import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, CREATURE_TYPES, SPELL_SCHOOLS, SIDEKICK_MAX_ATTUNEMENT, getSidekickAttunedCount, fetchBestiaryIndex, fetchBestiarySource, preloadBestiarySources, getAvailableSourceKeys, getLoadedSourceKeys, searchCreatures, findCreatureVersions, getCreatureStats, fetchEquipmentItems, fetchMagicItems, isMagicWeaponsLoaded, extractCreatureActions, extractCreatureTraits, extractCreatureSkillProficiencies, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, preloadSpellData, getSpellsForClass, getAllLoadedSpells, spellSchoolLabel, searchEquipment, searchMagicItems, weaponFromItem, armorFromItem, shieldFromItem, computeEquippedAC, DND_LANGUAGES, parseCreatureLanguages, getSpellDamageInfo, fetchFeats, getLoadedFeats, parseFeatAbility, checkFeatPrereqs, lookupFeatByName, lookupItemByName, clearSpellSourceMemory as clearSidekickSourceMemory } from './src/features/sidekick.js';
+import { SIDEKICK_TYPES, ASI_LEVELS, ALL_SKILLS, SKILL_LABELS, CANTRIP_PROGRESSION, SPELLS_KNOWN_PROGRESSION, CREATURE_TYPES, SPELL_SCHOOLS, SIDEKICK_MAX_ATTUNEMENT, fetchBestiarySource, preloadBestiarySources, getAvailableSourceKeys, getLoadedSourceKeys, searchCreatures, findCreatureVersions, getCreatureStats, fetchEquipmentItems, fetchMagicItems, isMagicWeaponsLoaded, extractCreatureActions, extractCreatureTraits, extractCreatureSkillProficiencies, createSidekickFromCreature, getSidekickLevel, getMaxSpellLevel, preloadSpellData, getSpellsForClass, getAllLoadedSpells, spellSchoolLabel, searchEquipment, searchMagicItems, weaponFromItem, armorFromItem, shieldFromItem, computeEquippedAC, DND_LANGUAGES, parseCreatureLanguages, fetchFeats, getLoadedFeats, parseFeatAbility, lookupFeatByName, lookupItemByName, clearSpellSourceMemory as clearSidekickSourceMemory } from './src/features/sidekick.js';
 import { getFeatUIDescriptor, DND_TOOLS } from './src/features/featEffects.js';
 import { bindTooltipEvents, hideTooltip, showEventTooltip } from './src/rendering/tooltip.js';
 import { onGenerationStarted, clearExtensionPrompts } from './src/generation/injector.js';
@@ -21,7 +21,7 @@ import { renderQuests, addQuestFromInput } from './src/rendering/quests.js';
 import { renderInventory, addInventoryItemFromInput } from './src/rendering/inventory.js';
 import { renderSpellLog, addSpellFromInput, addRestFromButton, addShortRestFromButton, addDispelFromButton, addDropConcFromButton, hardRefreshSpellLogFromButton } from './src/rendering/spellLog.js';
 import { refreshSpellLog, hardRefreshSpellLog } from './src/features/spellTracker.js';
-import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, removeDamageDie, updateDamageDisplay, clearDamageRoll, toggleModifier, updateModifierDisplay, clearModifiers, updatePlayerCountLabel, updateAllyCountLabel, updateEnemyCountLabel, renderModifierButtons } from './src/features/dice.js';
+import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, removeDamageDie, updateDamageDisplay, clearDamageRoll, toggleModifier, updateModifierDisplay, updatePlayerCountLabel, updateAllyCountLabel, updateEnemyCountLabel, renderModifierButtons } from './src/features/dice.js';
 import { refreshHeaderFromChat, updateHeaderFromMessage } from './src/features/headerParser.js';
 import { updateStripWidgets, updateHeaderWidgets, getOmniWidgetSizes, DEFAULT_OMNI_WIDGET_SIZES } from './src/ui/desktop.js';
 import { setupMobileFab } from './src/ui/mobile.js';
@@ -41,12 +41,12 @@ import { fetchClassFile as fetchClassFileV2, clearSpellSourceMemory as clearV2So
 import { clearSpellCache, getCacheInfo } from './src/core/spellCache.js';
 import { renderV1CompanionPanel, initCompanionPanel } from './src/v1/rendering/companion.js';
 import { listCustomSpecies, createCustomSpecies, updateCustomSpecies, deleteCustomSpecies, blankCustomSpecies } from './src/v1/features/customSpecies.js';
-import { CREATURE_TYPES as V1_CREATURE_TYPES, DAMAGE_TYPES, ABILITY_KEYS as V1_ABILITY_KEYS, ABILITY_LABELS as V1_ABILITY_LABELS } from './src/v1/core/constants.js';
+import { CREATURE_TYPES as V1_CREATURE_TYPES, ABILITY_KEYS as V1_ABILITY_KEYS, ABILITY_LABELS as V1_ABILITY_LABELS } from './src/v1/core/constants.js';
 
 // V2 Inline Game Actions
-import { v2Quests, v2Inventory } from './src/v2/core/state.js';
-import { loadV2Quests, loadV2Inventory, saveV2Quests, saveV2Inventory, getChatDataVersion, loadV2Companions } from './src/v2/core/persistence.js';
-import { hasV1DataToMigrate, isChatV2, executeV2Migration } from './src/v2/core/migration.js';
+import './src/v2/core/state.js';
+import { loadV2Quests, loadV2Inventory, getChatDataVersion, loadV2Companions } from './src/v2/core/persistence.js';
+import { hasV1DataToMigrate, executeV2Migration } from './src/v2/core/migration.js';
 import { parseAndApplyGameActions, hasGameActionBackup, revertGameActions } from './src/v2/tools/inlineParser.js';
 import { renderV2Quests } from './src/v2/rendering/quests.js';
 import { openQuestEditModal } from './src/v2/rendering/questModal.js';
@@ -720,7 +720,7 @@ function showCreaturePreview(creature) {
     const hp = creature.hp?.average ?? '?';
     const formula = creature.hp?.formula || '?';
     const ac = typeof creature.ac?.[0] === 'number' ? creature.ac[0] : creature.ac?.[0]?.ac ?? '?';
-    const abilities = ['str','dex','con','int','wis','cha']
+    const abilities = ['str', 'dex', 'con', 'int', 'wis', 'cha']
         .map(a => `${a.toUpperCase()} ${creature[a] ?? 10}`)
         .join(' | ');
 
@@ -919,13 +919,13 @@ function renderWeaponsList() {
         </div>`;
     }
     $list.html(html);
-    $list.find('.dnd-sk-item-notes').on('change', function() {
+    $list.find('.dnd-sk-item-notes').on('change', function () {
         const idx = parseInt($(this).data('equip-idx'));
         if (idx >= 0 && idx < _skTempWeapons.length) {
             _skTempWeapons[idx].customNotes = /** @type {string} */ ($(this).val()).trim();
         }
     });
-    $list.find('.dnd-sk-attune-toggle').on('click', function() {
+    $list.find('.dnd-sk-attune-toggle').on('click', function () {
         const idx = parseInt($(this).data('equip-idx'));
         if (idx < 0 || idx >= _skTempWeapons.length) return;
         const w = _skTempWeapons[idx];
@@ -1092,13 +1092,13 @@ function renderItemsList() {
         </div>`;
     }
     $list.html(html);
-    $list.find('.dnd-sk-item-notes').on('change', function() {
+    $list.find('.dnd-sk-item-notes').on('change', function () {
         const idx = parseInt($(this).data('item-idx'));
         if (idx >= 0 && idx < _skTempItems.length) {
             _skTempItems[idx].customNotes = /** @type {string} */ ($(this).val()).trim();
         }
     });
-    $list.find('.dnd-sk-item-qty-btn').on('click', function() {
+    $list.find('.dnd-sk-item-qty-btn').on('click', function () {
         const idx = parseInt($(this).data('item-idx'));
         const delta = parseInt($(this).data('delta'));
         if (idx < 0 || idx >= _skTempItems.length) return;
@@ -1107,7 +1107,7 @@ function renderItemsList() {
         it.quantity = newQty;
         renderItemsList();
     });
-    $list.find('.dnd-sk-attune-toggle').on('click', function() {
+    $list.find('.dnd-sk-attune-toggle').on('click', function () {
         const idx = parseInt($(this).data('item-idx'));
         if (idx < 0 || idx >= _skTempItems.length) return;
         const it = _skTempItems[idx];
@@ -1415,8 +1415,6 @@ async function populateAsiSection(type, savedChoices, savedFeatData) {
 }
 
 function populateFeatDropdown($select, allFeats, asiLvl, selectedFeat) {
-    const type = /** @type {string} */ ($('#dnd-sk-type').val());
-    const level = getSidekickLevel();
     $select.html('<option value="">-- Pick Feat --</option>');
     const eligible = allFeats.filter(f => {
         const cat = f.category || '';
@@ -1480,7 +1478,6 @@ function renderFeatConfigUI(featName, uiDesc, savedData) {
         const savedTools = savedData.selectedTools || [];
         html += '<div class="dnd-sk-feat-config-picks">';
         for (let i = 0; i < c.skillCount; i++) {
-            const saved = i < savedSkills.length ? savedSkills[i] : (i < c.skillCount - savedTools.length ? '' : '');
             const allSaved = [...savedSkills, ...savedTools];
             const val = allSaved[i] || '';
             html += `<select class="dnd-sk-feat-skill-tool-pick" data-feat="${escHtml(featName)}" data-idx="${i}">`;
@@ -1628,7 +1625,7 @@ function buildMagicInitiatePicker($target, featName, classList, store) {
         });
     });
 
-    const spellLabel = $(`<div class="dnd-sk-feat-config-label" style="margin-top:0.3rem">1st-Level Spell (1/LR free):</div>`);
+    const spellLabel = $('<div class="dnd-sk-feat-config-label" style="margin-top:0.3rem">1st-Level Spell (1/LR free):</div>');
     $target.append(spellLabel);
 
     const $spellTags = $('<div class="dnd-sk-feat-spell-tags"></div>');
@@ -1900,7 +1897,7 @@ function renderSpellTags(selector, spells) {
         return;
     }
     const tags = spells.map(name =>
-        `<span class="dnd-sk-spell-tag" data-spell-name="${escHtml(name)}">${escHtml(name)} <button class="dnd-sk-spell-remove" data-spell="${escHtml(name)}">&times;</button></span>`
+        `<span class="dnd-sk-spell-tag" data-spell-name="${escHtml(name)}">${escHtml(name)} <button class="dnd-sk-spell-remove" data-spell="${escHtml(name)}">&times;</button></span>`,
     );
     $el.html(tags.join(''));
 }
@@ -2195,7 +2192,7 @@ function migrateSidekickData() {
             const profs = [];
             for (const [rawKey, valStr] of Object.entries(sk.creatureSkills)) {
                 const camel = rawKey.replace(/\s+/g, '').charAt(0).toLowerCase() + rawKey.replace(/\s+/g, '').slice(1);
-                const ab = { acrobatics:'dex', animalHandling:'wis', arcana:'int', athletics:'str', deception:'cha', history:'int', insight:'wis', intimidation:'cha', investigation:'int', medicine:'wis', nature:'int', perception:'wis', performance:'cha', persuasion:'cha', religion:'int', sleightOfHand:'dex', stealth:'dex', survival:'wis' }[camel];
+                const ab = { acrobatics: 'dex', animalHandling: 'wis', arcana: 'int', athletics: 'str', deception: 'cha', history: 'int', insight: 'wis', intimidation: 'cha', investigation: 'int', medicine: 'wis', nature: 'int', perception: 'wis', performance: 'cha', persuasion: 'cha', religion: 'int', sleightOfHand: 'dex', stealth: 'dex', survival: 'wis' }[camel];
                 if (!ab) continue;
                 const baseScore = sk['base' + ab.charAt(0).toUpperCase() + ab.slice(1)] ?? 10;
                 const baseMod = Math.floor((baseScore - 10) / 2);
@@ -2512,23 +2509,23 @@ function buildNonCombatDiceGroup(groupClass, shortLabel, pair) {
     return `<span class="${groupClass}">`
         + `<span class="dnd-noncombat-role">${shortLabel}</span>`
         + `<span class="dnd-noncombat-val">${pair.roll1}</span>`
-        + `<span class="dnd-noncombat-sep">|</span>`
+        + '<span class="dnd-noncombat-sep">|</span>'
         + `<span class="dnd-noncombat-val">${pair.roll2}</span>`
-        + `</span>`;
+        + '</span>';
 }
 
 function buildNonCombatDiceLabel(roll) {
- /*   return buildNonCombatDiceGroup('dnd-noncombat-user', 'U', roll.user)
+    /*   return buildNonCombatDiceGroup('dnd-noncombat-user', 'U', roll.user)
         + `<span class="dnd-noncombat-divider">·</span>`
         + buildNonCombatDiceGroup('dnd-noncombat-ally', 'A', roll.ally)
         + `<span class="dnd-noncombat-divider">·</span>`
         + buildNonCombatDiceGroup('dnd-noncombat-npc', 'N', roll.npc);
 */
-// Removed U/A/N labels without breaking code. Lazy i know.
-      return buildNonCombatDiceGroup('dnd-noncombat-user', '', roll.user)
-        + `<span class="dnd-noncombat-divider">·</span>`
+    // Removed U/A/N labels without breaking code. Lazy i know.
+    return buildNonCombatDiceGroup('dnd-noncombat-user', '', roll.user)
+        + '<span class="dnd-noncombat-divider">·</span>'
         + buildNonCombatDiceGroup('dnd-noncombat-ally', '', roll.ally)
-        + `<span class="dnd-noncombat-divider">·</span>`
+        + '<span class="dnd-noncombat-divider">·</span>'
         + buildNonCombatDiceGroup('dnd-noncombat-npc', '', roll.npc);
 }
 
@@ -2608,7 +2605,7 @@ function populateAttrEditor() {
             <input type="text" class="dnd-attr-label-input" data-field="label" value="${s.label}" placeholder="Name" maxlength="16" />
             <input type="number" class="dnd-attr-value-input" data-field="value" data-key="${s.key}" value="${attrs[s.key] ?? 10}" min="1" max="30" />
             <button class="dnd-attr-remove-btn" title="Remove attribute"><i class="fa-solid fa-trash-can"></i></button>
-        </div>`
+        </div>`,
     ).join('');
 }
 
@@ -2638,7 +2635,7 @@ function resetAttrDefaults() {
             <input type="text" class="dnd-attr-label-input" data-field="label" value="${s.label}" placeholder="Name" maxlength="16" />
             <input type="number" class="dnd-attr-value-input" data-field="value" data-key="${s.key}" value="${defaults[s.key]}" min="1" max="30" />
             <button class="dnd-attr-remove-btn" title="Remove attribute"><i class="fa-solid fa-trash-can"></i></button>
-        </div>`
+        </div>`,
     ).join('');
 }
 
@@ -2742,7 +2739,7 @@ function openSpeciesForm(editId) {
     const typeSelect = document.getElementById('dnd-v1-cs-creature-type');
     if (typeSelect) {
         typeSelect.innerHTML = V1_CREATURE_TYPES.map(t =>
-            `<option value="${t}" ${t === data.creatureType ? 'selected' : ''}>${t}</option>`
+            `<option value="${t}" ${t === data.creatureType ? 'selected' : ''}>${t}</option>`,
         ).join('');
     }
 

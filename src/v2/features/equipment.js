@@ -5,7 +5,6 @@
  */
 
 import { fetchEquipment, fetchMagicItems } from '../data/sources.js';
-import { getModifier } from '../core/constants.js';
 
 let _parsedArmor = null;
 let _parsedWeapons = null;
@@ -213,7 +212,7 @@ function parseWeapon(item) {
     }
 
     const isFinesse = properties.some(p =>
-        typeof p === 'string' && p.toLowerCase().includes('f') || p === 'F'
+        typeof p === 'string' && p.toLowerCase().includes('f') || p === 'F',
     );
     const isRanged = item.type === 'R' || properties.some(p => p === 'A' || p === 'AF');
     const isTwoHanded = properties.some(p => p === '2H');

@@ -9,7 +9,7 @@ import { saveV2Inventory } from '../core/persistence.js';
 import { renderV2Inventory } from '../rendering/inventory.js';
 import { renderV2CharacterPanel } from '../rendering/character.js';
 import { normalizeRarity } from '../../features/inventoryRarity.js';
-import { searchEquipment, fuzzyLookupItem, searchMagicItems, lookupSpellByName, lookupItemByName } from '../../features/sidekick.js';
+import { searchEquipment, fuzzyLookupItem, searchMagicItems, lookupSpellByName } from '../../features/sidekick.js';
 
 const VALID_TYPES = new Set(['none', 'armor', 'shield', 'weapon']);
 

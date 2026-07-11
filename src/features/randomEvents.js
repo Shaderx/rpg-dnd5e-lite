@@ -32,6 +32,7 @@ export function getSeverityTiers() {
 
 const CATEGORY_KEYS = Object.keys(EVENT_CATEGORIES);
 const DEFAULT_COOLDOWN = 2;
+const EXAMPLE_INJECTION_CHANCE_PERCENT = 25;
 
 /**
  * Determine severity tier from a d100 roll.
@@ -53,14 +54,18 @@ function pickCategory() {
 }
 
 /**
- * Sample N unique random entries from an event pool.
- * Falls back gracefully if the pool is smaller than requested.
+ * Sample up to N random entries from an event pool.
+ * When count is 1 (default), this is a single extra roll.
  */
-export function sampleExamples(categoryKey, severityId, count = 3) {
+export function sampleExamples(categoryKey, severityId, count = 1) {
     const pool = EVENT_TABLE[categoryKey]?.[severityId];
-    if (!pool || pool.length === 0) return [];
+    if (!pool || pool.length === 0 || count <= 0) return [];
 
     const n = Math.min(count, pool.length);
+    if (n === 1) {
+        return [pool[secureRoll(pool.length) - 1]];
+    }
+
     const indices = new Set();
     while (indices.size < n) {
         indices.add(secureRoll(pool.length) - 1);
@@ -114,7 +119,8 @@ export function rollRandomEvent() {
 
     const categoryKey = pickCategory();
     const categoryMeta = EVENT_CATEGORIES[categoryKey];
-    const examples = sampleExamples(categoryKey, severity.id, 3);
+    const injectExample = secureRoll(100) <= EXAMPLE_INJECTION_CHANCE_PERCENT;
+    const examples = injectExample ? sampleExamples(categoryKey, severity.id, 1) : [];
 
     const result = {
         roll,

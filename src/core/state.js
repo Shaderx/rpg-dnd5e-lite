@@ -74,14 +74,14 @@ export const extensionSettings = {
         ashOpacity: 0.12,
         ashColor: '#5a4a4a',
         magicalOpacity: 0.08,
-        magicalColor: '#7b5ea7'
+        magicalColor: '#7b5ea7',
     },
 
     // Lighting overlay (time-of-day ambient lighting on top of weather)
     lightingOverlay: {
         enabled: true,
         intensity: 1.0,
-        blendMode: 'soft-light'
+        blendMode: 'soft-light',
     },
 
     // System mode: 'legacy' | 'v1' | 'v2'
@@ -203,7 +203,7 @@ export let headerInfo = {
     secondaryResource: null, // { current: 2, max: 2 } — 🔥 Innate Sorcery, Rage, etc.
     currency: null,     // { gold, silver, copper, platinum, electrum }
 
-    extras: []
+    extras: [],
 };
 export function setHeaderInfo(val) { headerInfo = val; }
 

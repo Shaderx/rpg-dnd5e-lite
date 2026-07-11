@@ -82,10 +82,10 @@ export function getClassObject(data, className, classSource) {
     return data.class.find(c =>
         c.name === className &&
         c.source === classSource &&
-        !c._copy
+        !c._copy,
     ) || data.class.find(c =>
         c.name === className &&
-        c.source === classSource
+        c.source === classSource,
     ) || null;
 }
 
@@ -110,7 +110,7 @@ export function getSubclasses(data, className, classSource) {
     return data.subclass
         .filter(s =>
             s.className === className &&
-            s.classSource === classSource
+            s.classSource === classSource,
         )
         .map(s => ({
             name: s.name,
@@ -129,9 +129,15 @@ export function getClassFeatures(data, className, classSource, maxLevel) {
     const feats = data.classFeature.filter(f =>
         f.className === className &&
         f.classSource === classSource &&
-        f.level <= maxLevel
+        f.level <= maxLevel,
     );
-    return feats.map(f => f._copy ? resolveFeatureCopy(data.classFeature, f) : f);
+    return feats.map(f => {
+        if (!f._copy) return f;
+        const src = data.classFeature.find(o =>
+            o.name === f._copy.name && o.source === f._copy.source && o.className === f._copy.className,
+        );
+        return src ? { ...src, level: f.level } : f;
+    });
 }
 
 /**
@@ -146,7 +152,7 @@ export function getSubclassFeatures(data, subShortName, subSource, className, cl
         s.className === className &&
         s.classSource === classSource &&
         s.shortName === subShortName &&
-        s.source === subSource
+        s.source === subSource,
     );
 
     if (subclass?.subclassFeatures?.length) {
@@ -158,7 +164,7 @@ export function getSubclassFeatures(data, subShortName, subSource, className, cl
         f.classSource === classSource &&
         f.subclassShortName === subShortName &&
         f.subclassSource === subSource &&
-        f.level <= maxLevel
+        f.level <= maxLevel,
     );
 }
 
@@ -211,7 +217,7 @@ function findSubclassFeature(data, name, level, classSource, subShort, subSource
             f.name === name && f.level === level &&
             f.classSource === classSource &&
             (!subShort || f.subclassShortName === subShort) &&
-            (!subSource || f.subclassSource === subSource)
+            (!subSource || f.subclassSource === subSource),
         );
         if (exact) return exact;
     }
@@ -219,7 +225,7 @@ function findSubclassFeature(data, name, level, classSource, subShort, subSource
         f.name === name && f.level === level &&
         (!subShort || f.subclassShortName === subShort) &&
         (!subSource || f.subclassSource === subSource) &&
-        !f._copy
+        !f._copy,
     ) || null;
 }
 
@@ -234,7 +240,7 @@ function findSiblingFeatures(data, copyInfo, subShort, subSource) {
         f.subclassShortName === (copyInfo.subclassShortName || subShort) &&
         f.subclassSource === (copyInfo.subclassSource || subSource) &&
         f.level === copyInfo.level &&
-        !f._copy
+        !f._copy,
     );
 }
 

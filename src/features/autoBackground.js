@@ -262,7 +262,7 @@ function renderEntries($list, entries, backgrounds) {
         const entry = entries[i];
         const isDefault = i === 0;
         const nameHtml = isDefault
-            ? `<span class="dnd-auto-bg-entry-name">Default (fallback)</span>`
+            ? '<span class="dnd-auto-bg-entry-name">Default (fallback)</span>'
             : `<input type="text" class="dnd-auto-bg-name-input" value="${entry.name || ''}" placeholder="Location name" data-idx="${i}" />`;
 
         const deleteBtn = isDefault

@@ -5,7 +5,7 @@
 
 import { characterV1 } from '../core/state.js';
 import { computeCharacterStats } from '../features/character.js';
-import { ABILITY_KEYS, ABILITY_LABELS, SKILL_LABELS } from '../core/constants.js';
+import { ABILITY_KEYS, ABILITY_LABELS } from '../core/constants.js';
 
 /**
  * Build the <character> section for the consolidated game state injection.
@@ -42,7 +42,7 @@ export function buildCharacterSection() {
     lines.push(`Saves: ${saveParts.join(', ')}  (* = proficient)`);
 
     const skillParts = [];
-    for (const [key, skill] of Object.entries(stats.skills)) {
+    for (const [, skill] of Object.entries(stats.skills)) {
         if (skill.proficient || skill.expertise) {
             const mark = skill.expertise ? '**' : '*';
             skillParts.push(`${skill.label} ${skill.mod >= 0 ? '+' : ''}${skill.mod}${mark}`);

@@ -8,20 +8,6 @@ import { fetchWithCache } from '../../core/spellCache.js';
 
 const FETCH_TIMEOUT = 20000;
 
-async function fetchJson(url) {
-    try {
-        const r = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT) });
-        if (!r.ok) {
-            console.warn(`[D&D V1] Fetch failed (${r.status}): ${url}`);
-            return null;
-        }
-        return await r.json();
-    } catch (err) {
-        console.warn(`[D&D V1] Fetch error for ${url}:`, err.message || err);
-        return null;
-    }
-}
-
 // --- Species (Races) ---
 
 let _racesCache = null;

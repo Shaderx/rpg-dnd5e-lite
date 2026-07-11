@@ -385,12 +385,12 @@ export function renderV2Spellbook() {
             ? `<span class="dnd-reaction-tag${armed ? ' dnd-reaction-tag--armed' : ''}" title="Reaction — click to ${armed ? 'disarm' : 'arm'}">⚡</span>`
             : '';
 
-        const nocAttr = spell.noConc ? ` data-noconc="true" data-basename="${esc(spell.baseName || '')}"` : '';
+        const nocAttr = spell.noConc ? ` data-noconc='true' data-basename='${esc(spell.baseName || '')}'` : '';
         html += `<div class="dnd-spellbook-item${reactionClasses}" data-spell="${esc(spell.name)}" data-source="${esc(spell.source)}" data-freecast="${esc(spell.freeCast || '')}"${reactionAttr}${nocAttr}>` +
             `<span class="dnd-spellbook-lvl ${badgeClass}">${lvlChar}</span>` +
             `<span class="dnd-spellbook-name">${esc(spell.name)}</span>` +
             reactionTag + freeCastTag + ritualTag + sourceTag +
-            `</div>`;
+            '</div>';
     }
 
     list.innerHTML = html;

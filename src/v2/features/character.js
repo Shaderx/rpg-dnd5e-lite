@@ -8,7 +8,7 @@
  */
 
 import {
-    ABILITY_KEYS, ABILITY_LABELS, ASI_LEVELS,
+    ABILITY_KEYS, ABILITY_LABELS,
     getProficiencyBonus, getModifier, getSpellSlots, CANTRIPS_KNOWN,
     SPELLS_KNOWN, PREPARED_CASTERS, getPreparedCount, SKILLS, SKILL_LABELS,
     HIT_DICE, SPELLCASTING_ABILITY, CASTER_TYPE, SPELLCASTING_SUBCLASSES,
@@ -107,15 +107,15 @@ export function createV2Character(config) {
  */
 function getEquipmentFromInventory() {
     const equippedArmor = v2Inventory.find(
-        i => isItemEquipped(i) && i.type === 'armor' && i.equipmentData
+        i => isItemEquipped(i) && i.type === 'armor' && i.equipmentData,
     );
     const shieldItem = v2Inventory.find(
-        i => isItemEquipped(i) && i.type === 'shield'
+        i => isItemEquipped(i) && i.type === 'shield',
     );
     const hasShield = !!shieldItem;
     const shieldAc = shieldItem?.equipmentData?.ac || (hasShield ? 2 : 0);
     const weapons = v2Inventory.filter(
-        i => isItemEquipped(i) && i.type === 'weapon' && i.equipmentData
+        i => isItemEquipped(i) && i.type === 'weapon' && i.equipmentData,
     );
     return { equippedArmor, hasShield, shieldAc, weapons };
 }
@@ -294,7 +294,7 @@ export function computeV2CharacterStats(char) {
             spellAcBonus: spellAcEffects.bonus,
             acFloor: spellAcEffects.floor,
             mediumArmorMaster: !!featEffects.meta.mediumArmorMaster,
-        }
+        },
     );
 
     // --- AC Breakdown ---

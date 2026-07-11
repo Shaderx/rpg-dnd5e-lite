@@ -10,13 +10,13 @@ import { createCharacter, computeCharacterStats } from '../features/character.js
 import { getAvailableSpecies } from '../features/species.js';
 import { getAvailableBackgrounds } from '../features/background.js';
 import { listAvailableClasses, getClassData, getResolvedClassFeaturesSync } from '../features/classData.js';
-import { getClassSpells, getClassCantrips, preloadSpellData, lookupSpell } from '../features/spells.js';
-import { getAvailableArmor, getAvailableWeapons, computeAC, searchEquipment } from '../features/equipment.js';
+import { getClassSpells, getClassCantrips, preloadSpellData } from '../features/spells.js';
+import { computeAC, searchEquipment } from '../features/equipment.js';
 import { getFeatsForLevel, findFeat } from '../features/feats.js';
 import {
     ABILITY_KEYS, ABILITY_LABELS, STANDARD_ARRAY, POINT_BUY_COSTS, POINT_BUY_TOTAL,
     getModifier, ASI_LEVELS, CLASS_SKILL_OPTIONS, CLASS_SKILL_COUNT,
-    SKILL_LABELS, CREATURE_TYPES, COMMON_LANGUAGES, getSpellSlots, CANTRIPS_KNOWN, SPELLS_KNOWN,
+    SKILL_LABELS, COMMON_LANGUAGES, getSpellSlots, CANTRIPS_KNOWN, SPELLS_KNOWN,
     PREPARED_CASTERS, getPreparedCount, SPELLCASTING_ABILITY, CASTER_TYPE,
     SPELLCASTING_SUBCLASSES, SUBCLASS_EXTRA_SPELL_LISTS,
 } from '../core/constants.js';
@@ -307,7 +307,7 @@ function buildBoostControls(bg) {
             // +2 picker
             const s1 = document.createElement('select');
             s1.id = 'dnd-v1-bg-boost-2';
-            s1.innerHTML = `<option value="">+2 to...</option>`;
+            s1.innerHTML = '<option value="">+2 to...</option>';
             for (const ab of allowedAbilities) {
                 const opt = document.createElement('option');
                 opt.value = ab;
@@ -320,7 +320,7 @@ function buildBoostControls(bg) {
             // +1 picker
             const s2 = document.createElement('select');
             s2.id = 'dnd-v1-bg-boost-1';
-            s2.innerHTML = `<option value="">+1 to...</option>`;
+            s2.innerHTML = '<option value="">+1 to...</option>';
             for (const ab of allowedAbilities) {
                 const opt = document.createElement('option');
                 opt.value = ab;
@@ -352,14 +352,14 @@ function labelWrap(text, el) {
 // ─── Origin Feat Configuration ──────────────────────────────
 const ALL_SKILLS = Object.entries(SKILL_LABELS);
 const COMMON_TOOLS = [
-    "Alchemist's Supplies", "Brewer's Supplies", "Calligrapher's Supplies",
-    "Carpenter's Tools", "Cartographer's Tools", "Cobbler's Tools",
-    "Cook's Utensils", "Glassblower's Tools", "Jeweler's Tools",
-    "Leatherworker's Tools", "Mason's Tools", "Painter's Supplies",
-    "Potter's Tools", "Smith's Tools", "Tinker's Tools", "Weaver's Tools",
-    "Woodcarver's Tools", "Disguise Kit", "Forgery Kit", "Gaming Set",
-    "Herbalism Kit", "Musical Instrument", "Navigator's Tools",
-    "Poisoner's Kit", "Thieves' Tools",
+    'Alchemist\'s Supplies', 'Brewer\'s Supplies', 'Calligrapher\'s Supplies',
+    'Carpenter\'s Tools', 'Cartographer\'s Tools', 'Cobbler\'s Tools',
+    'Cook\'s Utensils', 'Glassblower\'s Tools', 'Jeweler\'s Tools',
+    'Leatherworker\'s Tools', 'Mason\'s Tools', 'Painter\'s Supplies',
+    'Potter\'s Tools', 'Smith\'s Tools', 'Tinker\'s Tools', 'Weaver\'s Tools',
+    'Woodcarver\'s Tools', 'Disguise Kit', 'Forgery Kit', 'Gaming Set',
+    'Herbalism Kit', 'Musical Instrument', 'Navigator\'s Tools',
+    'Poisoner\'s Kit', 'Thieves\' Tools',
 ];
 
 function buildOriginFeatConfig(bg) {
@@ -604,7 +604,7 @@ async function buildMagicInitiateConfig(body, config) {
     // 1st-level spell picker
     const spellLabel = document.createElement('div');
     spellLabel.className = 'v1-origin-feat-label';
-    spellLabel.textContent = `1st-Level Spell (1/LR free cast):`;
+    spellLabel.textContent = '1st-Level Spell (1/LR free cast):';
     body.appendChild(spellLabel);
 
     if (config.miSpell) {
@@ -905,17 +905,17 @@ function buildRitualCasterConfig(body, config) {
 // ─── Crafter (3 artisan tools) ──
 
 const ARTISAN_TOOLS = [
-    "Alchemist's Supplies", "Brewer's Supplies", "Calligrapher's Supplies",
-    "Carpenter's Tools", "Cartographer's Tools", "Cobbler's Tools",
-    "Cook's Utensils", "Glassblower's Tools", "Jeweler's Tools",
-    "Leatherworker's Tools", "Mason's Tools", "Painter's Supplies",
-    "Potter's Tools", "Smith's Tools", "Tinker's Tools", "Weaver's Tools",
-    "Woodcarver's Tools",
+    'Alchemist\'s Supplies', 'Brewer\'s Supplies', 'Calligrapher\'s Supplies',
+    'Carpenter\'s Tools', 'Cartographer\'s Tools', 'Cobbler\'s Tools',
+    'Cook\'s Utensils', 'Glassblower\'s Tools', 'Jeweler\'s Tools',
+    'Leatherworker\'s Tools', 'Mason\'s Tools', 'Painter\'s Supplies',
+    'Potter\'s Tools', 'Smith\'s Tools', 'Tinker\'s Tools', 'Weaver\'s Tools',
+    'Woodcarver\'s Tools',
 ];
 
 function buildCrafterConfig(body, config) {
     if (!config.crafterTools) config.crafterTools = [];
-    buildMultiPickConfig(body, config, 'crafterTools', 3, ARTISAN_TOOLS, "artisan's tool");
+    buildMultiPickConfig(body, config, 'crafterTools', 3, ARTISAN_TOOLS, 'artisan\'s tool');
 }
 
 // ─── Musician (3 instruments) ──
@@ -2299,7 +2299,7 @@ async function populateSpells() {
     }
 
     const hasFeatSpells = allFeatConfigs.some(c =>
-        c.miCantrips?.length > 0 || !!c.miSpell || !!c.ftSpell || !!c.stSpell || c.rcSpells?.length > 0
+        c.miCantrips?.length > 0 || !!c.miSpell || !!c.ftSpell || !!c.stSpell || c.rcSpells?.length > 0,
     );
 
     if (!isSpellcaster && !hasFeatSpells) {
@@ -2315,9 +2315,8 @@ async function populateSpells() {
 
     if (isSpellcaster) {
         const slots = getSpellSlots(classKey, level, wizState.subclassName);
-        let maxSpellLevel = 0;
         for (let i = slots.length - 1; i >= 0; i--) {
-            if (slots[i] > 0) { maxSpellLevel = i + 1; break; }
+            if (slots[i] > 0) { break; }
         }
 
         const cantripsKnown = CANTRIPS_KNOWN[classKey]?.[level - 1] ?? 0;
@@ -2370,11 +2369,11 @@ async function populateSpells() {
             }
             if (fc.miSpell) add(`${fc.miSpell} (1st, ${fc.miClass || 'MI'}, 1/LR free)`);
             if (fc.ftSpell) {
-                add(`Misty Step (2nd, Fey Touched, 1/LR free)`);
+                add('Misty Step (2nd, Fey Touched, 1/LR free)');
                 add(`${fc.ftSpell} (1st, Fey Touched, 1/LR free)`);
             }
             if (fc.stSpell) {
-                add(`Invisibility (2nd, Shadow Touched, 1/LR free)`);
+                add('Invisibility (2nd, Shadow Touched, 1/LR free)');
                 add(`${fc.stSpell} (1st, Shadow Touched, 1/LR free)`);
             }
             if (fc.rcSpells?.length) {
@@ -2397,8 +2396,8 @@ async function populateSpells() {
         }
 
         // Spell picks from level features (Magical Discoveries etc.)
-        for (const [_lv, choices] of Object.entries(wizState.levelChoices || {})) {
-            for (const [_fId, data] of Object.entries(choices || {})) {
+        for (const [, choices] of Object.entries(wizState.levelChoices || {})) {
+            for (const [, data] of Object.entries(choices || {})) {
                 if (data?.picks?.length && typeof data.picks[0] === 'string') {
                     for (const s of data.picks) add(`${s} (level feature)`);
                 }
@@ -2437,12 +2436,12 @@ function renderSpellTags(containerId, spells) {
             row.innerHTML =
                 `<span class="dnd-v1-extra-spell-name dnd-tt-hover" data-tt-type="spell" data-tt-name="${esc(obj.name)}">${esc(obj.name)}</span>` +
                 `<input type="text" class="dnd-v1-extra-spell-source" value="${esc(obj.source)}" placeholder="Source (e.g. Drow Racial, Staff of Fire...)" />` +
-                `<select class="dnd-v1-extra-spell-freecast">` +
+                '<select class="dnd-v1-extra-spell-freecast">' +
                     `<option value=""${!obj.freeCast ? ' selected' : ''}>No free cast</option>` +
                     `<option value="1/LR"${obj.freeCast === '1/LR' ? ' selected' : ''}>1/LR</option>` +
                     `<option value="1/SR"${obj.freeCast === '1/SR' ? ' selected' : ''}>1/SR</option>` +
                     `<option value="at will"${obj.freeCast === 'at will' ? ' selected' : ''}>At will</option>` +
-                `</select>` +
+                '</select>' +
                 `<span class="tag-remove" data-idx="${i}">\u2715</span>`;
 
             const idx = i;

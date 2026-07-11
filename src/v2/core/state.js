@@ -78,7 +78,6 @@ export function createDefaultCompanion(overrides = {}) {
         scalingLevel: null,
         enabled: false,
         owner: null,
-        baseCreatureType: '',
         ...overrides,
     };
 }

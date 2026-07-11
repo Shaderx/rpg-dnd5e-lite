@@ -326,7 +326,7 @@ function applyOriginFeatConfig(effects, featName, config) {
     // Elemental Adept: record chosen damage type for prompt
     if (config.eaDamageType) {
         effects.promptNotes.push(() =>
-            `Elemental Adept (${config.eaDamageType}): Spells ignore ${config.eaDamageType} resistance; treat 1s as 2s on ${config.eaDamageType} damage dice`
+            `Elemental Adept (${config.eaDamageType}): Spells ignore ${config.eaDamageType} resistance; treat 1s as 2s on ${config.eaDamageType} damage dice`,
         );
     }
 
@@ -335,14 +335,14 @@ function applyOriginFeatConfig(effects, featName, config) {
         if (!effects.extraSaves) effects.extraSaves = [];
         effects.extraSaves.push(config.resSave);
         effects.promptNotes.push(() =>
-            `Resilient: Proficiency in ${config.resSave.toUpperCase()} saving throws`
+            `Resilient: Proficiency in ${config.resSave.toUpperCase()} saving throws`,
         );
     }
 
     // Ritual Caster: record chosen class + add chosen ritual spells
     if (config.rcClass) {
         effects.promptNotes.push(() =>
-            `Ritual Caster (${config.rcClass}): Can cast ${config.rcClass} ritual spells from a ritual book`
+            `Ritual Caster (${config.rcClass}): Can cast ${config.rcClass} ritual spells from a ritual book`,
         );
         if (config.rcSpells?.length) {
             for (const spellName of config.rcSpells) {

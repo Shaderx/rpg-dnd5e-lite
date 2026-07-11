@@ -257,7 +257,7 @@ export function renderV1Spellbook() {
             `<span class="dnd-spellbook-lvl ${badgeClass}">${lvlChar}</span>` +
             `<span class="dnd-spellbook-name">${esc(spell.name)}</span>` +
             freeCastTag + ritualTag + sourceTag +
-            `</div>`;
+            '</div>';
     }
 
     list.innerHTML = html;

@@ -5,7 +5,7 @@
  */
 
 import { fetchSpellSource, fetchSpellClassLookup } from '../data/sources.js';
-import { CANTRIP_BREAKPOINTS, SPELL_SCHOOLS, getModifier } from '../core/constants.js';
+import { CANTRIP_BREAKPOINTS, SPELL_SCHOOLS } from '../core/constants.js';
 import {
     buildUpcastTable,
     parseUpcastInfo,
@@ -110,7 +110,7 @@ function isSpellOnClassList(spell, classKey, lookup) {
     // Fallback: check spell's own class references
     if (spell.classes?.fromClassList) {
         return spell.classes.fromClassList.some(
-            c => c.name.toLowerCase() === classKey
+            c => c.name.toLowerCase() === classKey,
         );
     }
 

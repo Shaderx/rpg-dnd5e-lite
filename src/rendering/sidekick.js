@@ -70,13 +70,13 @@ export function renderSidekickCards() {
             const parts = [];
             if (sk.hireDate) parts.push(`<span class="dnd-sk-card-hire-date">${escHtml(sk.hireDate)}</span>`);
             if (sk.hirePayMode === 'free') {
-                parts.push(`<span class="dnd-sk-card-paid">oathbound</span>`);
+                parts.push('<span class="dnd-sk-card-paid">oathbound</span>');
             } else if (sk.hirePayMode === 'quest') {
                 const amt = sk.hireQuestAmount > 0 ? `${sk.hireQuestAmount}gp` : 'quest';
                 parts.push(`<span class="dnd-sk-card-rate">${amt}</span>`);
                 parts.push(sk.hireQuestPaid
-                    ? `<span class="dnd-sk-card-paid">paid</span>`
-                    : `<span class="dnd-sk-card-owed">due on completion</span>`);
+                    ? '<span class="dnd-sk-card-paid">paid</span>'
+                    : '<span class="dnd-sk-card-owed">due on completion</span>');
             } else if (sk.hireGoldPerDay > 0) {
                 parts.push(`<span class="dnd-sk-card-rate">${sk.hireGoldPerDay}gp/day</span>`);
                 const cost = calculateHireCost(sk.hireDate, currentDate, sk.hireGoldPerDay, sk.hirePayMode, sk.hirePaidAmount);
@@ -104,7 +104,7 @@ export function renderSidekickCards() {
         </div>`;
 
         // Ability scores row
-        const abilRow = ['str','dex','con','int','wis','cha']
+        const abilRow = ['str', 'dex', 'con', 'int', 'wis', 'cha']
             .map(a => `<span class="dnd-sk-card-ab"><b>${a[0].toUpperCase()}</b>${stats.scores[a]}</span>`)
             .join('');
 
@@ -179,12 +179,12 @@ export function renderSidekickDetail(sidekickId) {
         <span>HD <strong>${stats.totalHitDice}d${stats.hitDieFaces}</strong></span>
     </div>`);
 
-    const abilityRow = ['str','dex','con','int','wis','cha']
+    const abilityRow = ['str', 'dex', 'con', 'int', 'wis', 'cha']
         .map(a => `<span class="dnd-sk-det-ability"><strong>${a.toUpperCase()}</strong> ${stats.scores[a]}(${getModStr(stats.scores[a])})</span>`)
         .join('');
     sections.push(`<div class="dnd-sk-det-row dnd-sk-det-abilities">${abilityRow}</div>`);
 
-    const saveItems = ['str','dex','con','int','wis','cha']
+    const saveItems = ['str', 'dex', 'con', 'int', 'wis', 'cha']
         .filter(a => stats.saves[a].proficient || stats.saves[a].mod !== 0)
         .map(a => {
             const s = stats.saves[a];
@@ -240,7 +240,7 @@ export function renderSidekickDetail(sidekickId) {
     const enabledTraits = (sk.creatureTraits || []).filter(t => t.enabled);
     if (enabledTraits.length > 0) {
         const tLines = enabledTraits.map(t =>
-            `<div class="dnd-sk-det-weapon"><span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${escHtml(t.name)}" data-tt-text="${escHtml(t.text)}"><strong>${escHtml(t.name)}.</strong></span> ${escHtml(t.text)}</div>`
+            `<div class="dnd-sk-det-weapon"><span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${escHtml(t.name)}" data-tt-text="${escHtml(t.text)}"><strong>${escHtml(t.name)}.</strong></span> ${escHtml(t.text)}</div>`,
         );
         sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Traits</div>${tLines.join('')}</div>`);
     }
@@ -323,7 +323,7 @@ export function renderSidekickDetail(sidekickId) {
 
     if (stats.chosenFeats?.length > 0) {
         const fLines = stats.chosenFeats.map(name =>
-            `<span class="dnd-tt-hover" data-tt-type="feat" data-tt-name="${escHtml(name)}">${escHtml(name)}</span>`
+            `<span class="dnd-tt-hover" data-tt-type="feat" data-tt-name="${escHtml(name)}">${escHtml(name)}</span>`,
         );
         sections.push(`<div class="dnd-sk-det-section"><div class="dnd-sk-det-label">Feats</div><div>${fLines.join(', ')}</div></div>`);
     }

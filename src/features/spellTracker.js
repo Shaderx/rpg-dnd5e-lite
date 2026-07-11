@@ -7,11 +7,11 @@
 
 import { getContext } from '../../../../../extensions.js';
 import { spellLog, setSpellLog, autoLongRestEnabled } from '../core/state.js';
-import { saveSpellLog, loadSpellLog } from '../core/persistence.js';
+import { saveSpellLog } from '../core/persistence.js';
 import { parseHeader } from './headerParser.js';
 
 // Any bracketed content: [Fireball, 3rd], [Shield], [Charm Person, 1st, Subtle, target]
-const BRACKET_REGEX = /\[([^\[\]]+)\]/g;
+const BRACKET_REGEX = /\[([^[\]]+)\]/g;
 const DAMAGE_TYPES = new Set([
     'acid', 'bludgeoning', 'cold', 'fire', 'force', 'lightning',
     'necrotic', 'piercing', 'poison', 'psychic', 'radiant', 'slashing', 'thunder',
@@ -19,7 +19,7 @@ const DAMAGE_TYPES = new Set([
 // Short rest: "short rest", "takes a short rest", "short rested", "short resting"
 const SHORT_REST_REGEX = /\bshort\s+rest(?:s|ed|ing)?\b/i;
 // End/stop/drop/break concentration: "end concentration [Detect Magic]", "stop concentrating [Shield of Faith]"
-const DROP_CONC_REGEX = /(?:end|stop|drop|break|lose|cancel)\s+(?:concentrat(?:ion|ing)|conc)\s+(?:on\s+)?\[([^\[\]]+)\]/gi;
+const DROP_CONC_REGEX = /(?:end|stop|drop|break|lose|cancel)\s+(?:concentrat(?:ion|ing)|conc)\s+(?:on\s+)?\[([^[\]]+)\]/gi;
 
 /**
  * Maps conjugated forms of action keywords back to their base verb.
@@ -37,14 +37,14 @@ const ACTION_KEYWORD_MAP = new Map([
 ]);
 
 const ACTION_LABELS = {
-    cast:     { present: 'Cast',     past: 'Casted' },
+    cast: { present: 'Cast',     past: 'Casted' },
     activate: { present: 'Activate', past: 'Activated' },
-    invoke:   { present: 'Invoke',   past: 'Invoked' },
-    channel:  { present: 'Channel',  past: 'Channeled' },
-    use:      { present: 'Use',      past: 'Used' },
-    drink:    { present: 'Drink',    past: 'Drank' },
-    consume:  { present: 'Consume',  past: 'Consumed' },
-    trigger:  { present: 'Trigger',  past: 'Triggered' },
+    invoke: { present: 'Invoke',   past: 'Invoked' },
+    channel: { present: 'Channel',  past: 'Channeled' },
+    use: { present: 'Use',      past: 'Used' },
+    drink: { present: 'Drink',    past: 'Drank' },
+    consume: { present: 'Consume',  past: 'Consumed' },
+    trigger: { present: 'Trigger',  past: 'Triggered' },
     maintain: { present: 'Maintain', past: 'Maintained' },
 };
 

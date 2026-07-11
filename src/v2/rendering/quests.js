@@ -16,12 +16,6 @@ function persist() {
 
 const QUEST_TYPES = { 1: 'Reminder', 2: 'Side Quest', 3: 'Main Quest' };
 const QUEST_EMOJIS = { 1: '📌', 2: '🛡️', 3: '👑' };
-const STATUS_LABELS = {
-    not_started: 'Active',
-    in_progress: 'Active',
-    completed: 'Completed',
-    failed: 'Failed',
-};
 const STATUS_ICONS = {
     not_started: 'fa-square',
     in_progress: 'fa-square',
