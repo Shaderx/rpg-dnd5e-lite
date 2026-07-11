@@ -29,6 +29,7 @@ const STEPS = ['identity', 'species', 'background', 'class', 'abilities', 'asi',
 const LOCKED_STEPS_ON_EDIT = new Set(['identity', 'species', 'background', 'class', 'abilities']);
 let currentStep = 0;
 let isEditMode = false;
+let bypassEditLock = false;
 
 // Wizard state (accumulated across steps before final save)
 let wizState = {};
@@ -40,8 +41,10 @@ let classList = [];
 /**
  * Open the character config modal for creating or editing.
  * @param {string|null} editId - If set, load existing character for editing
+ * @param {boolean} levelUp - Open in level-up flow
+ * @param {boolean} bypassLockedEditTabs - Allow editing tabs normally locked on edit
  */
-export async function openV2ConfigModal(editId, levelUp = false) {
+export async function openV2ConfigModal(editId, levelUp = false, bypassLockedEditTabs = false) {
     const popup = document.getElementById('dnd-v1-config-popup');
     if (!popup) return;
 
@@ -49,6 +52,7 @@ export async function openV2ConfigModal(editId, levelUp = false) {
     wizState = {};
     classDataCache = null;
     isEditMode = !!(editId && characterV2 && characterV2.id === editId);
+    bypassEditLock = isEditMode && !!bypassLockedEditTabs;
 
     if (isEditMode) {
         wizState = { ...characterV2 };
@@ -107,7 +111,7 @@ function showStep(idx) {
     });
 
     // Update step buttons (match by data-step; equipment is not in STEPS)
-    const firstUnlocked = isEditMode ? STEPS.findIndex(s => !LOCKED_STEPS_ON_EDIT.has(s)) : 0;
+    const firstUnlocked = STEPS.findIndex(s => !isLockedStepOnEdit(s));
     document.querySelectorAll('.dnd-v1-step-btn').forEach((btn) => {
         const btnStep = btn.dataset.step;
         const stepIdx = STEPS.indexOf(btnStep);
@@ -116,7 +120,7 @@ function showStep(idx) {
             return;
         }
         btn.style.display = '';
-        const locked = isEditMode && LOCKED_STEPS_ON_EDIT.has(btnStep);
+        const locked = isLockedStepOnEdit(btnStep);
         btn.classList.toggle('active', stepIdx === idx);
         btn.classList.toggle('completed', stepIdx < idx && !locked);
         btn.classList.toggle('disabled', locked);
@@ -2629,14 +2633,14 @@ function showError(msg) {
  * Bind event handlers for wizard navigation and step interactions.
  */
 function bindWizardEvents() {
-    const firstUnlocked = isEditMode ? STEPS.findIndex(s => !LOCKED_STEPS_ON_EDIT.has(s)) : 0;
+    const firstUnlocked = STEPS.findIndex(s => !isLockedStepOnEdit(s));
 
     // Step navigation buttons
     document.querySelectorAll('.dnd-v1-step-btn').forEach((btn) => {
         btn.onclick = () => {
             const stepIdx = STEPS.indexOf(btn.dataset.step);
             if (stepIdx === -1) return;
-            if (isEditMode && LOCKED_STEPS_ON_EDIT.has(STEPS[stepIdx])) return;
+            if (isLockedStepOnEdit(STEPS[stepIdx])) return;
             collectFromStep(STEPS[currentStep]);
             showStep(stepIdx);
         };
@@ -2690,6 +2694,10 @@ function bindWizardEvents() {
     bindSpellSearch('dnd-v1-cantrip-search', 'dnd-v1-cantrip-dropdown', 'knownCantrips', true);
     bindSpellSearch('dnd-v1-spell-search', 'dnd-v1-spell-dropdown', 'knownSpells', false);
     bindSpellSearch('dnd-v1-extra-spell-search', 'dnd-v1-extra-spell-dropdown', 'extraSpells', false, true);
+}
+
+function isLockedStepOnEdit(stepName) {
+    return isEditMode && !bypassEditLock && LOCKED_STEPS_ON_EDIT.has(stepName);
 }
 
 function bindSpellSearch(inputId, dropdownId, stateKey, cantripOnly, allSpells = false) {

@@ -3454,7 +3454,7 @@ async function initUI() {
             e.preventDefault();
             e.stopPropagation();
             if (extensionSettings.mode === 'v2') {
-                openV2ConfigModal(characterV2?.id || null);
+                openV2ConfigModal(characterV2?.id || null, false, true);
             } else {
                 if (characterV1) openV1ConfigModal(characterV1.id);
                 else openV1ConfigModal(null);
