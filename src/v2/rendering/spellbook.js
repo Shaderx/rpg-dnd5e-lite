@@ -140,9 +140,10 @@ function formatDuration(durArr) {
 function buildTooltipContent(spell) {
     if (!spell) return '<div class="dnd-spell-tooltip-name">Unknown</div>';
 
+    const ritualTag = spell.meta?.ritual ? ' (ritual)' : '';
     const levelSchool = spell.level === 0
-        ? `${schoolName(spell.school)} cantrip`
-        : `${formatLevel(spell.level)} ${schoolName(spell.school)}`;
+        ? `${schoolName(spell.school)} cantrip${ritualTag}`
+        : `${formatLevel(spell.level)} ${schoolName(spell.school)}${ritualTag}`;
 
     const desc = flattenEntries(spell.entries);
     let higherLevel = '';

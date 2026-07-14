@@ -475,9 +475,10 @@ export function buildActiveSpellsSection() {
         lines.push('[Active and current-turn spells — precalculated values, do not recalculate]');
 
         for (const { spell, cast } of matched) {
+            const ritualTag = spell.meta?.ritual ? ', ritual' : '';
             const levelSchool = spell.level === 0
-                ? `${schoolName(spell.school)} cantrip`
-                : `${formatLevel(spell.level)} ${schoolName(spell.school)}`;
+                ? `${schoolName(spell.school)} cantrip${ritualTag}`
+                : `${formatLevel(spell.level)} ${schoolName(spell.school)}${ritualTag}`;
 
             lines.push('');
             lines.push(`► ${spell.name} (${levelSchool})`);

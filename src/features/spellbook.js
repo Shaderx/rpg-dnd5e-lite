@@ -277,9 +277,10 @@ export function buildTooltipContent(spell) {
                 <div class="dnd-spell-tooltip-desc">Spell data not available in mirror.<br>Click to copy, hover on others for details.</div>`;
     }
 
+    const ritualTag = spell.meta?.ritual ? ' (ritual)' : '';
     const levelSchool = spell.level === 0
-        ? `${schoolName(spell.school)} cantrip`
-        : `${formatLevel(spell.level)} ${schoolName(spell.school)}`;
+        ? `${schoolName(spell.school)} cantrip${ritualTag}`
+        : `${formatLevel(spell.level)} ${schoolName(spell.school)}${ritualTag}`;
 
     const desc = stripTags(flattenEntries(spell.entries));
 

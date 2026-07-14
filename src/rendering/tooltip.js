@@ -131,7 +131,8 @@ function buildSpellTooltip(spell) {
     if (!spell) return '<div class="dnd-tt-name">Spell not found</div>';
     const SCHOOLS = { A: 'Abjuration', C: 'Conjuration', D: 'Divination', E: 'Enchantment', V: 'Evocation', I: 'Illusion', N: 'Necromancy', T: 'Transmutation' };
     const school = SCHOOLS[spell.school] || spell.school || '';
-    const levelSchool = spell.level === 0 ? `${school} cantrip` : `Level ${spell.level} ${school}`;
+    const ritualTag = spell.meta?.ritual ? ' (ritual)' : '';
+    const levelSchool = spell.level === 0 ? `${school} cantrip${ritualTag}` : `Level ${spell.level} ${school}${ritualTag}`;
 
     const time = Array.isArray(spell.time) && spell.time[0]
         ? (typeof spell.time[0] === 'string' ? spell.time[0] : `${spell.time[0].number} ${spell.time[0].unit}`)
