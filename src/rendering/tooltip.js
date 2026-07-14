@@ -134,9 +134,10 @@ function buildSpellTooltip(spell) {
     const ritualTag = spell.meta?.ritual ? ' (ritual)' : '';
     const levelSchool = spell.level === 0 ? `${school} cantrip${ritualTag}` : `Level ${spell.level} ${school}${ritualTag}`;
 
-    const time = Array.isArray(spell.time) && spell.time[0]
+    const baseTime = Array.isArray(spell.time) && spell.time[0]
         ? (typeof spell.time[0] === 'string' ? spell.time[0] : `${spell.time[0].number} ${spell.time[0].unit}`)
         : '—';
+    const time = baseTime + (spell.meta?.ritual ? ' (ritual)' : '');
 
     let range = '—';
     if (spell.range) {

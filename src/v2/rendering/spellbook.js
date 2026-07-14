@@ -154,7 +154,7 @@ function buildTooltipContent(spell) {
     return `<div class="dnd-spell-tooltip-name">${esc(spell.name)}</div>
 <div class="dnd-spell-tooltip-sub">${esc(levelSchool)}</div>
 <div class="dnd-spell-tooltip-divider"></div>
-<div class="dnd-spell-tooltip-field"><strong>Casting Time:</strong> ${esc(formatTime(spell.time))}</div>
+<div class="dnd-spell-tooltip-field"><strong>Casting Time:</strong> ${esc(formatTime(spell.time) + (spell.meta?.ritual ? ' (ritual)' : ''))}</div>
 <div class="dnd-spell-tooltip-field"><strong>Range:</strong> ${esc(formatRange(spell.range))}</div>
 <div class="dnd-spell-tooltip-field"><strong>Components:</strong> ${esc(formatComponents(spell.components))}</div>
 <div class="dnd-spell-tooltip-field"><strong>Duration:</strong> ${esc(formatDuration(spell.duration))}</div>

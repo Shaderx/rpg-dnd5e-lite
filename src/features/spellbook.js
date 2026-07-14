@@ -292,7 +292,7 @@ export function buildTooltipContent(spell) {
     return `<div class="dnd-spell-tooltip-name">${escapeHtml(spell.name)}</div>
 <div class="dnd-spell-tooltip-sub">${escapeHtml(levelSchool)}</div>
 <div class="dnd-spell-tooltip-divider"></div>
-<div class="dnd-spell-tooltip-field"><strong>Casting Time:</strong> ${escapeHtml(formatTime(spell.time))}</div>
+<div class="dnd-spell-tooltip-field"><strong>Casting Time:</strong> ${escapeHtml(formatTime(spell.time) + (spell.meta?.ritual ? ' (ritual)' : ''))}</div>
 <div class="dnd-spell-tooltip-field"><strong>Range:</strong> ${escapeHtml(formatRange(spell.range))}</div>
 <div class="dnd-spell-tooltip-field"><strong>Components:</strong> ${escapeHtml(formatComponents(spell.components))}</div>
 <div class="dnd-spell-tooltip-field"><strong>Duration:</strong> ${escapeHtml(formatDuration(spell.duration))}</div>

@@ -493,7 +493,8 @@ export function buildActiveSpellsSection() {
             const statsBlock = buildPrecalculatedStats(spell, characterLevel, cast.castLevel, charSpellBonuses, chosenElement);
             if (statsBlock) lines.push(statsBlock);
 
-            lines.push(`  Time: ${fmtTime(spell.time)} | Range: ${fmtRange(spell.range)} | Duration: ${fmtDuration(spell.duration)}`);
+            const ritualSuffix = spell.meta?.ritual ? ' (ritual)' : '';
+            lines.push(`  Time: ${fmtTime(spell.time)}${ritualSuffix} | Range: ${fmtRange(spell.range)} | Duration: ${fmtDuration(spell.duration)}`);
 
             if (!statsBlock) {
                 const desc = plainTextEntries(spell.entries);
