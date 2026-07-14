@@ -4,7 +4,7 @@
    ============================================================ */
 
 :root {
-    --dnd-bg: color-mix(in srgb, var(--SmartThemeBlurTintColor, rgba(20, 20, 35, 0.95)) 92%, transparent);
+    --dnd-bg: color-mix(in srgb, var(--SmartThemeBlurTintColor, rgba(20, 20, 35, 0.95)) 85%, transparent);
     --dnd-text: var(--SmartThemeBodyColor, #d4d4d4);
     --dnd-border: rgba(255, 255, 255, 0.08);
     --dnd-accent: rgba(255, 255, 255, 0.02);
