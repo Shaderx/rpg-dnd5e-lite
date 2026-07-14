@@ -3790,8 +3790,12 @@
     border-bottom: 1px solid var(--dnd-border);
 }
 .dnd-panel-secondary .dnd-panel-content {
-    overflow-y: auto;
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375em;
+    overflow: hidden;
+    min-height: 0;
     padding: 0;
 }
 

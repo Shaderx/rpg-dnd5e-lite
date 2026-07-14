@@ -25,7 +25,7 @@ import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, removeDamageDi
 import { refreshHeaderFromChat, updateHeaderFromMessage } from './src/features/headerParser.js';
 import { updateStripWidgets, updateHeaderWidgets, getOmniWidgetSizes, DEFAULT_OMNI_WIDGET_SIZES } from './src/ui/desktop.js';
 import { setupMobileFab } from './src/ui/mobile.js';
-import { setupCollapseToggle, applyPanelPosition, updatePanelVisibility, updateStripWidgetClass } from './src/ui/layout.js';
+import { setupCollapseToggle, setupLeftCollapseToggle, applyPanelPosition, updatePanelVisibility, updateStripWidgetClass } from './src/ui/layout.js';
 import { applyWeatherVisuals, destroyWeatherVisuals, rebuildWeatherParticles, refreshLightingOverlay } from './src/features/weatherVisuals.js';
 import { evaluateAutoBackground, resetAutoBackgroundState, openAutoBackgroundModal, saveAutoBackgroundModal, addAutoBackgroundEntry, removeAutoBackgroundEntry } from './src/features/autoBackground.js';
 import { loadCharacterV1, saveCharacterV1 } from './src/v1/core/persistence.js';
@@ -3027,6 +3027,7 @@ async function initUI() {
     // Layout
     applyPanelPosition();
     setupCollapseToggle();
+    setupLeftCollapseToggle();
     $('#dnd-v2-quest-add').toggle(!!extensionSettings.v2Enabled);
     $('#dnd-add-quest-row').toggle(!extensionSettings.v2Enabled);
     updatePanelVisibility();
@@ -3246,7 +3247,7 @@ async function initUI() {
     });
 
     // Collapsible sections — click header to toggle, shift+click for special action
-    $('#dnd-panel-content').on('click', '.dnd-collapsible-header', function (e) {
+    function handleCollapsibleClick(e) {
         if ($(e.target).closest('.dnd-section-action-btn, .dnd-spellbook-level-filters').length) return;
         const section = $(this).data('section');
         if (e.shiftKey) {
@@ -3255,7 +3256,9 @@ async function initUI() {
             if (section === 'v1-spellbook' && extensionSettings.mode === 'v2') { openSpellSearchModal(); return; }
         }
         $(this).closest('.dnd-collapsible').toggleClass('dnd-collapsed');
-    });
+    }
+    $('#dnd-panel-content').on('click', '.dnd-collapsible-header', handleCollapsibleClick);
+    $('#dnd-panel-content-left').on('click', '.dnd-collapsible-header', handleCollapsibleClick);
 
     // V2 Quest add button
     $('#dnd-v2-quest-add').on('click', (e) => {
