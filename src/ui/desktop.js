@@ -123,16 +123,22 @@ const KEYCAP_EMOJIS = ['', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'
 let _prevSlots = null;   // Map<level, { current, max }>
 let _prevSorcery = null; // { current, max }
 let _prevSecondary = null; // { current, max }
+let _prevClassRes = null; // Map<emoji, { current, max }>
 
-function snapshotSlotState(spellSlots, sorceryPoints, secondaryResource) {
+function snapshotSlotState(spellSlots, sorceryPoints, secondaryResource, classResources) {
     const map = new Map();
     if (spellSlots && Array.isArray(spellSlots)) {
         for (const s of spellSlots) map.set(s.level, { current: s.current, max: s.max });
+    }
+    const crMap = new Map();
+    if (classResources && Array.isArray(classResources)) {
+        for (const r of classResources) crMap.set(r.emoji, { current: r.current, max: r.max });
     }
     return {
         slots: map,
         sorcery: sorceryPoints ? { ...sorceryPoints } : null,
         secondary: secondaryResource ? { ...secondaryResource } : null,
+        classRes: crMap,
     };
 }
 
@@ -184,24 +190,25 @@ function animateRowDiff(rowEl, oldCurrent, newCurrent, max) {
     }
 }
 
-function renderSpellLevels(container, spellSlots, sorceryPoints, secondaryResource) {
+function renderSpellLevels(container, spellSlots, sorceryPoints, secondaryResource, classResources) {
     if (!container) return;
 
     const hasData = (spellSlots && Array.isArray(spellSlots) && spellSlots.length > 0)
         || sorceryPoints
-        || secondaryResource;
+        || secondaryResource
+        || (classResources && classResources.length > 0);
     if (!hasData) {
         _prevSlots = null;
         _prevSorcery = null;
         _prevSecondary = null;
+        _prevClassRes = null;
         container.innerHTML = '';
         return;
     }
 
-    const oldSnap = { slots: _prevSlots, sorcery: _prevSorcery, secondary: _prevSecondary };
-    const newSnap = snapshotSlotState(spellSlots, sorceryPoints, secondaryResource);
+    const oldSnap = { slots: _prevSlots, sorcery: _prevSorcery, secondary: _prevSecondary, classRes: _prevClassRes };
+    const newSnap = snapshotSlotState(spellSlots, sorceryPoints, secondaryResource, classResources);
 
-    // Build the new HTML (always reflects latest state)
     let html = '';
     if (spellSlots && spellSlots.length > 0) {
         html += spellSlots.map(s => {
@@ -246,6 +253,23 @@ function renderSpellLevels(container, spellSlots, sorceryPoints, secondaryResour
             <div class="dnd-spell-level-cubes">${circles}</div>
         </div>`;
     }
+    if (classResources && classResources.length > 0) {
+        html += classResources.map(r => {
+            const filled = Math.max(0, Math.min(r.current, r.max));
+            const empty = Math.max(0, r.max - filled);
+            let dots = '';
+            for (let i = 0; i < filled; i++) dots += '<div class="dnd-spell-circle dnd-class-res dnd-spell-filled"></div>';
+            for (let i = 0; i < empty; i++) dots += '<div class="dnd-spell-circle dnd-class-res dnd-spell-empty"></div>';
+            const wideClass = r.max > 8 ? ' dnd-spell-row-wide' : '';
+            const title = r.label ? `${r.emoji} ${r.label}` : r.emoji;
+            const safeEmoji = r.emoji.replace(/"/g, '&quot;');
+            return `<div class="dnd-spell-level-row dnd-spell-classres-row${wideClass}" data-class-res="${safeEmoji}" title="${title}">
+                <span class="dnd-spell-level-label">${r.emoji}</span>
+                <span class="dnd-spell-level-count">${r.current}/${r.max}</span>
+                <div class="dnd-spell-level-cubes">${dots}</div>
+            </div>`;
+        }).join('');
+    }
 
     container.innerHTML = html;
 
@@ -280,16 +304,32 @@ function renderSpellLevels(container, spellSlots, sorceryPoints, secondaryResour
         }
     }
 
-    // Save current as previous for next diff
+    // Class resource diffs
+    if (oldSnap.classRes && oldSnap.classRes.size > 0) {
+        const crRows = container.querySelectorAll('.dnd-spell-level-row[data-class-res]');
+        for (const row of crRows) {
+            const emoji = row.dataset.classRes;
+            const oldData = oldSnap.classRes.get(emoji);
+            const newData = newSnap.classRes.get(emoji);
+            if (oldData && newData && oldData.current !== newData.current) {
+                animateRowDiff(row, oldData.current, newData.current, newData.max);
+            }
+        }
+    }
+
     _prevSlots = newSnap.slots;
     _prevSorcery = newSnap.sorcery;
     _prevSecondary = newSnap.secondary;
+    _prevClassRes = newSnap.classRes;
 }
 
-function renderStripSpellLevels($container, spellSlots, sorceryPoints, secondaryResource) {
+function renderStripSpellLevels($container, spellSlots, sorceryPoints, secondaryResource, classResources) {
     const $el = $container.find('.dnd-strip-spell-levels');
     if (!$el.length) return;
-    if ((!spellSlots || !Array.isArray(spellSlots) || spellSlots.length === 0) && !sorceryPoints && !secondaryResource) {
+    const hasAny = (spellSlots && Array.isArray(spellSlots) && spellSlots.length > 0)
+        || sorceryPoints || secondaryResource
+        || (classResources && classResources.length > 0);
+    if (!hasAny) {
         $el.html('<span style="font-size:0.5em;opacity:0.3">--</span>');
         return;
     }
@@ -316,6 +356,14 @@ function renderStripSpellLevels($container, spellSlots, sorceryPoints, secondary
         if (sr.current === 0) cls = 'dnd-strip-spell-depleted';
         else if (sr.current < sr.max) cls = 'dnd-strip-spell-partial';
         html += `<span class="dnd-strip-spell-level dnd-strip-spell-secondary"><span class="${cls}">🔥${sr.current}/${sr.max}</span></span>`;
+    }
+    if (classResources && classResources.length > 0) {
+        html += classResources.map(r => {
+            let cls = 'dnd-strip-spell-full';
+            if (r.current === 0) cls = 'dnd-strip-spell-depleted';
+            else if (r.current < r.max) cls = 'dnd-strip-spell-partial';
+            return `<span class="dnd-strip-spell-level dnd-strip-spell-classres"><span class="${cls}">${r.emoji}${r.current}/${r.max}</span></span>`;
+        }).join('');
     }
     $el.html(html);
 }
@@ -371,16 +419,20 @@ export function updateHeaderWidgets() {
             .toggleClass('dnd-value-empty', !info.weather);
     }
 
-    // Spell slots per-level
+    // Resources: spell slots, sorcery points, secondary resource, class resources
     renderSpellLevels(
         document.getElementById('dnd-spell-levels'),
         info.spellSlots,
         info.sorceryPoints,
         info.secondaryResource,
+        info.classResources,
     );
     const $spellsWidget = $('#dnd-spells-widget');
     if ($spellsWidget.length) {
-        if ((info.spellSlots && info.spellSlots.length > 0) || info.sorceryPoints || info.secondaryResource) {
+        const hasResources = (info.spellSlots && info.spellSlots.length > 0)
+            || info.sorceryPoints || info.secondaryResource
+            || (info.classResources && info.classResources.length > 0);
+        if (hasResources) {
             $spellsWidget.show();
         } else {
             $spellsWidget.hide();
@@ -578,8 +630,8 @@ function renderStripHeaderInfo($container) {
     const shortWeather = weatherText.length > 14 ? weatherText.substring(0, 12) + '…' : weatherText;
     $container.find('.dnd-strip-weather-value').text(shortWeather).attr('title', weatherText);
 
-    // Spell slots per-level (strip)
-    renderStripSpellLevels($container, info.spellSlots, info.sorceryPoints, info.secondaryResource);
+    // Resources (strip)
+    renderStripSpellLevels($container, info.spellSlots, info.sorceryPoints, info.secondaryResource, info.classResources);
 
     // Currency
     const $stripCurrency = $container.find('.dnd-strip-widget-currency');

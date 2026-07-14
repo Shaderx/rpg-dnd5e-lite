@@ -6,6 +6,12 @@
  *
  * Spell slots (🪄), sorcery points (⚡), and secondary class resources (🔥 — Innate Sorcery, Rage, etc.)
  * are parsed independently from the full header text, so section order does not matter.
+ *
+ * Generic class resources — any emoji-led section with an X/X fraction that isn't a known leader —
+ * are auto-detected from both the main header and trailing [...] blocks.
+ * Examples: 💢 Rage 3/3, 🎵 BI d8 3/3, ✝️ Channel 2/2, 🐾 Wild Shape 2/2,
+ *           💨 Second Wind 1/1, ⚔️ Action Surge 1/1, 🔷 Focus 5/5, etc.
+ *
  * Weather emoji is detected dynamically. Sections after known leaders become omni extras.
  * Additional [...] blocks following the main header are also captured as extras.
  */
@@ -108,6 +114,37 @@ function extractLeadingEmoji(str) {
     return m ? m[0] : null;
 }
 
+// Emojis that are system leaders or non-resource trackers — never class resources
+const RESOURCE_EXCLUDED = new Set([
+    '🕰️', '🕰', '🗓️', '🗓', '📍',  // time, date, location
+    '🪄', '⚡', '🔥',                  // spell slots, sorcery pts, secondary (dedicated parsers)
+    '💰', '🪙',                        // currency
+    '💖', '❤️', '❤', '✨', '☠️', '☠',  // HP, XP, death saves
+]);
+
+/**
+ * Try to parse an emoji-led section as a generic class resource (X/X fraction).
+ * Returns true if parsed (consumed), false if the section should continue to other handlers.
+ */
+function parseClassResource(section, result) {
+    const emoji = extractLeadingEmoji(section);
+    if (!emoji || RESOURCE_EXCLUDED.has(emoji)) return false;
+
+    const text = section.substring(emoji.length).trim();
+    const m = text.match(/(\d+)\s*\/\s*(\d+)/);
+    if (!m) return false;
+
+    const label = text.substring(0, m.index).replace(/[:\s]+$/, '').trim();
+    if (!result.classResources) result.classResources = [];
+    result.classResources.push({
+        emoji,
+        label: label || null,
+        current: parseInt(m[1], 10),
+        max: parseInt(m[2], 10),
+    });
+    return true;
+}
+
 /**
  * Collect all scannable header text (main block + trailing tracker blocks).
  */
@@ -138,6 +175,7 @@ function headerHasTrackableData(parsed) {
         parsed.spellSlots ||
         parsed.sorceryPoints ||
         parsed.secondaryResource ||
+        parsed.classResources ||
         parsed.currency
     );
 }
@@ -160,6 +198,7 @@ export function parseHeader(text) {
         spellSlots: null,
         sorceryPoints: null,
         secondaryResource: null,
+        classResources: null,
         currency: null,
         extras: [],
     };
@@ -171,6 +210,7 @@ export function parseHeader(text) {
 
     for (const section of sections) {
         if (parseKnownSection(section, result)) continue;
+        if (parseClassResource(section, result)) continue;
         parseUnknownSection(section, result);
     }
 
@@ -192,6 +232,7 @@ export function parseHeader(text) {
         if (!extractLeadingEmoji(firstSection)) continue;
         const addSections = content.split('|').map(s => s.trim());
         for (const section of addSections) {
+            if (parseClassResource(section, result)) continue;
             const emoji = extractLeadingEmoji(section);
             if (emoji) {
                 result.extras.push({ emoji, text: section.substring(emoji.length).trim() });

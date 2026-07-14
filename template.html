@@ -1,3 +1,16 @@
+<!-- D&D 5e Lite - Left Panel (shown in 'both' mode) -->
+<div id="dnd-panel-left" class="dnd-panel dnd-panel-secondary dnd-position-left" style="display:none;">
+    <button id="dnd-collapse-toggle-left" class="dnd-collapse-toggle" title="Collapse/Expand">
+        <i class="fa-solid fa-chevron-left"></i>
+    </button>
+    <div class="dnd-game-container">
+        <div class="dnd-panel-header">
+            <h3><i class="fa-solid fa-user-shield"></i> <span>Character</span></h3>
+        </div>
+        <div id="dnd-panel-content-left" class="dnd-panel-content"></div>
+    </div>
+</div>
+
 <!-- D&D 5e Lite - Main Panel -->
 <div id="dnd-panel" class="dnd-panel dnd-position-right">
     <!-- Collapse toggle (tab outside panel) -->
@@ -38,8 +51,8 @@
             <span class="dnd-strip-weather-value">---</span>
         </div>
 
-        <!-- Strip: spell slots per-level -->
-        <div class="dnd-strip-widget dnd-strip-widget-spells" title="Spell Slots">
+        <!-- Strip: resources (spell slots + class resources) -->
+        <div class="dnd-strip-widget dnd-strip-widget-spells" title="Resources">
             <div class="dnd-strip-spell-levels"></div>
         </div>
 
@@ -159,10 +172,10 @@
                     </div>
                 </div>
 
-                <!-- Spell slots & sorcery points per-level display -->
+                <!-- Resources: spell slots, sorcery points, and class resources -->
                 <div class="dnd-info-widget dnd-widget-spells dnd-widget-wide" id="dnd-spells-widget">
                     <div class="dnd-widget-content">
-                        <span class="dnd-widget-label">Spell Slots</span>
+                        <span class="dnd-widget-label">Resources</span>
                         <div class="dnd-spell-levels" id="dnd-spell-levels"></div>
                     </div>
                 </div>
@@ -494,6 +507,7 @@
                 <select id="dnd-setting-position">
                     <option value="right">Right</option>
                     <option value="left">Left</option>
+                    <option value="both">Both</option>
                 </select>
             </div>
             <div class="dnd-setting-row">

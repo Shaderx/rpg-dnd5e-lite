@@ -52,7 +52,7 @@ export const extensionSettings = {
     // Injection depth for all prompts (0 = right before user message)
     injectionDepth: 0,
 
-    // UI
+    // UI — 'left' | 'right' | 'both'
     panelPosition: 'right',
 
     // Weather visuals (background overlays driven by header data)
@@ -201,6 +201,7 @@ export let headerInfo = {
     spellSlots: null,   // [{ level: 1, current: 4, max: 4 }, ...] or legacy { current, max }
     sorceryPoints: null, // { current: 12, max: 12 } — ⚡ Sorcery Points
     secondaryResource: null, // { current: 2, max: 2 } — 🔥 Innate Sorcery, Rage, etc.
+    classResources: null, // [{ emoji, label, current, max }] — generic class resources (💢 Rage 3/3, etc.)
     currency: null,     // { gold, silver, copper, platinum, electrum }
 
     extras: [],
