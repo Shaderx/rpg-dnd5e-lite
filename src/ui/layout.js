@@ -155,6 +155,10 @@ export function routeSectionsToPanels() {
         if (el && el.parentElement !== leftContent) {
             leftContent.appendChild(el);
         }
+        // Auto-expand sections in the left panel
+        if (el) {
+            el.classList.remove('dnd-collapsed');
+        }
     }
 }
 
@@ -175,6 +179,10 @@ export function mergeSectionsToSingle() {
             } else {
                 mainContent.appendChild(el);
             }
+        }
+        // Re-collapse sections when returning to single panel
+        if (el) {
+            el.classList.add('dnd-collapsed');
         }
     }
 }
