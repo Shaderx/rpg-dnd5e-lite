@@ -1,7 +1,7 @@
 /**
  * D&D 5e Lite - Header Parser
  * Parses the status header from LLM messages:
- * [ 🕰️ Time HH:MM AM/PM | 🗓️ Date | 📍 Location | [WeatherEmoji] Weather | 🪄 1️⃣4/4 2️⃣3/3 | ⚡ 12/12 | 🔥 2/2 | 💰 150 gp / etc. ]
+ * [ 🕰️ Time HH:MM AM/PM | 🗓️ Date | 📍 Location | [WeatherEmoji] Weather | 🪄 L1 4/4 L2 3/3 | ⚡ SP 5/5 | 🔥 Innate 2/2 | 💰 150 gp / etc. ]
  * [ Additional tracker lines parsed as omni/extras ]
  *
  * Spell slots (🪄), sorcery points (⚡), and secondary class resources (🔥 — Innate Sorcery, Rage, etc.)
@@ -73,25 +73,29 @@ function matchOrdinalSlots(text) {
 }
 
 /**
- * Scan arbitrary text for sorcery points ⚡ X/X (location-independent).
+ * Scan arbitrary text for sorcery points ⚡ (location-independent).
+ * Handles label text between emoji and numbers:
+ *   ⚡ 5/5, ⚡ SP 5/5, ⚡ SP: 5/5, ⚡ Sorcery Points 5/5
  * @param {string|null|undefined} text
  * @returns {{ current: number, max: number }|null}
  */
 export function parseSorceryPointsFromText(text) {
     if (!text) return null;
-    const m = text.match(/⚡\s*(\d+)\s*\/\s*(\d+)/);
+    const m = text.match(/⚡[^|]*?(\d+)\s*\/\s*(\d+)/);
     if (!m) return null;
     return { current: parseInt(m[1], 10), max: parseInt(m[2], 10) };
 }
 
 /**
- * Scan arbitrary text for secondary class resources 🔥 X/X (Innate Sorcery, Rage, etc.).
+ * Scan arbitrary text for secondary class resources 🔥 (Innate Sorcery, etc.).
+ * Handles label text between emoji and numbers:
+ *   🔥 2/2, 🔥 Innate 2/2, 🔥 Innate Sorcery: 2/2
  * @param {string|null|undefined} text
  * @returns {{ current: number, max: number }|null}
  */
 export function parseSecondaryResourceFromText(text) {
     if (!text) return null;
-    const m = text.match(/🔥\s*(\d+)\s*\/\s*(\d+)/);
+    const m = text.match(/🔥[^|]*?(\d+)\s*\/\s*(\d+)/);
     if (!m) return null;
     return { current: parseInt(m[1], 10), max: parseInt(m[2], 10) };
 }
