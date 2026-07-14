@@ -18,33 +18,58 @@ const KNOWN_LEADERS = /^(?:🕰️|🗓️|📍|🪄|⚡|🔥|💰|🪙)/u;
 
 /**
  * Scan arbitrary text for per-level spell slot tokens (location-independent).
+ * Tries multiple formats in priority order:
+ *   1. Keycap digits:  1️⃣4/4  2️⃣3/3
+ *   2. Prefixed:       L1 4/4, Lv1 4/4, Lvl 1: 4/4, Lv.2 3/3
+ *   3. Ordinal:        1st 4/4, 2nd: 3/3, 3rd 2/2, 4th 1/1
+ *   4. Legacy aggregate: Spell Slots(4/4)
  * @param {string|null|undefined} text
  * @returns {Array<{ level: number, current: number, max: number }>|null}
  */
 export function parseSpellSlotsFromText(text) {
     if (!text) return null;
 
-    const slots = [];
-    const levelRe = /([1-9])\uFE0F?\u20E3\s*(\d+)\/(\d+)/g;
-    let lm;
-    while ((lm = levelRe.exec(text)) !== null) {
-        slots.push({
-            level: parseInt(lm[1], 10),
-            current: parseInt(lm[2], 10),
-            max: parseInt(lm[3], 10),
-        });
-    }
-    if (slots.length > 0) {
-        slots.sort((a, b) => a.level - b.level);
-        return slots;
-    }
+    // 1. Keycap digit format: 1️⃣4/4 (preferred)
+    let slots = matchSlotPattern(text, /([1-9])\uFE0F?\u20E3\s*(\d+)\s*\/\s*(\d+)/g);
+    if (slots) return slots;
 
-    const oldMatch = text.match(/Spell\s*Slots?\s*\((\d+)\/(\d+)\)/i);
+    // 2. L/Lv/Lvl prefix: L1 4/4, Lv2:3/3, Lvl 3 2/2, Lv.1 4/4
+    slots = matchSlotPattern(text, /(?:lvl|lv|l)\.?\s*([1-9])\s*:?\s*(\d+)\s*\/\s*(\d+)/gi);
+    if (slots) return slots;
+
+    // 3. Ordinal: 1st 4/4, 2nd: 3/3, 3rd 2/2, 4th: 1/1
+    slots = matchOrdinalSlots(text);
+    if (slots) return slots;
+
+    // 4. Legacy aggregate: Spell Slots(4/4)
+    const oldMatch = text.match(/Spell\s*Slots?\s*\((\d+)\s*\/\s*(\d+)\)/i);
     if (oldMatch) {
         return [{ level: 0, current: parseInt(oldMatch[1], 10), max: parseInt(oldMatch[2], 10) }];
     }
 
     return null;
+}
+
+const ORDINAL_SUFFIXES = { 1: 'st', 2: 'nd', 3: 'rd' };
+
+function matchSlotPattern(text, regex) {
+    const slots = [];
+    const seen = new Set();
+    let m;
+    while ((m = regex.exec(text)) !== null) {
+        const level = parseInt(m[1], 10);
+        if (level < 1 || level > 9 || seen.has(level)) continue;
+        seen.add(level);
+        slots.push({ level, current: parseInt(m[2], 10), max: parseInt(m[3], 10) });
+    }
+    if (slots.length === 0) return null;
+    slots.sort((a, b) => a.level - b.level);
+    return slots;
+}
+
+function matchOrdinalSlots(text) {
+    const re = /([1-9])(?:st|nd|rd|th)\s*(?:level)?\s*:?\s*(\d+)\s*\/\s*(\d+)/gi;
+    return matchSlotPattern(text, re);
 }
 
 /**
