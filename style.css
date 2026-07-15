@@ -6165,7 +6165,7 @@
 
 /* V1 Character stat card */
 .dnd-v1-stat-card {
-    background: var(--dnd-bg);
+    background: color-mix(in srgb, var(--dnd-bg) 50%, transparent);
     border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.1));
     border-radius: 6px;
     padding: 0.6em;
