@@ -20,6 +20,8 @@
     top: var(--topBarBlockSize, 0);
     bottom: 0;
     background: var(--dnd-bg);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
     box-shadow: 0 0 20px var(--dnd-shadow);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     box-sizing: border-box;
@@ -38,7 +40,7 @@
     max-width: 380px;
     border-left: 3px solid var(--dnd-border);
     box-shadow: -5px 0 20px var(--dnd-shadow);
-    background: linear-gradient(to left, var(--dnd-bg), color-mix(in srgb, var(--dnd-bg) 50%, transparent));
+    background: linear-gradient(to left, var(--dnd-bg), color-mix(in srgb, var(--dnd-bg) 85%, transparent));
 }
 .dnd-panel.dnd-position-left {
     left: 0;
@@ -47,7 +49,7 @@
     max-width: 380px;
     border-right: 3px solid var(--dnd-border);
     box-shadow: 5px 0 20px var(--dnd-shadow);
-    background: linear-gradient(to right, var(--dnd-bg), color-mix(in srgb, var(--dnd-bg) 50%, transparent));
+    background: linear-gradient(to right, var(--dnd-bg), color-mix(in srgb, var(--dnd-bg) 85%, transparent));
 }
 
 /* ─── Collapsed ──────────────────────────────────────── */
@@ -1942,7 +1944,7 @@
 /* ─── Collapsible sections ───────────────────────────── */
 
 .dnd-collapsible {
-    background: transparent;
+    background: rgba(0,0,0,0.25);
     border: 2px solid var(--dnd-border);
     border-radius: 0.625em;
     overflow: hidden;
@@ -2252,7 +2254,7 @@
 /* ─── Content box ────────────────────────────────────── */
 
 .dnd-content-box {
-    background: transparent;
+    background: rgba(0,0,0,0.25);
     border: 2px solid var(--dnd-border);
     border-radius: 0.625em;
     padding: 0.5em;
@@ -3109,7 +3111,7 @@
 /* ─── Spell Log Container ───────────────────────────── */
 
 .dnd-spell-log-container {
-    background: transparent;
+    background: rgba(0,0,0,0.25);
     border: 1px solid rgba(140,100,220,0.18);
     border-radius: 0.625em;
     padding: 0.5em 0.55em 0.45em;
@@ -6192,7 +6194,7 @@
 
 /* V1 Character stat card */
 .dnd-v1-stat-card {
-    background: transparent;
+    background: rgba(0,0,0,0.25);
     border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.1));
     border-radius: 6px;
     padding: 0.6em;
@@ -8306,6 +8308,7 @@
 
 #dnd-bg-zoom-modal {
     z-index: 10001;
+    cursor: pointer;
 }
 
 .dnd-bg-zoom-container {
@@ -8316,6 +8319,7 @@
     width: calc(100% - 4em);
     height: calc(100% - 4em);
     margin: 2em auto;
+    pointer-events: none;
 }
 
 #dnd-bg-zoom-image {
@@ -8324,6 +8328,10 @@
     object-fit: contain;
     border-radius: 0.5em;
     box-shadow: 0 0 40px rgba(0,0,0,0.6);
+    pointer-events: auto;
+    cursor: default;
+    transform-origin: center center;
+    transition: transform 0.15s ease-out;
 }
 
 .dnd-bg-zoom-close {
@@ -8342,6 +8350,8 @@
     cursor: pointer;
     font-size: 0.9em;
     transition: background 0.2s, color 0.2s;
+    pointer-events: auto;
+    z-index: 1;
 }
 
 .dnd-bg-zoom-close:hover {
