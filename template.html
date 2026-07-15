@@ -24,19 +24,20 @@
             <i class="fa-solid fa-power-off"></i>
         </button>
 
-        <!-- Strip: mini analog clock -->
-        <div class="dnd-strip-widget dnd-strip-widget-time" title="Time">
+        <!-- Strip: combined clock + date -->
+        <div class="dnd-strip-widget dnd-strip-widget-datetime" title="Time & Date">
             <div class="dnd-analog-clock dnd-clock-strip">
                 <div class="dnd-clock-hand dnd-clock-hour dnd-strip-clock-hour"></div>
                 <div class="dnd-clock-hand dnd-clock-minute dnd-strip-clock-minute"></div>
                 <div class="dnd-clock-center"></div>
             </div>
             <span class="dnd-strip-time-value">--:--</span>
+            <span class="dnd-strip-date-value">---</span>
         </div>
 
-        <!-- Strip: season date -->
-        <div class="dnd-strip-widget dnd-strip-widget-date" title="Date">
-            <span class="dnd-strip-date-value">---</span>
+        <!-- Strip: background minimap -->
+        <div class="dnd-strip-widget dnd-strip-widget-minimap" title="Click to view background">
+            <div class="dnd-strip-minimap-image"></div>
         </div>
 
         <!-- Strip: location -->
@@ -132,26 +133,25 @@
         <div id="dnd-panel-content">
             <!-- Header Info Widgets -->
             <div class="dnd-info-widgets">
-                <!-- Analog clock + digital time -->
-                <div class="dnd-info-widget dnd-widget-time">
+                <!-- Combined clock + date widget with season overlay -->
+                <div class="dnd-info-widget dnd-widget-datetime" id="dnd-datetime-widget">
+                    <div class="dnd-season-overlay"></div>
                     <div class="dnd-analog-clock" id="dnd-analog-clock">
                         <div class="dnd-clock-hand dnd-clock-hour" id="dnd-clock-hour"></div>
                         <div class="dnd-clock-hand dnd-clock-minute" id="dnd-clock-minute"></div>
                         <div class="dnd-clock-center"></div>
                     </div>
-                    <div class="dnd-widget-content">
+                    <div class="dnd-widget-content dnd-datetime-content">
                         <span class="dnd-widget-label">Time</span>
                         <span class="dnd-widget-value dnd-digital-time" id="dnd-info-time">--:--</span>
-                    </div>
-                </div>
-
-                <!-- Season date card -->
-                <div class="dnd-info-widget dnd-widget-date" id="dnd-date-widget">
-                    <div class="dnd-season-overlay"></div>
-                    <div class="dnd-widget-content dnd-date-content">
                         <span class="dnd-widget-label">Date</span>
                         <span class="dnd-widget-value" id="dnd-info-date">---</span>
                     </div>
+                </div>
+
+                <!-- Background minimap -->
+                <div class="dnd-info-widget dnd-widget-minimap" id="dnd-bg-minimap" title="Click to view background">
+                    <div class="dnd-minimap-image" id="dnd-minimap-image"></div>
                 </div>
 
                 <!-- Location with dynamic icon -->
@@ -640,6 +640,7 @@
             <button class="dnd-modal-close" id="dnd-auto-bg-close"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="dnd-modal-body">
+            <div class="dnd-auto-bg-presets"></div>
             <label class="dnd-toggle-label" style="margin-bottom:0.6em;">
                 <input type="checkbox" id="dnd-auto-bg-enabled" />
                 <span>Enable auto background switching (this chat)</span>
@@ -650,6 +651,14 @@
                 Add Location
             </button>
         </div>
+    </div>
+</div>
+
+<!-- Background Zoom Modal -->
+<div id="dnd-bg-zoom-modal" class="dnd-modal-overlay" style="display:none;">
+    <div class="dnd-bg-zoom-container">
+        <img id="dnd-bg-zoom-image" src="" alt="Background" />
+        <button class="dnd-bg-zoom-close" id="dnd-bg-zoom-close"><i class="fa-solid fa-xmark"></i></button>
     </div>
 </div>
 

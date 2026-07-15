@@ -4,8 +4,8 @@
  */
 
 import { getContext } from '../../../../../extensions.js';
-import { headerInfo, autoBackgrounds, setAutoBackgrounds } from '../core/state.js';
-import { saveAutoBackgrounds } from '../core/persistence.js';
+import { headerInfo, autoBackgrounds, setAutoBackgrounds, extensionSettings } from '../core/state.js';
+import { saveAutoBackgrounds, saveSettings } from '../core/persistence.js';
 import { inferTimeOfDay, parseHeaderClockMinutes, inferNightKeywordOverride } from './weatherVisuals.js';
 
 let lastAppliedBackground = null;
@@ -365,4 +365,96 @@ export async function removeAutoBackgroundEntry(idx) {
         $(this).attr('data-idx', i);
         $(this).find('[data-idx]').attr('data-idx', i);
     });
+}
+
+// ─── Preset management ──────────────────────────────────────
+
+function getPresets() {
+    if (!Array.isArray(extensionSettings.autoBackgroundPresets)) {
+        extensionSettings.autoBackgroundPresets = [];
+    }
+    return extensionSettings.autoBackgroundPresets;
+}
+
+export function saveCurrentAsPreset(name) {
+    if (!name) return;
+    const $modal = $('#dnd-auto-bg-modal');
+    const entries = [];
+    $modal.find('.dnd-auto-bg-entry').each(function () {
+        const idx = parseInt($(this).data('idx'), 10);
+        const isDefault = idx === 0;
+        const entryName = isDefault ? 'Default' : $(this).find('.dnd-auto-bg-name-input').val() || '';
+        const day = $(this).find('.dnd-auto-bg-day').val() || '';
+        const night = $(this).find('.dnd-auto-bg-night').val() || '';
+        entries.push({ name: entryName, day, night });
+    });
+
+    const presets = getPresets();
+    const existing = presets.findIndex(p => p.name === name);
+    const preset = { name, entries: JSON.parse(JSON.stringify(entries)) };
+    if (existing >= 0) {
+        presets[existing] = preset;
+    } else {
+        presets.push(preset);
+    }
+    saveSettings();
+}
+
+export async function loadPreset(presetName) {
+    const presets = getPresets();
+    const preset = presets.find(p => p.name === presetName);
+    if (!preset) return;
+
+    const entries = JSON.parse(JSON.stringify(preset.entries));
+    const data = { enabled: true, entries };
+    saveAutoBackgrounds(data);
+    setAutoBackgrounds(data);
+
+    const backgrounds = await fetchAvailableBackgrounds();
+    const $modal = $('#dnd-auto-bg-modal');
+    $modal.find('#dnd-auto-bg-enabled').prop('checked', true);
+    renderEntries($modal.find('#dnd-auto-bg-entries'), entries, backgrounds);
+}
+
+export function deletePreset(presetName) {
+    const presets = getPresets();
+    const idx = presets.findIndex(p => p.name === presetName);
+    if (idx >= 0) {
+        presets.splice(idx, 1);
+        saveSettings();
+    }
+}
+
+export function renderPresetControls() {
+    const $modal = $('#dnd-auto-bg-modal');
+    let $section = $modal.find('.dnd-auto-bg-presets');
+    if (!$section.length) return;
+
+    const presets = getPresets();
+
+    let optionsHtml = '<option value="">(select preset)</option>';
+    for (const p of presets) {
+        const escaped = p.name.replace(/"/g, '&quot;');
+        optionsHtml += `<option value="${escaped}">${escaped}</option>`;
+    }
+
+    $section.html(`
+        <div class="dnd-auto-bg-preset-row">
+            <select id="dnd-auto-bg-preset-select" class="dnd-auto-bg-preset-select">
+                ${optionsHtml}
+            </select>
+            <button id="dnd-auto-bg-preset-load" class="dnd-btn" title="Load preset">
+                <i class="fa-solid fa-folder-open"></i>
+            </button>
+            <button id="dnd-auto-bg-preset-del" class="dnd-btn" title="Delete preset">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </div>
+        <div class="dnd-auto-bg-preset-row">
+            <input type="text" id="dnd-auto-bg-preset-name" class="dnd-auto-bg-name-input" placeholder="Preset name" />
+            <button id="dnd-auto-bg-preset-save" class="dnd-btn" title="Save current as preset">
+                <i class="fa-solid fa-floppy-disk"></i>
+            </button>
+        </div>
+    `);
 }

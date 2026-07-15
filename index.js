@@ -23,11 +23,11 @@ import { renderSpellLog, addSpellFromInput, addRestFromButton, addShortRestFromB
 import { refreshSpellLog, hardRefreshSpellLog } from './src/features/spellTracker.js';
 import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, removeDamageDie, updateDamageDisplay, clearDamageRoll, toggleModifier, updateModifierDisplay, updatePlayerCountLabel, updateAllyCountLabel, updateEnemyCountLabel, renderModifierButtons } from './src/features/dice.js';
 import { refreshHeaderFromChat, updateHeaderFromMessage } from './src/features/headerParser.js';
-import { updateStripWidgets, updateHeaderWidgets, getOmniWidgetSizes, DEFAULT_OMNI_WIDGET_SIZES } from './src/ui/desktop.js';
+import { updateStripWidgets, updateHeaderWidgets, getOmniWidgetSizes, DEFAULT_OMNI_WIDGET_SIZES, updateMinimap, openBgZoomModal, closeBgZoomModal } from './src/ui/desktop.js';
 import { setupMobileFab } from './src/ui/mobile.js';
 import { setupCollapseToggle, setupLeftCollapseToggle, applyPanelPosition, updatePanelVisibility, updateStripWidgetClass } from './src/ui/layout.js';
 import { applyWeatherVisuals, destroyWeatherVisuals, rebuildWeatherParticles, refreshLightingOverlay } from './src/features/weatherVisuals.js';
-import { evaluateAutoBackground, resetAutoBackgroundState, openAutoBackgroundModal, saveAutoBackgroundModal, addAutoBackgroundEntry, removeAutoBackgroundEntry } from './src/features/autoBackground.js';
+import { evaluateAutoBackground, resetAutoBackgroundState, openAutoBackgroundModal, saveAutoBackgroundModal, addAutoBackgroundEntry, removeAutoBackgroundEntry, saveCurrentAsPreset, loadPreset, deletePreset, renderPresetControls } from './src/features/autoBackground.js';
 import { loadCharacterV1, saveCharacterV1 } from './src/v1/core/persistence.js';
 import { characterV1, setCharacterV1 } from './src/v1/core/state.js';
 import { renderV1CharacterPanel } from './src/v1/rendering/character.js';
@@ -3059,6 +3059,9 @@ async function initUI() {
     updatePowerButtonState();
     updateSpellTrackerToggleUI();
 
+    // Watch for background changes from any source (manual, /bg, auto-bg, per-chat lock)
+    setupBgObserver();
+
     // Spellbook
     loadSpellbook();
     ensureSpellData().then(() => renderSpellbook());
@@ -3878,6 +3881,7 @@ async function initUI() {
     // Auto background switching modal
     $('#dnd-open-auto-bg').on('click', () => {
         openAutoBackgroundModal();
+        renderPresetControls();
     });
     $('#dnd-auto-bg-close').on('click', () => {
         saveAutoBackgroundModal();
@@ -3904,6 +3908,45 @@ async function initUI() {
     });
     $(document).on('change', '.dnd-auto-bg-day, .dnd-auto-bg-night, .dnd-auto-bg-name-input', function () {
         saveAutoBackgroundModal();
+    });
+
+    // Auto background preset controls
+    $(document).on('click', '#dnd-auto-bg-preset-save', () => {
+        const name = $('#dnd-auto-bg-preset-name').val()?.trim();
+        if (!name) return;
+        saveCurrentAsPreset(name);
+        $('#dnd-auto-bg-preset-name').val('');
+        renderPresetControls();
+    });
+    $(document).on('click', '#dnd-auto-bg-preset-load', async () => {
+        const name = $('#dnd-auto-bg-preset-select').val();
+        if (!name) return;
+        await loadPreset(name);
+        evaluateAutoBackground();
+    });
+    $(document).on('click', '#dnd-auto-bg-preset-del', () => {
+        const name = $('#dnd-auto-bg-preset-select').val();
+        if (!name) return;
+        deletePreset(name);
+        renderPresetControls();
+    });
+
+    // Background minimap click -> zoom modal
+    $('#dnd-bg-minimap').on('click', () => {
+        openBgZoomModal();
+    });
+    $(document).on('click', '.dnd-strip-widget-minimap', () => {
+        openBgZoomModal();
+    });
+
+    // Background zoom modal close
+    $('#dnd-bg-zoom-close').on('click', () => {
+        closeBgZoomModal();
+    });
+    $('#dnd-bg-zoom-modal').on('click', function (e) {
+        if (e.target === this) {
+            closeBgZoomModal();
+        }
     });
 
     // Force Refresh Spell Database
@@ -4019,15 +4062,37 @@ function populateDebugModules() {
     }
 }
 
+let _bgObserver = null;
+
+function setupBgObserver() {
+    teardownBgObserver();
+    const bg1 = document.getElementById('bg1');
+    if (!bg1) return;
+    _bgObserver = new MutationObserver(() => {
+        updateMinimap();
+        updateStripWidgets();
+    });
+    _bgObserver.observe(bg1, { attributes: true, attributeFilter: ['style'] });
+}
+
+function teardownBgObserver() {
+    if (_bgObserver) {
+        _bgObserver.disconnect();
+        _bgObserver = null;
+    }
+}
+
 function destroyUI() {
     clearExtensionPrompts();
     destroyWeatherVisuals();
+    teardownBgObserver();
     hideSpellTooltip();
     $('#dnd-panel').remove();
     $('#dnd-mobile-toggle').remove();
     $('#dnd-attr-editor-popup').remove();
     $('#dnd-settings-popup').remove();
     $('#dnd-auto-bg-modal').remove();
+    $('#dnd-bg-zoom-modal').remove();
     $('#dnd-spellbook-import-popup').remove();
     $('#dnd-character-config-popup').remove();
     $('#dnd-sidekick-detail-popup').remove();

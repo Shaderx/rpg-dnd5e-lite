@@ -387,14 +387,17 @@ export function updateHeaderWidgets() {
             .toggleClass('dnd-value-empty', !info.time);
     }
 
-    // Date with season
-    const $dateWidget = $('#dnd-date-widget');
+    // Date with season (combined datetime widget)
+    const $datetimeWidget = $('#dnd-datetime-widget');
     const $date = $('#dnd-info-date');
     if ($date.length) {
         $date.text(info.date || '---').attr('title', info.date || '')
             .toggleClass('dnd-value-empty', !info.date);
     }
-    applySeason($dateWidget[0], info.date);
+    applySeason($datetimeWidget[0], info.date);
+
+    // Background minimap
+    updateMinimap();
 
     // Location with dynamic icon
     const $locIcon = $('#dnd-location-icon');
@@ -605,16 +608,19 @@ function renderStripHeaderInfo($container) {
     $container.find('.dnd-strip-time-value')
         .text(info.time || '--:--').attr('title', info.time || '');
 
-    // Date with season + month styling
-    const $dateWidget = $container.find('.dnd-strip-widget-date');
+    // Date with season + month styling (combined strip widget)
+    const $datetimeWidget = $container.find('.dnd-strip-widget-datetime');
     const dateText = info.date || '---';
     const shortDate = dateText.length > 12 ? dateText.substring(0, 10) + '…' : dateText;
     $container.find('.dnd-strip-date-value').text(shortDate).attr('title', dateText);
-    $dateWidget.removeClass(ALL_THEME_CLASSES.join(' '));
+    $datetimeWidget.removeClass(ALL_THEME_CLASSES.join(' '));
     const season = inferSeason(info.date);
-    if (season) $dateWidget.addClass(`dnd-season-${season}`);
+    if (season) $datetimeWidget.addClass(`dnd-season-${season}`);
     const stripMonth = inferMonth(info.date);
-    if (stripMonth) $dateWidget.addClass(`dnd-month-${stripMonth.key}`);
+    if (stripMonth) $datetimeWidget.addClass(`dnd-month-${stripMonth.key}`);
+
+    // Strip minimap
+    updateStripMinimap($container);
 
     // Location with dynamic icon
     const iconClass = inferLocationIcon(info.location);
@@ -798,4 +804,48 @@ function renderStripQuests($container) {
     const total = quests.filter(q => !q.completed).length;
     const extra = total > 4 ? `<span class="dnd-strip-quest-item" style="opacity:0.3">+${total - 4} more</span>` : '';
     $list.html(html + extra);
+}
+
+// ─── Background minimap ─────────────────────────────────────
+
+export function getCurrentBackgroundUrl() {
+    const raw = $('#bg1').css('background-image');
+    if (!raw || raw === 'none') return null;
+    return raw.replace(/^url\(['"]?/, '').replace(/['"]?\)$/, '');
+}
+
+export function updateMinimap() {
+    const $img = $('#dnd-minimap-image');
+    if (!$img.length) return;
+    const bgUrl = getCurrentBackgroundUrl();
+    if (bgUrl) {
+        $img.css('background-image', `url("${bgUrl}")`);
+    } else {
+        $img.css('background-image', 'none');
+    }
+}
+
+function updateStripMinimap($container) {
+    const $img = $container.find('.dnd-strip-minimap-image');
+    if (!$img.length) return;
+    const bgUrl = getCurrentBackgroundUrl();
+    if (bgUrl) {
+        $img.css('background-image', `url("${bgUrl}")`);
+    } else {
+        $img.css('background-image', 'none');
+    }
+}
+
+export function openBgZoomModal() {
+    const bgUrl = getCurrentBackgroundUrl();
+    if (!bgUrl) return;
+    const $modal = $('#dnd-bg-zoom-modal');
+    const $img = $('#dnd-bg-zoom-image');
+    $img.attr('src', bgUrl);
+    $modal.show();
+}
+
+export function closeBgZoomModal() {
+    $('#dnd-bg-zoom-modal').hide();
+    $('#dnd-bg-zoom-image').attr('src', '');
 }

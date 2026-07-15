@@ -99,6 +99,9 @@ export const extensionSettings = {
 
     // Custom species stored globally (persist across chats)
     v1CustomSpecies: [],
+
+    // Auto background presets (global, persist across chats/sessions)
+    autoBackgroundPresets: [],
 };
 
 // Per-chat attribute schema and values (stored in chat_metadata)
