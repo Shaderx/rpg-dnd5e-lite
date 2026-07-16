@@ -699,7 +699,7 @@ function renderStripDice($container) {
         let allyHtml = '';
         for (let i = 0; i < allies.length; i++) {
             const a = allies[i];
-            const label = allies.length === 1 ? 'Extra Ally' : `Extra Ally ${i + 1}`;
+            const label = allies.length === 1 ? 'Ally' : `Ally ${i + 1}`;
             const diceTip = a.dmg ? `\nDice: ${formatDiceSetTooltip(a.dmg)}` : '';
             allyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${diceTip}">`
                 + `<span class="dnd-strip-dice-row-label">${label}</span>`
@@ -756,7 +756,7 @@ function renderStripDice($container) {
         $r1.text('--').attr('title', '');
         $r2.text('--').attr('title', '');
         $allyRows.html('<div class="dnd-strip-dice-row dnd-strip-dice-row-ally">'
-            + '<span class="dnd-strip-dice-row-label">Extra Ally</span>'
+            + '<span class="dnd-strip-dice-row-label">Ally</span>'
             + '<span class="dnd-strip-dice-result dnd-strip-dice-ally">--</span>'
             + '<span class="dnd-strip-dice-sep">/</span>'
             + '<span class="dnd-strip-dice-result dnd-strip-dice-ally">--</span>'

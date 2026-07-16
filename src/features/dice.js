@@ -297,7 +297,7 @@ export function updateDiceDisplay() {
         let allyHtml = '';
         for (let i = 0; i < allies.length; i++) {
             const a = allies[i];
-            const label = allies.length === 1 ? 'Extra Ally' : `Extra Ally ${i + 1}`;
+            const label = allies.length === 1 ? 'Ally' : `Ally ${i + 1}`;
             const diceTip = a.dmg ? `\nDice: ${formatDiceSetTooltip(a.dmg)}` : '';
             allyHtml += `<div class="dnd-roll-chip dnd-roll-chip-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${diceTip}">`
                 + `<span class="dnd-roll-chip-val">${a.roll1}</span>`

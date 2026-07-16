@@ -334,7 +334,7 @@ export function buildCombatDiceSection() {
             for (let i = 0; i < allies.length; i++) {
                 const a = allies[i];
                 const n = i + 1;
-                const tag = allies.length === 1 ? 'Extra Ally' : `Extra Ally ${n}`;
+                const tag = allies.length === 1 ? 'Ally' : `Ally ${n}`;
                 const prefix = `ally${n}_`;
                 let line = `${tag}: ${prefix}d20_1=${a.roll1}, ${prefix}d20_2=${a.roll2}`;
                 if (a.dmg) line += ` | dice: ${fmtDiceSet(a.dmg, prefix)}`;
