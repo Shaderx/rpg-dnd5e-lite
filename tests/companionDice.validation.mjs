@@ -14,6 +14,13 @@ const {
 const scalingSource = await readFile(new URL('../src/features/spellScaling.js', import.meta.url), 'utf8');
 const scalingModuleUrl = `data:text/javascript;base64,${Buffer.from(scalingSource).toString('base64')}`;
 const { parseBeamCount } = await import(scalingModuleUrl);
+const promptBuilderSource = await readFile(new URL('../src/generation/promptBuilder.js', import.meta.url), 'utf8');
+const combatHeaderIndex = promptBuilderSource.indexOf('[Combat: use these pre-rolled values');
+const independentSetReminderIndex = promptBuilderSource.indexOf('Each named roll set is independently available');
+const attributesIndex = promptBuilderSource.indexOf('lines.push(`Attributes:');
+assert.ok(combatHeaderIndex >= 0 && independentSetReminderIndex > combatHeaderIndex);
+assert.ok(attributesIndex > independentSetReminderIndex);
+assert.equal(promptBuilderSource.includes('Attack = d20 + ability mod + proficiency.'), false);
 
 assert.equal(parseMultiattackCount('The bear makes two attacks: one with its bite and one with its claws.'), 2);
 assert.equal(parseMultiattackCount('The creature attacks twice.'), 2);

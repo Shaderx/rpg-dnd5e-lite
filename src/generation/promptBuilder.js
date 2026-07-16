@@ -305,7 +305,12 @@ export function buildCombatDiceSection() {
 
     const userName = getContext().name1 || 'User';
     const includeAttrs = sendAttributesOnRoll;
+    const companionRolls = Array.isArray(roll.companionRolls) ? roll.companionRolls : [];
     const lines = ['<dice>', '[Combat: use these pre-rolled values, the rolls are for this turn only, if any missing use an average roll]'];
+
+    if (companionRolls.length > 0) {
+        lines.push('Each named roll set is independently available; use or ignore it according to the narrative and stat block. Later-numbered sets may cover additional actions.');
+    }
 
     if (includeAttrs) {
         lines.push(`Attributes: ${buildAttributesString()}`);
@@ -323,9 +328,6 @@ export function buildCombatDiceSection() {
                 lines.push(`${tag}: ${prefix}d20_1=${u.roll1}, ${prefix}d20_2=${u.roll2}`);
             }
         }
-        if (includeAttrs) {
-            lines.push('Attack = d20 + ability mod + proficiency. Apply all proficiencies/expertise where applicable.');
-        }
         const allies = roll.allyRolls ?? (roll.allyRoll1 != null
             ? [{ roll1: roll.allyRoll1, roll2: roll.allyRoll2 }] : []);
         if (allies.length > 0) {
@@ -339,9 +341,8 @@ export function buildCombatDiceSection() {
                 lines.push(line);
             }
         }
-        const companions = Array.isArray(roll.companionRolls) ? roll.companionRolls : [];
+        const companions = companionRolls;
         if (companions.length > 0) {
-            lines.push('Creature blocks contain independent roll sets; use only those allowed by the narrative and stat block. Later sets may cover additional actions.');
             for (const companion of companions) {
                 const sets = Array.isArray(companion.sets) ? companion.sets : [];
                 const entries = [];

@@ -344,7 +344,7 @@ Fang:
   2/2: fang2_d20_1=18, fang2_d20_2=4 | dice: fang2_d6_1=3, fang2_d6_2=6, fang2_d8=2
 ```
 
-Name each creature once, then group its numbered attack sets and spell rolls beneath that header. Each set is independently available, later-numbered sets may cover additional-action options, and the LLM should use or ignore them as appropriate to the narrative and stat block. Existing general advantage/disadvantage guidance remains sufficient.
+Name each creature once, then group its numbered attack sets and spell rolls beneath that header. Put the short independent-set reminder immediately below the opening combat-roll instruction, before attributes and all roll values; do not interrupt the roll list with it. Each set is independently available, later-numbered sets may cover additional-action options, and the LLM should use or ignore them as appropriate to the narrative and stat block. Existing general advantage/disadvantage guidance remains sufficient. Do not inject the generic attack-formula/proficiency/expertise reminder.
 
 Do not inject attack names, formulas, semantic effect labels, modifiers, or calculated totals. Player-character prompt lines remain unchanged.
 
@@ -352,7 +352,7 @@ Within the same creature block, append each dice-bearing sidekick spell using it
 
 ## UI changes
 
-Update the expanded display in `src/features/dice.js` and the compact strip in `src/ui/desktop.js`. In the expanded sidebar, named companion and sidekick results appear in a dedicated `Companion Rolls` section directly below the omni modules and above the generic player/Extra Ally/enemy roller. Each turn-roll entry shows the creature name, set ordinal, d20 pair, and compact raw side dice. Swift Quiver's two appended sets use the same display and prompt shape as other creature sets. Spell entries show the creature and spell names plus raw side dice only. Tooltips may expand the raw values but must not classify their purpose.
+Update the expanded display in `src/features/dice.js` and the compact strip in `src/ui/desktop.js`. In the expanded sidebar, named companion and sidekick results appear in a dedicated `Companion Rolls` section directly below the omni modules and above the generic player/Extra Ally/enemy roller. Keep this module shallow and visually aligned with the normal compact roll chips: an inline heading, a four-column roll grid, abbreviated visible values, and full raw values in tooltips. Each turn-roll entry shows the creature name, set ordinal, d20 pair, and compact raw side dice. Swift Quiver's two appended sets use the same display and prompt shape as other creature sets. Spell entries show the creature and spell names plus raw side dice only. Tooltips may expand the raw values but must not classify their purpose.
 
 The existing manual Ally control should be relabeled `Extra Ally`; it continues to create unnamed generic ally sets and does not control roster-derived rolls. No companion count control is needed.
 
