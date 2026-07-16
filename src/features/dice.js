@@ -252,6 +252,7 @@ export function updateDiceDisplay() {
     const $result = $('#dnd-roll-result');
     const $userContainer = $('#dnd-roll-user-groups');
     const $allyContainer = $('#dnd-roll-ally-groups');
+    const $companionSection = $('#dnd-companion-roll-section');
     const $companionContainer = $('#dnd-roll-companion-groups');
     const $enemyContainer = $('#dnd-roll-enemy-groups');
     const $rollBtn = $('#dnd-roll-btn');
@@ -317,7 +318,7 @@ export function updateDiceDisplay() {
             }
         }
         $companionContainer.html(companionHtml);
-        $companionContainer.toggle(companionHtml.length > 0);
+        $companionSection.toggle(companionHtml.length > 0);
 
         const enemies = roll.enemyRolls ?? (roll.npcRoll1 != null
             ? [{ roll1: roll.npcRoll1, roll2: roll.npcRoll2 }] : []);
@@ -346,7 +347,7 @@ export function updateDiceDisplay() {
         $userContainer.empty();
         $allyContainer.hide();
         $allyContainer.empty();
-        $companionContainer.hide();
+        $companionSection.hide();
         $companionContainer.empty();
         $enemyContainer.hide();
         $enemyContainer.empty();

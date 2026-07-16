@@ -184,7 +184,16 @@
             <!-- Currency + omni extras: single-row 4-col grid -->
             <div class="dnd-secondary-widgets" id="dnd-secondary-widgets"></div>
 
-            <!-- Dice roller (player + extra allies + active roster + enemies) -->
+            <!-- Named active-roster rolls appear separately above generic rolls. -->
+            <div class="dnd-companion-roll-section" id="dnd-companion-roll-section" style="display:none;">
+                <div class="dnd-companion-roll-heading">
+                    <i class="fa-solid fa-paw"></i>
+                    <span>Companion Rolls</span>
+                </div>
+                <div id="dnd-roll-companion-groups" class="dnd-roll-multi-groups"></div>
+            </div>
+
+            <!-- Dice roller (player + extra allies + enemies) -->
             <div class="dnd-dice-section">
                 <div class="dnd-dice-controls">
                     <button id="dnd-roll-btn" class="dnd-roll-btn" title="Roll d20 sets (Player + Extra Allies + active companions + Enemies)">
@@ -211,7 +220,6 @@
                     <div class="dnd-roll-groups">
                         <div id="dnd-roll-user-groups" class="dnd-roll-multi-groups dnd-roll-user-groups"></div>
                         <div id="dnd-roll-ally-groups" class="dnd-roll-multi-groups"></div>
-                        <div id="dnd-roll-companion-groups" class="dnd-roll-multi-groups"></div>
                         <div id="dnd-roll-enemy-groups" class="dnd-roll-multi-groups"></div>
                     </div>
                 </div>

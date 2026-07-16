@@ -351,7 +351,7 @@ After the shared turn-roll sets, append each dice-bearing sidekick spell using i
 
 ## UI changes
 
-Update the expanded display in `src/features/dice.js` and the compact strip in `src/ui/desktop.js`. Each turn-roll entry shows the creature name, set ordinal, d20 pair, and compact raw side dice. Swift Quiver's two appended sets use the same display and prompt shape as other creature sets. Spell entries show the creature and spell names plus raw side dice only. Tooltips may expand the raw values but must not classify their purpose.
+Update the expanded display in `src/features/dice.js` and the compact strip in `src/ui/desktop.js`. In the expanded sidebar, named companion and sidekick results appear in a dedicated `Companion Rolls` section directly below the omni modules and above the generic player/Extra Ally/enemy roller. Each turn-roll entry shows the creature name, set ordinal, d20 pair, and compact raw side dice. Swift Quiver's two appended sets use the same display and prompt shape as other creature sets. Spell entries show the creature and spell names plus raw side dice only. Tooltips may expand the raw values but must not classify their purpose.
 
 The existing manual Ally control should be relabeled `Extra Ally`; it continues to create unnamed generic ally sets and does not control roster-derived rolls. No companion count control is needed.
 

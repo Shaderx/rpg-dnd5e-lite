@@ -1812,13 +1812,38 @@
     width: 100%;
 }
 
-/* Named sidekick/companion sets and their raw spell dice. */
+/* Named sidekick/companion results: their own sidebar section below omni. */
+.dnd-companion-roll-section {
+    padding: 0.4em;
+    margin-bottom: 0.2em;
+    border: 1px solid rgba(212, 175, 55, 0.24);
+    border-radius: 0.5em;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.08), rgba(0, 0, 0, 0.18));
+}
+.dnd-companion-roll-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.35em;
+    margin-bottom: 0.3em;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.62em;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.dnd-companion-roll-heading i {
+    color: var(--dnd-gold);
+}
 #dnd-roll-companion-groups {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-auto-rows: 1fr;
+    grid-auto-rows: minmax(1.8em, auto);
+    gap: 0.2em;
     align-items: stretch;
     justify-items: stretch;
+    padding: 0;
+    border-right: 0;
+    overflow: visible;
 }
 #dnd-roll-companion-groups .dnd-roll-chip {
     flex: unset;
@@ -1958,6 +1983,7 @@
 
 .dnd-info-widgets,
 .dnd-secondary-widgets,
+.dnd-companion-roll-section,
 .dnd-dice-section,
 .dnd-modifier-results,
 .dnd-modifier-toggles,
