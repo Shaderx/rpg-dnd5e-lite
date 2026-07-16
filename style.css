@@ -6985,16 +6985,312 @@
     color: rgba(255, 100, 100, 1);
 }
 
-/* V1 Detail Modal */
-.dnd-modal-v1-detail {
-    max-width: 600px;
-    max-height: 80vh;
+/* V1 Detail Modal — 5e Character Sheet Layout */
+.dnd-modal-v1-detail.dnd-modal-charsheet {
+    max-width: 1100px;
+    width: 90vw;
+    max-height: 90vh;
 }
 
 .dnd-modal-v1-detail .dnd-modal-body {
     overflow-y: auto;
-    font-size: 0.88em;
+    font-size: 0.85em;
     line-height: 1.5;
+}
+
+/* ── Character Sheet Grid ── */
+.cs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1fr;
+    gap: 0;
+}
+
+/* Header: full span */
+.cs-header {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 0.6em 0.8em 0.5em;
+    border-bottom: 2px solid rgba(255,255,255,0.12);
+    margin-bottom: 0.3em;
+}
+.cs-name {
+    font-size: 1.5em;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: #e8d5b5;
+}
+.cs-subtitle {
+    font-size: 0.95em;
+    opacity: 0.75;
+    margin-top: 0.15em;
+}
+.cs-background {
+    font-size: 0.85em;
+    opacity: 0.55;
+    margin-top: 0.1em;
+}
+
+/* Columns */
+.cs-col-left,
+.cs-col-center,
+.cs-col-right {
+    padding: 0.4em 0.6em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1em;
+}
+.cs-col-left {
+    border-right: 1px solid rgba(255,255,255,0.06);
+}
+.cs-col-right {
+    border-left: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Sections */
+.cs-section {
+    margin-bottom: 0.5em;
+}
+.cs-section-title {
+    font-size: 0.78em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #e8d5b5;
+    border-bottom: 1px solid rgba(232,213,181,0.2);
+    padding-bottom: 0.2em;
+    margin-bottom: 0.35em;
+}
+
+/* ── Ability Score Boxes ── */
+.cs-ability-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.35em;
+}
+.cs-ability-box {
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 0.4em;
+    padding: 0.25em 0.1em 0.2em;
+    background: rgba(255,255,255,0.03);
+}
+.cs-ability-label {
+    font-size: 0.68em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.6;
+}
+.cs-ability-mod {
+    font-size: 1.15em;
+    font-weight: 700;
+}
+.cs-ability-score {
+    font-size: 0.72em;
+    opacity: 0.55;
+    margin-top: -0.1em;
+}
+
+/* ── Saves & Skills ── */
+.cs-save-row,
+.cs-skill-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35em;
+    font-size: 0.88em;
+    padding: 0.08em 0;
+}
+.cs-prof-dot {
+    font-size: 0.5em;
+    color: #e8d5b5;
+}
+.cs-prof-empty {
+    opacity: 0.3;
+}
+.cs-save-mod {
+    font-weight: 600;
+    min-width: 1.8em;
+    text-align: right;
+}
+.cs-expertise-tag {
+    font-size: 0.7em;
+    font-weight: 700;
+    color: #e8d5b5;
+    border: 1px solid rgba(232,213,181,0.3);
+    border-radius: 0.2em;
+    padding: 0 0.25em;
+    margin-left: 0.15em;
+}
+.cs-note {
+    font-size: 0.8em;
+    opacity: 0.5;
+    font-style: italic;
+    padding-top: 0.15em;
+}
+
+/* ── Combat Stat Boxes ── */
+.cs-combat-section {
+    margin-bottom: 0.5em;
+}
+.cs-combat-row {
+    display: flex;
+    gap: 0.3em;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.cs-combat-box {
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 0.4em;
+    padding: 0.3em 0.5em 0.2em;
+    background: rgba(255,255,255,0.03);
+    min-width: 3.2em;
+    flex: 1;
+}
+.cs-combat-val {
+    font-size: 1.15em;
+    font-weight: 700;
+}
+.cs-combat-lbl {
+    font-size: 0.65em;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.5;
+}
+
+/* ── Equipment ── */
+.cs-equip-row {
+    font-size: 0.88em;
+    padding: 0.12em 0;
+}
+.cs-equip-tag {
+    font-size: 0.7em;
+    opacity: 0.45;
+    font-style: italic;
+}
+
+/* ── Resources ── */
+.cs-resource-row {
+    font-size: 0.88em;
+    padding: 0.1em 0;
+}
+.cs-recharge {
+    font-size: 0.8em;
+    opacity: 0.5;
+}
+
+/* ── Class Choices ── */
+.cs-choice-row {
+    font-size: 0.88em;
+    padding: 0.1em 0;
+    line-height: 1.45;
+}
+
+/* ── Combat Notes ── */
+.cs-note-row {
+    font-size: 0.85em;
+    padding: 0.1em 0;
+    line-height: 1.4;
+}
+
+/* ── Proficiencies ── */
+.cs-prof-row,
+.cs-info-row {
+    font-size: 0.85em;
+    padding: 0.12em 0;
+    line-height: 1.4;
+}
+.cs-prof-label {
+    font-weight: 600;
+    color: #e8d5b5;
+    margin-right: 0.3em;
+    font-size: 0.88em;
+}
+
+/* ── Traits & Features ── */
+.cs-trait-row {
+    font-size: 0.85em;
+    padding: 0.15em 0;
+    line-height: 1.4;
+}
+.cs-feature-row {
+    font-size: 0.85em;
+    padding: 0.1em 0;
+}
+.cs-feat-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3em;
+}
+.cs-feat-tag {
+    font-size: 0.85em;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 0.3em;
+    padding: 0.1em 0.4em;
+    background: rgba(255,255,255,0.04);
+    cursor: pointer;
+}
+.cs-feat-tag:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+/* ── Spellcasting (full span) ── */
+.cs-spells {
+    grid-column: 1 / -1;
+    padding: 0.5em 0.6em;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin-top: 0.2em;
+}
+.cs-spell-meta {
+    font-weight: 400;
+    font-size: 0.9em;
+    opacity: 0.7;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.cs-spell-slots {
+    font-size: 0.88em;
+    opacity: 0.7;
+    margin-bottom: 0.3em;
+}
+.cs-spell-group {
+    font-size: 0.88em;
+    padding: 0.15em 0;
+    line-height: 1.5;
+}
+
+/* ── Companion (full span) ── */
+.cs-companion {
+    grid-column: 1 / -1;
+    padding: 0.5em 0.6em;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+.cs-companion-line {
+    font-size: 0.88em;
+}
+
+/* ── Responsive: collapse to single column ── */
+@media (max-width: 700px) {
+    .dnd-modal-v1-detail.dnd-modal-charsheet {
+        width: 98vw;
+        max-width: none;
+    }
+    .cs-grid {
+        grid-template-columns: 1fr;
+    }
+    .cs-col-left,
+    .cs-col-right {
+        border: none;
+    }
+    .cs-col-left,
+    .cs-col-center,
+    .cs-col-right {
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        padding-bottom: 0.5em;
+    }
+    .cs-ability-grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
 }
 
 /* V1 Info text */
@@ -8306,6 +8602,12 @@
 
 /* ─── Background Zoom Modal ──────────────────────────── */
 
+.dnd-bg-zoom-filter-defs {
+    position: absolute;
+    overflow: hidden;
+    pointer-events: none;
+}
+
 #dnd-bg-zoom-modal {
     z-index: 10001;
     cursor: pointer;
@@ -8313,25 +8615,38 @@
 
 .dnd-bg-zoom-container {
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     width: calc(100% - 4em);
     height: calc(100% - 4em);
     margin: 2em auto;
     pointer-events: none;
 }
 
+.dnd-bg-zoom-stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: auto;
+    border-radius: 0.5em;
+}
+
 #dnd-bg-zoom-image {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+    position: absolute;
+    top: 0;
+    left: 0;
     border-radius: 0.5em;
     box-shadow: 0 0 40px rgba(0,0,0,0.6);
     pointer-events: auto;
-    cursor: default;
-    transform-origin: center center;
-    transition: transform 0.15s ease-out;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    transform-origin: 0 0;
+    image-rendering: smooth;
+    filter: url("#dnd-bg-zoom-sharpen");
+}
+
+#dnd-bg-zoom-image.dnd-bg-zoom-dragging {
+    cursor: grabbing;
 }
 
 .dnd-bg-zoom-close {

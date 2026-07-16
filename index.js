@@ -23,7 +23,7 @@ import { renderSpellLog, addSpellFromInput, addRestFromButton, addShortRestFromB
 import { refreshSpellLog, hardRefreshSpellLog } from './src/features/spellTracker.js';
 import { rollD20, updateDiceDisplay, clearDiceRoll, addDamageDie, removeDamageDie, updateDamageDisplay, clearDamageRoll, toggleModifier, updateModifierDisplay, updatePlayerCountLabel, updateAllyCountLabel, updateEnemyCountLabel, renderModifierButtons } from './src/features/dice.js';
 import { refreshHeaderFromChat, updateHeaderFromMessage } from './src/features/headerParser.js';
-import { updateStripWidgets, updateHeaderWidgets, getOmniWidgetSizes, DEFAULT_OMNI_WIDGET_SIZES, updateMinimap, openBgZoomModal, closeBgZoomModal } from './src/ui/desktop.js';
+import { updateStripWidgets, updateHeaderWidgets, getOmniWidgetSizes, DEFAULT_OMNI_WIDGET_SIZES, updateMinimap, openBgZoomModal, setupBgZoomInteractions, teardownBgZoomInteractions } from './src/ui/desktop.js';
 import { setupMobileFab } from './src/ui/mobile.js';
 import { setupCollapseToggle, setupLeftCollapseToggle, applyPanelPosition, updatePanelVisibility, updateStripWidgetClass } from './src/ui/layout.js';
 import { applyWeatherVisuals, destroyWeatherVisuals, rebuildWeatherParticles, refreshLightingOverlay } from './src/features/weatherVisuals.js';
@@ -3938,16 +3938,7 @@ async function initUI() {
     $(document).on('click', '.dnd-strip-widget-minimap', () => {
         openBgZoomModal();
     });
-
-    // Background zoom modal close
-    $('#dnd-bg-zoom-close').on('click', () => {
-        closeBgZoomModal();
-    });
-    $('#dnd-bg-zoom-modal').on('click', function (e) {
-        if (e.target === this) {
-            closeBgZoomModal();
-        }
-    });
+    setupBgZoomInteractions();
 
     // Force Refresh Spell Database
     $('#dnd-force-refresh-spelldb').on('click', async function () {
@@ -4086,6 +4077,7 @@ function destroyUI() {
     clearExtensionPrompts();
     destroyWeatherVisuals();
     teardownBgObserver();
+    teardownBgZoomInteractions();
     hideSpellTooltip();
     $('#dnd-panel').remove();
     $('#dnd-mobile-toggle').remove();

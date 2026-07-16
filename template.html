@@ -655,9 +655,20 @@
 </div>
 
 <!-- Background Zoom Modal -->
+<svg class="dnd-bg-zoom-filter-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+        <filter id="dnd-bg-zoom-sharpen" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="0.6" result="dndBgZoomBlur" />
+            <feComposite id="dnd-bg-zoom-sharpen-composite" in="SourceGraphic" in2="dndBgZoomBlur" operator="arithmetic"
+                k1="0" k2="1.25" k3="-0.25" k4="0" />
+        </filter>
+    </defs>
+</svg>
 <div id="dnd-bg-zoom-modal" class="dnd-modal-overlay" style="display:none;">
     <div class="dnd-bg-zoom-container">
-        <img id="dnd-bg-zoom-image" src="" alt="Background" />
+        <div id="dnd-bg-zoom-stage" class="dnd-bg-zoom-stage">
+            <img id="dnd-bg-zoom-image" src="" alt="Background" draggable="false" />
+        </div>
         <button class="dnd-bg-zoom-close" id="dnd-bg-zoom-close"><i class="fa-solid fa-xmark"></i></button>
     </div>
 </div>
@@ -1024,14 +1035,14 @@
     </div>
 </div>
 
-<!-- V1 Character Detail Modal -->
+<!-- V1 Character Detail Modal (5e Sheet Layout) -->
 <div id="dnd-v1-detail-popup" class="dnd-modal-overlay" style="display:none;">
-    <div class="dnd-modal dnd-modal-v1-detail">
+    <div class="dnd-modal dnd-modal-v1-detail dnd-modal-charsheet">
         <div class="dnd-modal-header">
             <span id="dnd-v1-detail-title">Character Details</span>
             <button class="dnd-modal-close" id="dnd-v1-detail-close"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="dnd-modal-body" id="dnd-v1-detail-body"></div>
+        <div class="dnd-modal-body dnd-charsheet-body" id="dnd-v1-detail-body"></div>
         <div class="dnd-modal-footer">
             <button id="dnd-v1-detail-edit" class="dnd-btn dnd-btn-primary"><i class="fa-solid fa-pen"></i> Edit</button>
         </div>

@@ -149,21 +149,30 @@ function buildStatCard(stats) {
         lines.push(`<div class="v1-row"><span class="v1-label">Languages:</span><span>${esc(stats.languages.join(', '))}</span></div>`);
     }
 
-    // Species traits (collapsed by default)
-    if (stats.speciesTraits?.length > 0) {
-        lines.push('<hr class="v1-divider" />');
-        lines.push('<div class="dnd-collapsible dnd-collapsed">');
-        lines.push('<div class="dnd-collapsible-header" data-section="species-traits">');
-        lines.push('<i class="fa-solid fa-chevron-down dnd-collapse-icon"></i>');
-        lines.push('<span>Species Traits</span>');
-        lines.push('</div>');
-        lines.push('<div class="dnd-collapsible-body">');
-        const traitNames = stats.speciesTraits.map(t =>
-            `<span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(t.name)}" data-tt-text="${esc(t.description || '')}">${esc(t.name)}</span>`,
-        ).join(', ');
-        lines.push(`<div class="v1-row">${traitNames}</div>`);
-        lines.push('</div>');
-        lines.push('</div>');
+    // Size / Creature Type
+    const sizeType = [stats.speciesSize, stats.speciesCreatureType].filter(Boolean).join(' ');
+    if (sizeType) {
+        lines.push(`<div class="v1-row"><span class="v1-label">Size/Type:</span><span>${esc(sizeType)}</span></div>`);
+    }
+
+    // Resistances
+    if (stats.speciesResistances?.length > 0) {
+        lines.push(`<div class="v1-row"><span class="v1-label">Resistances:</span><span>${esc(stats.speciesResistances.join(', '))}</span></div>`);
+    }
+
+    // Proficiencies (armor | weapons | tools)
+    const profParts = [];
+    if (stats.armorProficiencies?.length > 0) {
+        profParts.push(stats.armorProficiencies.map(p => esc(p.charAt(0).toUpperCase() + p.slice(1))).join(', '));
+    }
+    if (stats.weaponProficiencies?.length > 0) {
+        profParts.push(stats.weaponProficiencies.map(p => esc(p.charAt(0).toUpperCase() + p.slice(1))).join(', '));
+    }
+    if (stats.toolProficiencies?.length > 0) {
+        profParts.push(stats.toolProficiencies.map(p => esc(p)).join(', '));
+    }
+    if (profParts.length > 0) {
+        lines.push(`<div class="v1-row"><span class="v1-label">Profs:</span><span>${profParts.join(' · ')}</span></div>`);
     }
 
     // Class Resources
@@ -212,7 +221,7 @@ function buildStatCard(stats) {
         }
     }
 
-    // Spellcasting
+    // Spellcasting (header + slots only, no spell lists)
     if (stats.spellcasting) {
         lines.push('<hr class="v1-divider" />');
         const sc = stats.spellcasting;
@@ -222,22 +231,6 @@ function buildStatCard(stats) {
             <span>Save DC: ${sc.saveDC}</span>
             <span>Slots: ${esc(sc.slotsStr)}</span>
         </div>`);
-
-        if (stats.annotatedCantrips?.length > 0) {
-            lines.push(`<div class="v1-spell-item"><b>Cantrips:</b> ${stats.annotatedCantrips.map(spellHoverSpan).join(', ')}</div>`);
-        }
-        if (stats.annotatedSpells?.length > 0) {
-            lines.push(`<div class="v1-spell-item"><b>${sc.isPrepared ? 'Prepared' : 'Known'}:</b> ${stats.annotatedSpells.map(spellHoverSpan).join(', ')}</div>`);
-        }
-    }
-
-    // Combat notes
-    if (stats.combatNotes?.length > 0) {
-        lines.push('<hr class="v1-divider" />');
-        lines.push('<div class="v1-section-title">Combat</div>');
-        for (const note of stats.combatNotes) {
-            lines.push(`<div class="v1-feature-item">${esc(note)}</div>`);
-        }
     }
 
     if (stats.classFeatures?.length > 0) {
@@ -280,148 +273,295 @@ export function renderV2DetailModal() {
 }
 
 function buildDetailContent(stats) {
-    const lines = [];
+    const L = [];
     const sub = stats.subclassName ? ` (${stats.subclassName})` : '';
+    const sizeType = [stats.speciesSize, stats.speciesCreatureType].filter(Boolean).join(' ');
 
-    lines.push(`<h4>${esc(stats.name || 'Unnamed')}</h4>`);
-    lines.push(`<p>${esc(stats.speciesName)} ${esc(stats.className)}${esc(sub)} — Level ${stats.level}</p>`);
-    lines.push(`<p>Background: ${esc(stats.backgroundName)}</p>`);
-    const detailAcParts = (stats.acBreakdown || []).map(b => {
-        const val = b.isBase ? `${b.value}` : (b.value >= 0 ? `+${b.value}` : `${b.value}`);
-        return `${b.label} ${val}`;
-    });
-    const detailAcNote = detailAcParts.length > 0 ? ` (${detailAcParts.join(', ')})` : '';
-    lines.push(`<p><b>HP:</b> ${stats.hp} | <b>AC:</b> ${stats.ac}${detailAcNote} | <b>Speed:</b> ${stats.speed}ft | <b>Prof:</b> +${stats.proficiency} | <b>Hit Die:</b> d${stats.hitDie}</p>`);
+    // ── HEADER (full span) ──
+    L.push('<div class="cs-grid">');
+    L.push('<div class="cs-header">');
+    L.push(`<div class="cs-name">${esc(stats.name || 'Unnamed')}</div>`);
+    L.push(`<div class="cs-subtitle">${esc(stats.speciesName)} ${esc(stats.className)}${esc(sub)} — Level ${stats.level}</div>`);
+    L.push(`<div class="cs-background">Background: ${esc(stats.backgroundName)}${sizeType ? ` · ${esc(sizeType)}` : ''}</div>`);
+    L.push('</div>');
 
-    // Abilities
-    lines.push('<table style="width:100%;text-align:center;margin:0.5em 0;"><tr>');
+    // ── LEFT COLUMN: Abilities, Saves, Skills ──
+    L.push('<div class="cs-col-left">');
+
+    // Ability scores
+    L.push('<div class="cs-section cs-abilities-section">');
+    L.push('<div class="cs-section-title">Ability Scores</div>');
+    L.push('<div class="cs-ability-grid">');
     for (const ab of ABILITY_KEYS) {
         const mod = stats.mods[ab];
-        lines.push(`<td><b>${ABILITY_LABELS[ab]}</b><br/>${stats.abilities[ab]} (${mod >= 0 ? '+' : ''}${mod})</td>`);
+        const modStr = mod >= 0 ? `+${mod}` : `${mod}`;
+        L.push(`<div class="cs-ability-box">
+            <div class="cs-ability-label">${ABILITY_LABELS[ab]}</div>
+            <div class="cs-ability-mod">${modStr}</div>
+            <div class="cs-ability-score">${stats.abilities[ab]}</div>
+        </div>`);
     }
-    lines.push('</tr></table>');
+    L.push('</div>');
+    L.push('</div>');
 
-    // Saves
-    const saveStr = ABILITY_KEYS.map(ab => {
+    // Saving Throws
+    L.push('<div class="cs-section">');
+    L.push('<div class="cs-section-title">Saving Throws</div>');
+    for (const ab of ABILITY_KEYS) {
         const s = stats.saves[ab];
-        return `${ABILITY_LABELS[ab]} ${s.mod >= 0 ? '+' : ''}${s.mod}${s.proficient ? ' *' : ''}`;
-    }).join(' | ');
-    const detailSaveSuffix = stats.saveBonusSources?.length > 0
-        ? ` <em>(includes ${esc(stats.saveBonusSources.join(', '))})</em>`
-        : '';
-    lines.push(`<p><b>Saves:</b> ${saveStr}${detailSaveSuffix}</p>`);
+        const prof = s.proficient ? '<i class="fa-solid fa-circle cs-prof-dot"></i>' : '<i class="fa-regular fa-circle cs-prof-dot cs-prof-empty"></i>';
+        L.push(`<div class="cs-save-row">${prof} <span class="cs-save-mod">${s.mod >= 0 ? '+' : ''}${s.mod}</span> ${ABILITY_LABELS[ab]}</div>`);
+    }
+    if (stats.saveBonusSources?.length > 0) {
+        L.push(`<div class="cs-note">${esc(stats.saveBonusSources.join(', '))}</div>`);
+    }
+    L.push('</div>');
 
-    // All skills
-    lines.push('<p><b>Skills:</b></p><ul>');
+    // Skills
+    L.push('<div class="cs-section">');
+    L.push('<div class="cs-section-title">Skills</div>');
     for (const [, skill] of Object.entries(stats.skills)) {
-        if (skill.proficient || skill.expertise) {
-            const mark = skill.expertise ? ' (expertise)' : '';
-            lines.push(`<li>${esc(skill.label)}: ${skill.mod >= 0 ? '+' : ''}${skill.mod}${mark}</li>`);
-        }
+        if (!skill.proficient && !skill.expertise) continue;
+        const mark = skill.expertise ? ' <span class="cs-expertise-tag">E</span>' : '';
+        const prof = '<i class="fa-solid fa-circle cs-prof-dot"></i>';
+        L.push(`<div class="cs-skill-row">${prof} <span class="cs-save-mod">${skill.mod >= 0 ? '+' : ''}${skill.mod}</span> ${esc(skill.label)}${mark}</div>`);
     }
-    lines.push('</ul>');
+    L.push('</div>');
 
-    // Senses & languages
-    if (stats.senses?.length > 0) {
-        lines.push(`<p><b>Senses:</b> ${esc(stats.senses.join(', '))}</p>`);
-    }
-    if (stats.languages?.length > 0) {
-        lines.push(`<p><b>Languages:</b> ${esc(stats.languages.join(', '))}</p>`);
+    L.push('</div>'); // end cs-col-left
+
+    // ── CENTER COLUMN: Combat, Equipment, Resources, Level Choices ──
+    L.push('<div class="cs-col-center">');
+
+    // Combat Stats
+    const acTooltipLines = (stats.acBreakdown || []).map(b => {
+        const val = b.isBase ? `${b.value}` : (b.value >= 0 ? `+${b.value}` : `${b.value}`);
+        return `${b.label}: ${val}`;
+    });
+    const acTooltip = acTooltipLines.length > 0
+        ? ` class="dnd-tt-hover" data-tt-type="trait" data-tt-name="AC ${stats.ac}" data-tt-sub="Breakdown" data-tt-text="${esc(acTooltipLines.join('\n'))}"`
+        : '';
+
+    L.push('<div class="cs-section cs-combat-section">');
+    L.push('<div class="cs-combat-row">');
+    L.push(`<div class="cs-combat-box"><div class="cs-combat-val">${stats.hp}</div><div class="cs-combat-lbl">HP</div></div>`);
+    L.push(`<div class="cs-combat-box"${acTooltip}><div class="cs-combat-val">${stats.ac}</div><div class="cs-combat-lbl">AC</div></div>`);
+    L.push(`<div class="cs-combat-box"><div class="cs-combat-val">${stats.speed}ft</div><div class="cs-combat-lbl">Speed</div></div>`);
+    L.push(`<div class="cs-combat-box"><div class="cs-combat-val">+${stats.proficiency}</div><div class="cs-combat-lbl">Prof</div></div>`);
+    L.push(`<div class="cs-combat-box"><div class="cs-combat-val">d${stats.hitDie}</div><div class="cs-combat-lbl">Hit Die</div></div>`);
+    L.push('</div>');
+    L.push('</div>');
+
+    // Equipment
+    if (stats.equippedArmor || stats.hasShield || stats.computedWeapons?.length > 0) {
+        L.push('<div class="cs-section">');
+        L.push('<div class="cs-section-title">Equipment</div>');
+        if (stats.equippedArmor) {
+            L.push(`<div class="cs-equip-row"><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(stats.equippedArmor.name)}">${esc(stats.equippedArmor.name)}</span> <span class="cs-equip-tag">Armor</span></div>`);
+        }
+        if (stats.hasShield) {
+            L.push('<div class="cs-equip-row">Shield <span class="cs-equip-tag">Shield</span></div>');
+        }
+        for (const w of (stats.computedWeapons || [])) {
+            const hit = w.computedHit >= 0 ? `+${w.computedHit}` : `${w.computedHit}`;
+            const notes = w.customNotes ? ` <span class="cs-note">[${esc(w.customNotes)}]</span>` : '';
+            L.push(`<div class="cs-equip-row"><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(w.name)}">${esc(w.name)}</span>: ${hit}, ${esc(w.computedDamage)} ${esc(w.damageType || '')}${notes}</div>`);
+        }
+        L.push('</div>');
     }
 
     // Class Resources
     if (stats.classResources?.length > 0) {
-        const resParts = stats.classResources.map(r => `<b>${esc(String(r.value))}</b> ${esc(r.label)} /${r.recharge}`);
-        lines.push(`<p><b>Resources:</b> ${resParts.join(' &middot; ')}</p>`);
+        L.push('<div class="cs-section">');
+        L.push('<div class="cs-section-title">Resources</div>');
+        for (const r of stats.classResources) {
+            L.push(`<div class="cs-resource-row"><b>${esc(String(r.value))}</b> ${esc(r.label)} <span class="cs-recharge">/${r.recharge}</span></div>`);
+        }
+        L.push('</div>');
     }
 
-    // Level Choice Details (Metamagic, Invocations, etc.)
+    // Level Choice Details
     if (stats.levelChoiceDetails) {
         const lcd = stats.levelChoiceDetails;
-        if (lcd.pactBoon) {
-            const pb = lcd.pactBoon;
-            lines.push(`<p><b>Pact Boon:</b> <span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(pb.label)}" data-tt-text="${esc(pb.desc)}">${esc(pb.label)}</span></p>`);
-        }
-        const detailSections = [
-            { title: 'Metamagic', items: lcd.metamagic },
-            { title: 'Eldritch Invocations', items: lcd.invocations },
-            { title: 'Battle Master Maneuvers', items: lcd.maneuvers },
-            { title: 'Arcane Shot Options', items: lcd.arcaneShots },
-            { title: 'Kensei Weapons', items: lcd.kenseiWeapons?.map(id => ({ label: id, desc: '' })) },
-        ];
-        for (const sec of detailSections) {
-            if (sec.items?.length > 0) {
-                lines.push(`<p><b>${esc(sec.title)}:</b></p><ul>`);
-                for (const o of sec.items) {
-                    const tip = o.desc
-                        ? ` class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(o.label)}" data-tt-text="${esc(o.desc)}"`
-                        : '';
-                    lines.push(`<li><span${tip}>${esc(o.label)}</span>${o.desc ? `: ${esc(o.desc)}` : ''}</li>`);
-                }
-                lines.push('</ul>');
+        const hasSections = lcd.pactBoon || lcd.metamagic?.length || lcd.invocations?.length || lcd.maneuvers?.length || lcd.arcaneShots?.length || lcd.kenseiWeapons?.length;
+        if (hasSections) {
+            L.push('<div class="cs-section">');
+            L.push('<div class="cs-section-title">Class Choices</div>');
+            if (lcd.pactBoon) {
+                const pb = lcd.pactBoon;
+                L.push(`<div class="cs-choice-row"><b>Pact Boon:</b> <span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(pb.label)}" data-tt-text="${esc(pb.desc)}">${esc(pb.label)}</span></div>`);
             }
+            const choiceSections = [
+                { title: 'Metamagic', items: lcd.metamagic },
+                { title: 'Invocations', items: lcd.invocations },
+                { title: 'Maneuvers', items: lcd.maneuvers },
+                { title: 'Arcane Shots', items: lcd.arcaneShots },
+                { title: 'Kensei Weapons', items: lcd.kenseiWeapons?.map(id => ({ label: id, desc: '' })) },
+            ];
+            for (const sec of choiceSections) {
+                if (!sec.items?.length) continue;
+                L.push(`<div class="cs-choice-row"><b>${esc(sec.title)}:</b> ${
+                    sec.items.map(o => o.desc
+                        ? `<span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(o.label)}" data-tt-text="${esc(o.desc)}">${esc(o.label)}</span>`
+                        : esc(o.label),
+                    ).join(', ')
+                }</div>`);
+            }
+            L.push('</div>');
         }
     }
 
-    // Equipment
-    if (stats.equippedArmor || stats.hasShield || stats.computedWeapons?.length > 0) {
-        lines.push('<p><b>Equipment:</b></p><ul>');
-        if (stats.equippedArmor) lines.push(`<li>Armor: <span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(stats.equippedArmor.name)}">${esc(stats.equippedArmor.name)}</span></li>`);
-        if (stats.hasShield) lines.push('<li>Shield</li>');
-        for (const w of (stats.computedWeapons || [])) {
-            const hit = w.computedHit >= 0 ? `+${w.computedHit}` : `${w.computedHit}`;
-            lines.push(`<li><span class="dnd-tt-hover" data-tt-type="equipment" data-tt-name="${esc(w.name)}">${esc(w.name)}</span>: ${hit} to hit, ${esc(w.computedDamage)} ${esc(w.damageType || '')}</li>`);
-        }
-        lines.push('</ul>');
-    }
-
-    // Spellcasting
-    if (stats.spellcasting) {
-        const sc = stats.spellcasting;
-        lines.push(`<p><b>Spellcasting (${esc(sc.abilityLabel)}):</b> Attack +${sc.attackMod}, Save DC ${sc.saveDC}</p>`);
-        lines.push(`<p>Slots: ${esc(sc.slotsStr)}</p>`);
-
-        if (stats.annotatedCantrips?.length > 0) {
-            lines.push(`<p><b>Cantrips:</b> ${stats.annotatedCantrips.map(spellHoverSpan).join(', ')}</p>`);
-        }
-        if (stats.annotatedSpells?.length > 0) {
-            lines.push(`<p><b>${sc.isPrepared ? 'Prepared' : 'Known'} Spells:</b> ${stats.annotatedSpells.map(spellHoverSpan).join(', ')}</p>`);
-        }
-    }
-
-    // Species traits
-    if (stats.speciesTraits?.length > 0) {
-        lines.push('<p><b>Species Traits:</b></p><ul>');
-        for (const t of stats.speciesTraits) {
-            lines.push(`<li><span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(t.name)}" data-tt-text="${esc(t.description)}"><b>${esc(t.name)}</b></span>: ${esc(t.description)}</li>`);
-        }
-        lines.push('</ul>');
-    }
-
-    // Combat notes
+    // Combat Notes
     if (stats.combatNotes?.length > 0) {
-        lines.push('<p><b>Combat Notes:</b></p><ul>');
+        L.push('<div class="cs-section">');
+        L.push('<div class="cs-section-title">Combat Notes</div>');
         for (const note of stats.combatNotes) {
-            lines.push(`<li>${esc(note)}</li>`);
+            L.push(`<div class="cs-note-row">${esc(note)}</div>`);
         }
-        lines.push('</ul>');
+        L.push('</div>');
     }
 
+    L.push('</div>'); // end cs-col-center
+
+    // ── RIGHT COLUMN: Proficiencies, Senses, Traits, Features ──
+    L.push('<div class="cs-col-right">');
+
+    // Proficiencies
+    L.push('<div class="cs-section">');
+    L.push('<div class="cs-section-title">Proficiencies</div>');
+    if (stats.armorProficiencies?.length > 0) {
+        L.push(`<div class="cs-prof-row"><span class="cs-prof-label">Armor</span> ${stats.armorProficiencies.map(p => esc(p.charAt(0).toUpperCase() + p.slice(1))).join(', ')}</div>`);
+    }
+    if (stats.weaponProficiencies?.length > 0) {
+        L.push(`<div class="cs-prof-row"><span class="cs-prof-label">Weapons</span> ${stats.weaponProficiencies.map(p => esc(p.charAt(0).toUpperCase() + p.slice(1))).join(', ')}</div>`);
+    }
+    if (stats.toolProficiencies?.length > 0) {
+        L.push(`<div class="cs-prof-row"><span class="cs-prof-label">Tools</span> ${stats.toolProficiencies.map(p => esc(p)).join(', ')}</div>`);
+    }
+    L.push('</div>');
+
+    // Senses, Languages, Resistances
+    L.push('<div class="cs-section">');
+    L.push('<div class="cs-section-title">Senses & Languages</div>');
+    if (stats.senses?.length > 0) {
+        L.push(`<div class="cs-info-row"><span class="cs-prof-label">Senses</span> ${esc(stats.senses.join(', '))}</div>`);
+    }
+    if (stats.languages?.length > 0) {
+        L.push(`<div class="cs-info-row"><span class="cs-prof-label">Languages</span> ${esc(stats.languages.join(', '))}</div>`);
+    }
+    if (stats.speciesResistances?.length > 0) {
+        L.push(`<div class="cs-info-row"><span class="cs-prof-label">Resistances</span> ${esc(stats.speciesResistances.join(', '))}</div>`);
+    }
+    L.push('</div>');
+
+    // Species Traits
+    if (stats.speciesTraits?.length > 0) {
+        L.push('<div class="cs-section">');
+        L.push('<div class="cs-section-title">Species Traits</div>');
+        for (const t of stats.speciesTraits) {
+            L.push(`<div class="cs-trait-row"><span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(t.name)}" data-tt-text="${esc(t.description)}"><b>${esc(t.name)}</b></span>: ${esc(t.description)}</div>`);
+        }
+        L.push('</div>');
+    }
+
+    // Class Features
     if (stats.classFeatures?.length > 0) {
-        lines.push('<p><b>Class Features:</b></p><ul>');
+        L.push('<div class="cs-section">');
+        L.push('<div class="cs-section-title">Class Features</div>');
         for (const feat of stats.classFeatures) {
             const tag = feat.featureSource === 'subclass' ? 'Subclass — ' : '';
-            lines.push(`<li><span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(tag + feat.name)}" data-tt-text="${esc(feat.description || '')}"><b>Lv ${feat.level}: ${esc(feat.name)}</b></span>: ${esc(feat.description)}</li>`);
+            L.push(`<div class="cs-feature-row"><span class="dnd-tt-hover" data-tt-type="trait" data-tt-name="${esc(tag + feat.name)}" data-tt-text="${esc(feat.description || '')}"><b>Lv ${feat.level}: ${esc(feat.name)}</b></span></div>`);
         }
-        lines.push('</ul>');
+        L.push('</div>');
     }
 
     // Feats
     if (stats.chosenFeats?.length > 0) {
-        lines.push(`<p><b>Feats:</b> ${stats.chosenFeats.map(f => `<span class="dnd-tt-hover" data-tt-type="feat" data-tt-name="${esc(f)}">${esc(f)}</span>`).join(', ')}</p>`);
+        L.push('<div class="cs-section">');
+        L.push('<div class="cs-section-title">Feats</div>');
+        L.push(`<div class="cs-feat-list">${stats.chosenFeats.map(f => `<span class="dnd-tt-hover cs-feat-tag" data-tt-type="feat" data-tt-name="${esc(f)}">${esc(f)}</span>`).join(' ')}</div>`);
+        L.push('</div>');
     }
 
-    return lines.join('\n');
+    L.push('</div>'); // end cs-col-right
+
+    // ── SPELLCASTING (full span) ──
+    if (stats.spellcasting) {
+        const sc = stats.spellcasting;
+
+        // Merge all cantrips: class + bonus
+        const allCantrips = [...(stats.annotatedCantrips || [])];
+        const cantripSources = new Map();
+        for (const c of (stats.featBonusCantrips || [])) {
+            if (!allCantrips.some(ac => ac.name === c.name)) {
+                allCantrips.push({ name: c.name, annotation: c.name, info: null });
+            }
+            cantripSources.set(c.name, c.source);
+        }
+
+        // Merge all spells: class + subclass + bonus
+        const allSpells = [...(stats.annotatedSpells || [])];
+        const spellSources = new Map();
+        for (const name of (stats.subclassSpells || [])) {
+            if (!allSpells.some(s => s.name === name)) {
+                allSpells.push({ name, annotation: name, info: null });
+            }
+            spellSources.set(name, stats.subclassSpellsAreKnown ? 'Subclass' : 'Subclass (Always Prepared)');
+        }
+        for (const s of (stats.featBonusSpells || [])) {
+            if (!allSpells.some(sp => sp.name === s.name)) {
+                allSpells.push({ name: s.name, annotation: s.name, info: null });
+            }
+            spellSources.set(s.name, s.source);
+        }
+
+        L.push('<div class="cs-spells">');
+        L.push(`<div class="cs-section-title">Spellcasting <span class="cs-spell-meta">(${esc(sc.abilityLabel)}) Attack +${sc.attackMod} · Save DC ${sc.saveDC}</span></div>`);
+        L.push(`<div class="cs-spell-slots">Slots: ${esc(sc.slotsStr)}</div>`);
+
+        if (allCantrips.length > 0) {
+            L.push('<div class="cs-spell-group"><b>Cantrips:</b> ');
+            L.push(allCantrips.map(c => {
+                const src = cantripSources.get(c.name);
+                const srcTag = src ? ` <span class="dnd-v1-spell-source-tag">${esc(src)}</span>` : '';
+                return spellHoverSpan(c) + srcTag;
+            }).join(', '));
+            L.push('</div>');
+        }
+
+        if (allSpells.length > 0) {
+            const label = sc.isPrepared ? 'Prepared' : 'Known';
+            L.push(`<div class="cs-spell-group"><b>${label} Spells:</b> `);
+            L.push(allSpells.map(s => {
+                const src = spellSources.get(s.name) || s.extraSource;
+                const srcTag = src ? ` <span class="dnd-v1-spell-source-tag">${esc(src)}</span>` : '';
+                return spellHoverSpan(s) + srcTag;
+            }).join(', '));
+            L.push('</div>');
+        }
+
+        L.push('</div>');
+    }
+
+    // ── COMPANION SUMMARY (full span, only if has access) ──
+    if (stats.companion || stats.familiarStats) {
+        L.push('<div class="cs-companion">');
+        L.push('<div class="cs-section-title">Companion</div>');
+        if (stats.companion) {
+            const c = stats.companion;
+            const displayName = c.customName || c.name;
+            L.push(`<div class="cs-companion-line"><b>${esc(displayName)}</b> (${esc(c.size)} ${esc(c.type)}) — HP ${c.hp} · AC ${c.ac} · Speed ${esc(c.speed)}</div>`);
+        } else if (stats.familiarStats) {
+            const f = stats.familiarStats;
+            const displayName = f.customName || f.label;
+            const typeLabel = f.creatureType ? f.creatureType.charAt(0).toUpperCase() + f.creatureType.slice(1) : f.type;
+            L.push(`<div class="cs-companion-line"><b>${esc(displayName)}</b> (${esc(f.size)} ${esc(typeLabel)}) — HP ${f.hp} · AC ${f.ac} · Speed ${esc(f.speed)}</div>`);
+        }
+        L.push('</div>');
+    }
+
+    L.push('</div>'); // end cs-grid
+    return L.join('\n');
 }
 
 function esc(str) {

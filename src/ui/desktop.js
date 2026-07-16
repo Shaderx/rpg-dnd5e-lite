@@ -836,16 +836,198 @@ function updateStripMinimap($container) {
     }
 }
 
+let _zoom = 1;
+let _panX = 0;
+let _panY = 0;
+let _baseWidth = 0;
+let _baseHeight = 0;
+let _stageEl = null;
+let _imgEl = null;
+let _dragging = false;
+let _dragStartX = 0;
+let _dragStartY = 0;
+let _dragPanStartX = 0;
+let _dragPanStartY = 0;
+let _didDrag = false;
+let _zoomAbort = null;
+
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 5;
+const SHARPEN_BASE = 0.25;
+const SHARPEN_MAX = 0.65;
+const SHARPEN_PER_ZOOM = 0.2;
+
+function updateZoomSharpening() {
+    const composite = document.getElementById('dnd-bg-zoom-sharpen-composite');
+    if (!composite) return;
+
+    const strength = Math.min(
+        SHARPEN_MAX,
+        SHARPEN_BASE + Math.max(0, _zoom - 1) * SHARPEN_PER_ZOOM,
+    );
+    const value = strength.toFixed(3);
+    composite.setAttribute('k2', (1 + strength).toFixed(3));
+    composite.setAttribute('k3', `-${value}`);
+}
+
+function applyZoomTransform() {
+    if (!_imgEl) return;
+    _imgEl.style.width = `${_baseWidth}px`;
+    _imgEl.style.height = `${_baseHeight}px`;
+    _imgEl.style.transform = `translate(${_panX}px, ${_panY}px) scale(${_zoom})`;
+    updateZoomSharpening();
+}
+
+function fitImageToStage() {
+    if (!_stageEl || !_imgEl || !_imgEl.naturalWidth) return;
+    const sw = _stageEl.clientWidth;
+    const sh = _stageEl.clientHeight;
+    const fitScale = Math.min(sw / _imgEl.naturalWidth, sh / _imgEl.naturalHeight);
+    _baseWidth = _imgEl.naturalWidth * fitScale;
+    _baseHeight = _imgEl.naturalHeight * fitScale;
+    _zoom = 1;
+    _panX = (sw - _baseWidth) / 2;
+    _panY = (sh - _baseHeight) / 2;
+    applyZoomTransform();
+}
+
+function resetZoomView() {
+    _zoom = 1;
+    _panX = 0;
+    _panY = 0;
+    _baseWidth = 0;
+    _baseHeight = 0;
+    _dragging = false;
+    _didDrag = false;
+    if (_imgEl) {
+        _imgEl.style.transform = '';
+        _imgEl.style.width = '';
+        _imgEl.style.height = '';
+        _imgEl.classList.remove('dnd-bg-zoom-dragging');
+    }
+}
+
 export function openBgZoomModal() {
     const bgUrl = getCurrentBackgroundUrl();
     if (!bgUrl) return;
-    const $modal = $('#dnd-bg-zoom-modal');
-    const $img = $('#dnd-bg-zoom-image');
-    $img.attr('src', bgUrl);
-    $modal.show();
+
+    _stageEl = document.getElementById('dnd-bg-zoom-stage');
+    _imgEl = document.getElementById('dnd-bg-zoom-image');
+    if (!_stageEl || !_imgEl) return;
+
+    resetZoomView();
+
+    const onLoad = () => {
+        fitImageToStage();
+        _imgEl.removeEventListener('load', onLoad);
+    };
+    _imgEl.addEventListener('load', onLoad);
+    _imgEl.src = bgUrl;
+    if (_imgEl.complete) onLoad();
+
+    $('#dnd-bg-zoom-modal').show();
 }
 
 export function closeBgZoomModal() {
+    resetZoomView();
     $('#dnd-bg-zoom-modal').hide();
-    $('#dnd-bg-zoom-image').attr('src', '');
+    if (_imgEl) _imgEl.src = '';
+}
+
+function handleZoomWheel(e) {
+    if (!_stageEl || !_imgEl || !_baseWidth) return;
+    e.preventDefault();
+
+    const rect = _stageEl.getBoundingClientRect();
+    let mx = e.clientX - rect.left;
+    let my = e.clientY - rect.top;
+    mx = Math.max(0, Math.min(rect.width, mx));
+    my = Math.max(0, Math.min(rect.height, my));
+
+    const oldZoom = _zoom;
+    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+    const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, oldZoom * factor));
+    if (newZoom === oldZoom) return;
+
+    const localX = (mx - _panX) / oldZoom;
+    const localY = (my - _panY) / oldZoom;
+    _zoom = newZoom;
+    _panX = mx - localX * newZoom;
+    _panY = my - localY * newZoom;
+    applyZoomTransform();
+}
+
+function onImgPointerDown(e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    _dragging = true;
+    _didDrag = false;
+    _dragStartX = e.clientX;
+    _dragStartY = e.clientY;
+    _dragPanStartX = _panX;
+    _dragPanStartY = _panY;
+    _imgEl?.classList.add('dnd-bg-zoom-dragging');
+    _imgEl?.setPointerCapture(e.pointerId);
+}
+
+function onImgPointerMove(e) {
+    if (!_dragging) return;
+    const dx = e.clientX - _dragStartX;
+    const dy = e.clientY - _dragStartY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) _didDrag = true;
+    _panX = _dragPanStartX + dx;
+    _panY = _dragPanStartY + dy;
+    applyZoomTransform();
+}
+
+function onImgPointerUp(e) {
+    if (!_dragging) return;
+    _dragging = false;
+    _imgEl?.classList.remove('dnd-bg-zoom-dragging');
+    try { _imgEl?.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+}
+
+function onModalWheel(e) {
+    if (!$('#dnd-bg-zoom-modal').is(':visible')) return;
+    handleZoomWheel(e);
+}
+
+function onModalClick(e) {
+    if (_didDrag) {
+        _didDrag = false;
+        return;
+    }
+    const img = document.getElementById('dnd-bg-zoom-image');
+    if (e.target !== img) {
+        closeBgZoomModal();
+    }
+}
+
+export function setupBgZoomInteractions() {
+    teardownBgZoomInteractions();
+
+    const modal = document.getElementById('dnd-bg-zoom-modal');
+    const img = document.getElementById('dnd-bg-zoom-image');
+    const closeBtn = document.getElementById('dnd-bg-zoom-close');
+    if (!modal || !img) return;
+
+    _zoomAbort = new AbortController();
+    const { signal } = _zoomAbort;
+
+    modal.addEventListener('wheel', onModalWheel, { passive: false, signal });
+    modal.addEventListener('click', onModalClick, { signal });
+    closeBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeBgZoomModal();
+    }, { signal });
+    img.addEventListener('pointerdown', onImgPointerDown, { signal });
+    img.addEventListener('pointermove', onImgPointerMove, { signal });
+    img.addEventListener('pointerup', onImgPointerUp, { signal });
+    img.addEventListener('pointercancel', onImgPointerUp, { signal });
+}
+
+export function teardownBgZoomInteractions() {
+    _zoomAbort?.abort();
+    _zoomAbort = null;
 }

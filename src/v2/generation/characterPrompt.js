@@ -90,15 +90,20 @@ export function buildV2CharacterSection(options = {}) {
     }
 
     if (stats.classFeatures?.length > 0) {
-        const classFeatureParts = stats.classFeatures
-            .filter(feat => feat?.name)
-            .map(feat => {
-                const prefix = feat.featureSource === 'subclass' ? '[SC] ' : '';
-                const tag = feat.statTag ? ` (${feat.statTag})` : '';
-                return `${prefix}${feat.name}${tag}`;
-            });
-        if (classFeatureParts.length > 0) {
-            lines.push(`Class Features: ${classFeatureParts.join(', ')}`);
+        const byLevel = new Map();
+        for (const feat of stats.classFeatures) {
+            if (!feat?.name) continue;
+            const lv = feat.level || 0;
+            if (!byLevel.has(lv)) byLevel.set(lv, []);
+            const prefix = feat.featureSource === 'subclass' ? '[SC] ' : '';
+            const tag = feat.statTag ? ` (${feat.statTag})` : '';
+            byLevel.get(lv).push(`${prefix}${feat.name}${tag}`);
+        }
+        if (byLevel.size > 0) {
+            lines.push('Level Features:');
+            for (const [lv, feats] of [...byLevel.entries()].sort((a, b) => a[0] - b[0])) {
+                lines.push(`  Lv ${lv}: ${feats.join(', ')}`);
+            }
         }
     }
 

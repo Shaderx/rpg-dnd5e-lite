@@ -661,6 +661,17 @@ export function computeV2CharacterStats(char) {
         // Level choice details
         levelChoiceDetails,
 
+        // Proficiencies
+        armorProficiencies: char.armorProficiencies || [],
+        weaponProficiencies: char.weaponProficiencies || [],
+        toolProficiencies: [
+            ...new Set([
+                ...(char.backgroundTools || []),
+                ...(char.toolChoices || []),
+                ...(featEffects.extraTools || []),
+            ]),
+        ],
+
         // Feature toggles
         enabledFeatures: char.enabledFeatures || {},
         enabled: char.enabled,
