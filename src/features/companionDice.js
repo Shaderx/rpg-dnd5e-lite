@@ -33,6 +33,14 @@ function recordText(record) {
         .filter(Boolean).join(' ');
 }
 
+function recordAttackCountText(record) {
+    if (!record) return '';
+    // computedText is normally a rewritten copy of text. Reading both makes
+    // enumerated Multiattack clauses appear twice on older saved sidekicks.
+    const primary = record.text || record.desc || record.computedText || record.special || '';
+    return [record.name, primary].filter(Boolean).join(' ');
+}
+
 function recordDiceText(record) {
     if (!record) return '';
     // Computed text retains secondary dice (poison, healing, riders) without
@@ -43,7 +51,7 @@ function recordDiceText(record) {
 
 /** Parse common 5e Multiattack count wording. */
 export function parseMultiattackCount(input) {
-    const text = typeof input === 'string' ? input : recordText(input);
+    const text = typeof input === 'string' ? input : recordAttackCountText(input);
     if (!text || !/multiattack|makes?\s+.+attacks?|attacks?\s+(?:twice|thrice)/i.test(text)) return 1;
 
     const tokenPattern = '(\\d+|one|two|three|four|five|six|seven|eight)';

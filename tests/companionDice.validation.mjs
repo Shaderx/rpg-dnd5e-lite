@@ -19,6 +19,11 @@ assert.equal(parseMultiattackCount('The bear makes two attacks: one with its bit
 assert.equal(parseMultiattackCount('The creature attacks twice.'), 2);
 assert.equal(parseMultiattackCount('The creature makes 3 weapon attacks.'), 3);
 assert.equal(parseMultiattackCount('The creature makes two Claw attacks and one Bite attack.'), 3);
+assert.equal(parseMultiattackCount({
+    name: 'Multiattack',
+    text: 'The kobold makes two Spear attacks.',
+    computedText: 'The kobold makes two Spear attacks.',
+}), 2);
 
 const blackBear = {
     id: 'bear', name: 'Fang', enabled: true, creatureTraits: [], knownCantrips: [], knownSpells: [],
@@ -36,6 +41,29 @@ const bearSpec = buildSidekickRollSpec(blackBear, blackBearStats, 1, () => null)
 assert.equal(bearSpec.rollSetCount, 2);
 assert.deepEqual(bearSpec.setProfiles[0], { d4: 2, d6: 1 });
 assert.deepEqual(bearSpec.setProfiles[1], { d4: 2, d6: 1 });
+
+const raxSpec = buildSidekickRollSpec({
+    id: 'rax', name: 'Rax', type: 'warrior', creatureTraits: [], knownCantrips: [], knownSpells: [],
+}, {
+    extraAttack: 2,
+    computedActions: [
+        {
+            name: 'Multiattack',
+            text: 'The kobold makes two Spear attacks.',
+            computedText: 'The kobold makes two Spear attacks.',
+            enabled: true,
+        },
+        {
+            name: 'Spear',
+            computedText: 'Hit: 6 (1d6 + 3) piercing damage, or 5 (1d8 + 1) piercing damage.',
+            enabled: true,
+        },
+    ],
+    computedWeapons: [],
+}, 6, () => null);
+assert.equal(raxSpec.physicalAttackCount, 2);
+assert.equal(raxSpec.rollSetCount, 2);
+assert.deepEqual(raxSpec.setProfiles, [{ d6: 1, d8: 1 }, { d6: 1, d8: 1 }]);
 
 const eldritchBlast = {
     name: 'Eldritch Blast', level: 0, spellAttack: ['R'],

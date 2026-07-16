@@ -339,15 +339,16 @@ Ally: ally1_d20_1=14, ally1_d20_2=7 | dice: ally1_d4=3, ally1_d6=5, ...
 Extend the same formatter with creature-derived prefixes:
 
 ```text
-Fang 1/2: fang1_d20_1=14, fang1_d20_2=7 | dice: fang1_d6_1=5, fang1_d6_2=2, fang1_d8=6
-Fang 2/2: fang2_d20_1=18, fang2_d20_2=4 | dice: fang2_d6_1=3, fang2_d6_2=6, fang2_d8=2
+Fang:
+  1/2: fang1_d20_1=14, fang1_d20_2=7 | dice: fang1_d6_1=5, fang1_d6_2=2, fang1_d8=6
+  2/2: fang2_d20_1=18, fang2_d20_2=4 | dice: fang2_d6_1=3, fang2_d6_2=6, fang2_d8=2
 ```
 
-The only additional instruction needed is that each line is an independent available roll set, later-numbered sets may cover additional-action options, and the LLM should use or ignore them as appropriate to the narrative and stat block. Existing general advantage/disadvantage guidance remains sufficient.
+Name each creature once, then group its numbered attack sets and spell rolls beneath that header. Each set is independently available, later-numbered sets may cover additional-action options, and the LLM should use or ignore them as appropriate to the narrative and stat block. Existing general advantage/disadvantage guidance remains sufficient.
 
 Do not inject attack names, formulas, semantic effect labels, modifiers, or calculated totals. Player-character prompt lines remain unchanged.
 
-After the shared turn-roll sets, append each dice-bearing sidekick spell using its full readable name and combined creature/spell prefix. Spell lines contain only raw side dice. Spells without dice are absent from the `<dice>` section unless they explicitly grant same-turn weapon attacks. Leveled spells use only their native-level data; higher-slot/upcast entries never contribute dice or attack counts. Swift Quiver contributes two additional numbered creature sets containing d20 pairs and compatible weapon dice; it does not receive an empty spell line.
+Within the same creature block, append each dice-bearing sidekick spell using its readable spell name and combined creature/spell prefix. Do not repeat the creature name on every spell line. Spell lines contain only raw side dice. Spells without dice are absent from the `<dice>` section unless they explicitly grant same-turn weapon attacks. Leveled spells use only their native-level data; higher-slot/upcast entries never contribute dice or attack counts. Swift Quiver contributes two additional numbered creature sets containing d20 pairs and compatible weapon dice; it does not receive an empty spell line.
 
 ## UI changes
 
@@ -396,8 +397,9 @@ Applying the planned derived parser produces:
 The corresponding injection shape is:
 
 ```text
-Fang 1/2: fang1_d20_1=..., fang1_d20_2=... | dice: fang1_d4_1=..., fang1_d4_2=..., fang1_d6=...
-Fang 2/2: fang2_d20_1=..., fang2_d20_2=... | dice: fang2_d4_1=..., fang2_d4_2=..., fang2_d6=...
+Fang:
+  1/2: fang1_d20_1=..., fang1_d20_2=... | dice: fang1_d4_1=..., fang1_d4_2=..., fang1_d6=...
+  2/2: fang2_d20_1=..., fang2_d20_2=... | dice: fang2_d4_1=..., fang2_d4_2=..., fang2_d6=...
 ```
 
 This validates that the CDN's attached `Multiattack` action survives the existing pull/extraction path and contains enough text for count derivation. The production implementation must still add that derived count parser; the current repository only preserves the action text and does not yet convert it into roll-set count metadata.

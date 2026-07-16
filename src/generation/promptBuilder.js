@@ -341,23 +341,30 @@ export function buildCombatDiceSection() {
         }
         const companions = Array.isArray(roll.companionRolls) ? roll.companionRolls : [];
         if (companions.length > 0) {
-            lines.push('Each named line is an independent available roll set. Use or ignore it according to the narrative and stat block; later-numbered sets can cover additional-action options.');
+            lines.push('Creature blocks contain independent roll sets; use only those allowed by the narrative and stat block. Later sets may cover additional actions.');
             for (const companion of companions) {
                 const sets = Array.isArray(companion.sets) ? companion.sets : [];
+                const entries = [];
                 for (let i = 0; i < sets.length; i++) {
                     const set = sets[i];
                     const n = i + 1;
-                    const tag = sets.length === 1 ? companion.name : `${companion.name} ${n}/${sets.length}`;
                     const prefix = sets.length === 1 ? `${companion.key}_` : `${companion.key}${n}_`;
-                    let line = `${tag}: ${prefix}d20_1=${set.roll1}, ${prefix}d20_2=${set.roll2}`;
+                    const ordinal = sets.length === 1 ? '' : `${n}/${sets.length}: `;
+                    let line = `${ordinal}${prefix}d20_1=${set.roll1}, ${prefix}d20_2=${set.roll2}`;
                     const dice = fmtCompanionDiceSet(set.dice, prefix);
                     if (dice) line += ` | dice: ${dice}`;
-                    lines.push(line);
+                    entries.push(line);
                 }
                 for (const spell of companion.spellDice || []) {
                     const prefix = `${companion.key}_${spell.key}_`;
                     const dice = fmtCompanionDiceSet(spell.dice, prefix);
-                    if (dice) lines.push(`${companion.name} — ${spell.name} dice: ${dice}`);
+                    if (dice) entries.push(`${spell.name}: ${dice}`);
+                }
+                if (entries.length === 1) {
+                    lines.push(`${companion.name}: ${entries[0]}`);
+                } else if (entries.length > 1) {
+                    lines.push(`${companion.name}:`);
+                    lines.push(...entries.map(entry => `  ${entry}`));
                 }
             }
         }
