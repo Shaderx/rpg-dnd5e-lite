@@ -3,9 +3,22 @@
  * Crypto-secure d20 rolling with inline display
  */
 
-import { extensionSettings, pendingDiceRoll, setPendingDiceRoll, setLastNonCombatRoll } from '../core/state.js';
+import { extensionSettings, pendingDiceRoll, setPendingDiceRoll, setLastNonCombatRoll, sidekicks } from '../core/state.js';
 import { saveSettings } from '../core/persistence.js';
 import { MODIFIER_DEFS } from './modifiers.js';
+import { computeSidekickStats, getSidekickLevel, lookupSpellByName } from './sidekick.js';
+import {
+    allocateUniqueCreatureKeys,
+    buildCompanionRollSpec,
+    buildSidekickRollSpec,
+    COMPANION_DIE_SIDES,
+} from './companionDice.js';
+import { v2Companions } from '../v2/core/state.js';
+import { getComputedStats as getV2CompanionStats } from '../v2/features/companion.js';
+import { characterV1 } from '../v1/core/state.js';
+import { computeCharacterStats as computeV1CharacterStats } from '../v1/features/character.js';
+import { characterV2 } from '../v2/core/characterState.js';
+import { computeV2CharacterStats } from '../v2/features/character.js';
 
 /**
  * Secure random roll using crypto.getRandomValues() with rejection sampling.
@@ -43,10 +56,119 @@ export function formatDiceSetTooltip(diceSet) {
     return COMBAT_DAMAGE_SIDES.map(s => `d${s}:${diceSet[`d${s}`]}`).join(' ');
 }
 
+export function formatCompanionDiceTooltip(diceSet) {
+    if (!diceSet) return '';
+    return COMPANION_DIE_SIDES.flatMap(side => {
+        const values = diceSet[`d${side}`];
+        if (!Array.isArray(values) || values.length === 0) return [];
+        return [`d${side}:${values.join(',')}`];
+    }).join(' ');
+}
+
+export function formatCompanionDiceSummary(diceSet) {
+    if (!diceSet) return '';
+    return COMPANION_DIE_SIDES.flatMap(side => {
+        const values = diceSet[`d${side}`];
+        if (!Array.isArray(values) || values.length === 0) return [];
+        return [`${values.length}d${side}`];
+    }).join(' + ');
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function rollCombatDamageDice() {
     const dice = {};
     for (const s of COMBAT_DAMAGE_SIDES) dice[`d${s}`] = secureRoll(s);
     return dice;
+}
+
+function rollProfile(profile) {
+    const rolled = {};
+    for (const side of COMPANION_DIE_SIDES) {
+        const key = `d${side}`;
+        const count = Math.max(0, Number(profile?.[key]) || 0);
+        if (count > 0) rolled[key] = Array.from({ length: count }, () => secureRoll(side));
+    }
+    return rolled;
+}
+
+function resolveCharacterBoundCompanion(enabledCards = []) {
+    const mode = extensionSettings.mode;
+    const char = mode === 'v2' ? characterV2 : mode === 'v1' ? characterV1 : null;
+    if (!char) return null;
+    const stats = mode === 'v2' ? computeV2CharacterStats(char) : computeV1CharacterStats(char);
+    const selected = stats?.companionData?.type === 'familiar' ? stats.familiarStats
+        : stats?.companionData?.type === 'primal' ? stats.companion
+            : null;
+    if (!selected) return null;
+    const name = stats.companionData?.name || selected.customName || selected.name || selected.label || 'Companion';
+    const normalizedName = name.trim().toLowerCase();
+    const boundType = stats.companionData?.type;
+    const boundForm = stats.companionData?.form;
+    const represented = enabledCards.some(card => !card.owner && (
+        String(card.name || '').trim().toLowerCase() === normalizedName
+        || (card.category === boundType && card.creatureSource === boundForm)
+    ));
+    if (represented) return null;
+    return buildCompanionRollSpec(
+        { ...selected, id: `character-${mode}-companion`, name, actions: selected.actions, traits: selected.traits },
+        selected,
+        {
+            entityId: `character-${mode}-companion`,
+            source: 'character-companion',
+            bestialFury: stats.companionData?.type === 'primal' && Number(char.level) >= 11,
+        },
+    );
+}
+
+/** Resolve the active roster at button-press time. */
+export function resolveActiveCompanionRollSpecs() {
+    const specs = [];
+    const sidekickLevel = getSidekickLevel();
+    for (const sidekick of sidekicks || []) {
+        if (!sidekick?.enabled) continue;
+        specs.push(buildSidekickRollSpec(
+            sidekick,
+            computeSidekickStats(sidekick, sidekickLevel),
+            sidekickLevel,
+            lookupSpellByName,
+        ));
+    }
+
+    // V2 companion cards are a shared active roster and are loaded/injected in
+    // every mode, even though their editor is part of the V2 companion system.
+    const enabledCards = (v2Companions || []).filter(companion => companion?.enabled);
+    for (const companion of enabledCards) {
+        specs.push(buildCompanionRollSpec(companion, getV2CompanionStats(companion), {
+            source: 'v2-companion',
+            bestialFury: companion.category === 'primal' && Number(companion.scalingLevel) >= 11,
+        }));
+    }
+
+    const bound = resolveCharacterBoundCompanion(enabledCards);
+    if (bound) specs.push(bound);
+    return allocateUniqueCreatureKeys(specs);
+}
+
+function rollCompanionSpec(spec) {
+    const { setProfiles, ...snapshot } = spec;
+    return {
+        ...snapshot,
+        sets: setProfiles.map((profile, index) => ({
+            index: index + 1,
+            roll1: secureRoll(20),
+            roll2: secureRoll(20),
+            dice: rollProfile(profile),
+        })),
+        spellDice: (spec.spellDice || []).map(spell => ({ ...spell, dice: rollProfile(spell.dice) })),
+    };
 }
 
 /**
@@ -75,8 +197,16 @@ export function rollD20() {
         enemyRolls.push({ roll1: secureRoll(20), roll2: secureRoll(20), dmg: rollCombatDamageDice() });
     }
 
-    const totalDice = playerCount * 2 + allyCount * 2 + enemyCount * 2;
-    const allRolls = [...userRolls.flatMap(u => [u.roll1, u.roll2]), ...allyRolls.flatMap(a => [a.roll1, a.roll2]), ...enemyRolls.flatMap(e => [e.roll1, e.roll2])];
+    const companionRolls = resolveActiveCompanionRollSpecs().map(rollCompanionSpec);
+
+    const companionD20Count = companionRolls.reduce((sum, companion) => sum + companion.sets.length * 2, 0);
+    const totalDice = playerCount * 2 + allyCount * 2 + enemyCount * 2 + companionD20Count;
+    const allRolls = [
+        ...userRolls.flatMap(u => [u.roll1, u.roll2]),
+        ...allyRolls.flatMap(a => [a.roll1, a.roll2]),
+        ...companionRolls.flatMap(companion => companion.sets.flatMap(set => [set.roll1, set.roll2])),
+        ...enemyRolls.flatMap(e => [e.roll1, e.roll2]),
+    ];
     const rollData = {
         formula: `${totalDice}d20`,
         userRolls,
@@ -85,6 +215,7 @@ export function rollD20() {
         allyRolls,
         allyRoll1: allyRolls[0]?.roll1 ?? null,
         allyRoll2: allyRolls[0]?.roll2 ?? null,
+        companionRolls,
         enemyRolls,
         npcRoll1: enemyRolls[0]?.roll1 ?? null,
         npcRoll2: enemyRolls[0]?.roll2 ?? null,
@@ -121,6 +252,7 @@ export function updateDiceDisplay() {
     const $result = $('#dnd-roll-result');
     const $userContainer = $('#dnd-roll-user-groups');
     const $allyContainer = $('#dnd-roll-ally-groups');
+    const $companionContainer = $('#dnd-roll-companion-groups');
     const $enemyContainer = $('#dnd-roll-enemy-groups');
     const $rollBtn = $('#dnd-roll-btn');
 
@@ -149,7 +281,7 @@ export function updateDiceDisplay() {
         let allyHtml = '';
         for (let i = 0; i < allies.length; i++) {
             const a = allies[i];
-            const label = allies.length === 1 ? 'Ally' : `A${i + 1}`;
+            const label = allies.length === 1 ? 'Extra Ally' : `Extra A${i + 1}`;
             const diceTip = a.dmg ? `\nDice: ${formatDiceSetTooltip(a.dmg)}` : '';
             allyHtml += `<div class="dnd-roll-chip dnd-roll-chip-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${diceTip}">`
                 + `<span class="dnd-roll-chip-val">${a.roll1}</span>`
@@ -159,6 +291,33 @@ export function updateDiceDisplay() {
         }
         $allyContainer.html(allyHtml);
         $allyContainer.toggle(allies.length > 0);
+
+        const companions = Array.isArray(roll.companionRolls) ? roll.companionRolls : [];
+        let companionHtml = '';
+        for (const companion of companions) {
+            const setCount = companion.sets?.length || 0;
+            for (let i = 0; i < setCount; i++) {
+                const set = companion.sets[i];
+                const label = setCount === 1 ? companion.name : `${companion.name} ${i + 1}/${setCount}`;
+                const diceTip = formatCompanionDiceTooltip(set.dice);
+                companionHtml += `<div class="dnd-roll-chip dnd-roll-chip-companion" title="${escapeHtml(label)}: d20 ${set.roll1} / ${set.roll2}${diceTip ? `&#10;Dice: ${escapeHtml(diceTip)}` : ''}">`
+                    + `<span class="dnd-roll-chip-name">${escapeHtml(label)}</span>`
+                    + `<span class="dnd-roll-chip-val">${set.roll1}</span>`
+                    + '<span class="dnd-roll-chip-sep">/</span>'
+                    + `<span class="dnd-roll-chip-val">${set.roll2}</span>`
+                    + '</div>';
+            }
+            for (const spell of companion.spellDice || []) {
+                const diceTip = formatCompanionDiceTooltip(spell.dice);
+                const diceSummary = formatCompanionDiceSummary(spell.dice);
+                companionHtml += `<div class="dnd-roll-chip dnd-roll-chip-spell" title="${escapeHtml(companion.name)} — ${escapeHtml(spell.name)}${diceTip ? `&#10;Dice: ${escapeHtml(diceTip)}` : ''}">`
+                    + `<span class="dnd-roll-chip-name">${escapeHtml(companion.name)} — ${escapeHtml(spell.name)}</span>`
+                    + `<span class="dnd-roll-chip-dice">${escapeHtml(diceSummary)}</span>`
+                    + '</div>';
+            }
+        }
+        $companionContainer.html(companionHtml);
+        $companionContainer.toggle(companionHtml.length > 0);
 
         const enemies = roll.enemyRolls ?? (roll.npcRoll1 != null
             ? [{ roll1: roll.npcRoll1, roll2: roll.npcRoll2 }] : []);
@@ -187,6 +346,8 @@ export function updateDiceDisplay() {
         $userContainer.empty();
         $allyContainer.hide();
         $allyContainer.empty();
+        $companionContainer.hide();
+        $companionContainer.empty();
         $enemyContainer.hide();
         $enemyContainer.empty();
         $rollBtn.removeClass('dnd-roll-locked');
@@ -419,4 +580,3 @@ export function updateModifierDisplay() {
         $results.empty().hide();
     }
 }
-

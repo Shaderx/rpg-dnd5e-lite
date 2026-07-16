@@ -68,7 +68,7 @@
 
         <!-- Strip dice roller (6d20: player + ally + enemy) -->
         <div class="dnd-strip-widget dnd-strip-widget-dice">
-            <button class="dnd-strip-dice-roll" title="Roll d20 (Player + Ally + Enemy)">
+            <button class="dnd-strip-dice-roll" title="Roll d20 (Player + Extra Ally + active companions + Enemy)">
                 <i class="fa-solid fa-dice-d20"></i>
             </button>
             <div class="dnd-strip-dice-rolls">
@@ -184,10 +184,10 @@
             <!-- Currency + omni extras: single-row 4-col grid -->
             <div class="dnd-secondary-widgets" id="dnd-secondary-widgets"></div>
 
-            <!-- Dice roller (d20 sets: player + N allies + N enemies for advantage/disadvantage) -->
+            <!-- Dice roller (player + extra allies + active roster + enemies) -->
             <div class="dnd-dice-section">
                 <div class="dnd-dice-controls">
-                    <button id="dnd-roll-btn" class="dnd-roll-btn" title="Roll d20 sets (Player + Allies + Enemies)">
+                    <button id="dnd-roll-btn" class="dnd-roll-btn" title="Roll d20 sets (Player + Extra Allies + active companions + Enemies)">
                         <span id="dnd-player-minus" class="dnd-roll-count-btn dnd-roll-count-minus" title="Decrease player d20 sets">−</span>
                         <i class="fa-solid fa-dice-d20 dnd-roll-btn-icon"></i>
                         <span id="dnd-player-plus" class="dnd-roll-count-btn dnd-roll-count-plus" title="Increase player d20 sets">+</span>
@@ -195,9 +195,9 @@
                         <span class="dnd-roll-delete-overlay" aria-hidden="true"><i class="fa-solid fa-xmark"></i></span>
                     </button>
                     <div class="dnd-count-stack">
-                        <div class="dnd-count-control dnd-count-control-ally" title="Number of ally d20 sets to roll">
+                        <div class="dnd-count-control dnd-count-control-ally" title="Number of extra ally d20 sets to roll">
                             <button id="dnd-ally-minus" class="dnd-count-btn">−</button>
-                            <span class="dnd-count-label"><span id="dnd-ally-count-val">1</span> Ally</span>
+                            <span class="dnd-count-label"><span id="dnd-ally-count-val">1</span> Extra Ally</span>
                             <button id="dnd-ally-plus" class="dnd-count-btn">+</button>
                         </div>
                         <div class="dnd-count-control dnd-count-control-enemy" title="Number of enemy d20 sets to roll">
@@ -211,6 +211,7 @@
                     <div class="dnd-roll-groups">
                         <div id="dnd-roll-user-groups" class="dnd-roll-multi-groups dnd-roll-user-groups"></div>
                         <div id="dnd-roll-ally-groups" class="dnd-roll-multi-groups"></div>
+                        <div id="dnd-roll-companion-groups" class="dnd-roll-multi-groups"></div>
                         <div id="dnd-roll-enemy-groups" class="dnd-roll-multi-groups"></div>
                     </div>
                 </div>

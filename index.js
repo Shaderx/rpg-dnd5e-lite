@@ -2402,6 +2402,9 @@ function onChatChanged() {
 
     loadSidekicks();
     renderSidekickCards();
+    // The combat roller resolves saved sidekick spells synchronously from this
+    // shared cache, including in legacy mode where V1/V2 asset preloads do not run.
+    if (sidekicks?.length) preloadSpellData();
     fetchEquipmentItems().then(() => fetchMagicItems());
 
     // Companions always active
@@ -3109,6 +3112,9 @@ async function initUI() {
     renderSidekickCards();
 
     if (sidekicks && sidekicks.length > 0) {
+        // Saved spellcaster sidekicks resolve combat spell rolls from the shared
+        // synchronous cache, including when the extension starts in legacy mode.
+        preloadSpellData();
         fetchEquipmentItems().then(() => fetchMagicItems());
     }
 

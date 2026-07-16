@@ -275,6 +275,20 @@ function fmtDiceSet(diceSet, prefix = '') {
     return ['d4', 'd6', 'd8', 'd10', 'd12'].map(k => `${prefix}${k}=${diceSet[k]}`).join(', ');
 }
 
+function fmtCompanionDiceSet(diceSet, prefix = '') {
+    if (!diceSet) return '';
+    const parts = [];
+    for (const key of ['d4', 'd6', 'd8', 'd10', 'd12']) {
+        const values = diceSet[key];
+        if (!Array.isArray(values)) continue;
+        for (let i = 0; i < values.length; i++) {
+            const suffix = values.length > 1 ? `_${i + 1}` : '';
+            parts.push(`${prefix}${key}${suffix}=${values[i]}`);
+        }
+    }
+    return parts.join(', ');
+}
+
 /**
  * Build the <dice> section for combat rolls.
  * Only activates when the big yellow d20 button was pressed (lastDiceRoll).
@@ -318,11 +332,33 @@ export function buildCombatDiceSection() {
             for (let i = 0; i < allies.length; i++) {
                 const a = allies[i];
                 const n = i + 1;
-                const tag = allies.length === 1 ? 'Ally' : `Ally ${n}`;
+                const tag = allies.length === 1 ? 'Extra Ally' : `Extra Ally ${n}`;
                 const prefix = `ally${n}_`;
                 let line = `${tag}: ${prefix}d20_1=${a.roll1}, ${prefix}d20_2=${a.roll2}`;
                 if (a.dmg) line += ` | dice: ${fmtDiceSet(a.dmg, prefix)}`;
                 lines.push(line);
+            }
+        }
+        const companions = Array.isArray(roll.companionRolls) ? roll.companionRolls : [];
+        if (companions.length > 0) {
+            lines.push('Each named line is an independent available roll set. Use or ignore it according to the narrative and stat block; later-numbered sets can cover additional-action options.');
+            for (const companion of companions) {
+                const sets = Array.isArray(companion.sets) ? companion.sets : [];
+                for (let i = 0; i < sets.length; i++) {
+                    const set = sets[i];
+                    const n = i + 1;
+                    const tag = sets.length === 1 ? companion.name : `${companion.name} ${n}/${sets.length}`;
+                    const prefix = sets.length === 1 ? `${companion.key}_` : `${companion.key}${n}_`;
+                    let line = `${tag}: ${prefix}d20_1=${set.roll1}, ${prefix}d20_2=${set.roll2}`;
+                    const dice = fmtCompanionDiceSet(set.dice, prefix);
+                    if (dice) line += ` | dice: ${dice}`;
+                    lines.push(line);
+                }
+                for (const spell of companion.spellDice || []) {
+                    const prefix = `${companion.key}_${spell.key}_`;
+                    const dice = fmtCompanionDiceSet(spell.dice, prefix);
+                    if (dice) lines.push(`${companion.name} — ${spell.name} dice: ${dice}`);
+                }
             }
         }
         const enemies = roll.enemyRolls ?? (roll.npcRoll1 != null

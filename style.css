@@ -1812,6 +1812,31 @@
     width: 100%;
 }
 
+/* Named sidekick/companion sets and their raw spell dice. */
+#dnd-roll-companion-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+    align-items: stretch;
+    justify-items: stretch;
+}
+#dnd-roll-companion-groups .dnd-roll-chip {
+    flex: unset;
+    width: 100%;
+}
+.dnd-roll-chip-name {
+    max-width: 7em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.72;
+}
+.dnd-roll-chip-dice {
+    font-variant-numeric: tabular-nums;
+    color: var(--dnd-gold);
+    white-space: nowrap;
+}
+
 /* Enemy container: 4-column grid so up to 16 fits */
 #dnd-roll-enemy-groups {
     display: grid;

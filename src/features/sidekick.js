@@ -22,6 +22,7 @@ import {
 } from './spellScaling.js';
 import { fetchWithCache } from '../core/spellCache.js';
 import { collectSidekickWondrousEffects } from '../v2/features/wondrousEffects.js';
+import { parseMultiattackCount } from './companionDice.js';
 
 const CDN_DATA = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data';
 
@@ -1007,6 +1008,9 @@ export function extractCreatureActions(creature) {
             origAbilityMod: abilityMod,
             origProf: prof,
             atkType: atkMatch ? atkMatch[1].trim() : null,
+            multiattackCount: /^multiattack$/i.test(action.name || '')
+                ? parseMultiattackCount({ name: action.name, text })
+                : null,
         });
     }
     return actions;

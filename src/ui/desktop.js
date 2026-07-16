@@ -5,7 +5,7 @@
 
 import { extensionSettings, quests, headerInfo } from '../core/state.js';
 import { hasCurrency, formatCurrencyStrip, formatCurrencyTitle, buildCurrencyOmniHtml } from '../features/currencyParser.js';
-import { rollD20, updateDiceDisplay, clearDiceRoll, formatDiceSetTooltip } from '../features/dice.js';
+import { rollD20, updateDiceDisplay, clearDiceRoll, formatDiceSetTooltip, formatCompanionDiceTooltip, formatCompanionDiceSummary } from '../features/dice.js';
 import { applyWeatherVisuals } from '../features/weatherVisuals.js';
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -699,7 +699,7 @@ function renderStripDice($container) {
         let allyHtml = '';
         for (let i = 0; i < allies.length; i++) {
             const a = allies[i];
-            const label = allies.length === 1 ? 'Ally' : `A${i + 1}`;
+            const label = allies.length === 1 ? 'Extra Ally' : `Extra A${i + 1}`;
             const diceTip = a.dmg ? `\nDice: ${formatDiceSetTooltip(a.dmg)}` : '';
             allyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${diceTip}">`
                 + `<span class="dnd-strip-dice-row-label">${label}</span>`
@@ -707,6 +707,31 @@ function renderStripDice($container) {
                 + '<span class="dnd-strip-dice-sep">/</span>'
                 + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">${a.roll2}</span>`
                 + '</div>';
+        }
+        for (const companion of (roll.companionRolls || [])) {
+            const setCount = companion.sets?.length || 0;
+            for (let i = 0; i < setCount; i++) {
+                const set = companion.sets[i];
+                const rawLabel = setCount === 1 ? companion.name : `${companion.name} ${i + 1}/${setCount}`;
+                const label = escapeAttr(String(rawLabel));
+                const diceTip = formatCompanionDiceTooltip(set.dice);
+                allyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-companion" title="${label}: d20 ${set.roll1} / ${set.roll2}${diceTip ? `&#10;Dice: ${escapeAttr(diceTip)}` : ''}">`
+                    + `<span class="dnd-strip-dice-row-label">${label}</span>`
+                    + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">${set.roll1}</span>`
+                    + '<span class="dnd-strip-dice-sep">/</span>'
+                    + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">${set.roll2}</span>`
+                    + '</div>';
+            }
+            for (const spell of companion.spellDice || []) {
+                const rawLabel = `${companion.name} — ${spell.name}`;
+                const label = escapeAttr(String(rawLabel));
+                const diceTip = formatCompanionDiceTooltip(spell.dice);
+                const diceSummary = formatCompanionDiceSummary(spell.dice);
+                allyHtml += `<div class="dnd-strip-dice-row dnd-strip-dice-row-companion" title="${label}&#10;Dice: ${escapeAttr(diceTip)}">`
+                    + `<span class="dnd-strip-dice-row-label">${label}</span>`
+                    + `<span class="dnd-strip-dice-result dnd-strip-dice-ally">${escapeAttr(diceSummary)}</span>`
+                    + '</div>';
+            }
         }
         $allyRows.html(allyHtml);
 
@@ -731,7 +756,7 @@ function renderStripDice($container) {
         $r1.text('--').attr('title', '');
         $r2.text('--').attr('title', '');
         $allyRows.html('<div class="dnd-strip-dice-row dnd-strip-dice-row-ally">'
-            + '<span class="dnd-strip-dice-row-label">Ally</span>'
+            + '<span class="dnd-strip-dice-row-label">Extra Ally</span>'
             + '<span class="dnd-strip-dice-result dnd-strip-dice-ally">--</span>'
             + '<span class="dnd-strip-dice-sep">/</span>'
             + '<span class="dnd-strip-dice-result dnd-strip-dice-ally">--</span>'

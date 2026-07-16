@@ -258,12 +258,24 @@ export function parseCantripRangeScaling(entriesStr, characterLevel, baseRange) 
 export function parseBeamCount(entriesStr, characterLevel) {
     if (!entriesStr) return 1;
     if (!/beam/i.test(entriesStr)) return 1;
+    if (!/separate\s+attack\s+roll\s+for\s+each\s+beam/i.test(entriesStr)) return 1;
 
     const table = [{ level: 1, beams: 1 }];
-    const re = /(\d+)\s+beams?\s+at\s+(\d+)(?:st|nd|rd|th)?\s+level/gi;
+    const words = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 };
+    const parseCount = value => /^\d+$/.test(value) ? parseInt(value, 10) : words[value.toLowerCase()];
+    const re = /(\d+|one|two|three|four|five|six|seven|eight)\s+beams?\s+at\s+(?:(?:character\s+)?level\s+)?(\d+)(?:st|nd|rd|th)?(?:\s+level)?/gi;
     let m;
+    let foundCountFirst = false;
     while ((m = re.exec(entriesStr)) !== null) {
-        table.push({ level: parseInt(m[2], 10), beams: parseInt(m[1], 10) });
+        table.push({ level: parseInt(m[2], 10), beams: parseCount(m[1]) });
+        foundCountFirst = true;
+    }
+
+    if (!foundCountFirst) {
+        const levelFirstRe = /at\s+(?:character\s+)?level\s+(\d+)[^.]{0,80}?(\d+|one|two|three|four|five|six|seven|eight)\s+beams?/gi;
+        while ((m = levelFirstRe.exec(entriesStr)) !== null) {
+            table.push({ level: parseInt(m[1], 10), beams: parseCount(m[2]) });
+        }
     }
 
     const createsRe = /creates?\s+(\d+)\s+beams?.*?(\d+)(?:st|nd|rd|th)?\s+level.*?(\d+)\s+beams?.*?(\d+)(?:st|nd|rd|th)?\s+level.*?(\d+)\s+beams?.*?(\d+)(?:st|nd|rd|th)?/i;
