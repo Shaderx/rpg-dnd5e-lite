@@ -83,6 +83,20 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function renderCompanionDiceInline(diceSet, maxVisibleValues = 4) {
+    if (!diceSet) return '';
+    return COMPANION_DIE_SIDES.flatMap(side => {
+        const values = diceSet[`d${side}`];
+        if (!Array.isArray(values) || values.length === 0) return [];
+        const visible = values.slice(0, maxVisibleValues).map(escapeHtml).join('·');
+        const remainder = values.length - maxVisibleValues;
+        return ['<span class="dnd-companion-die">'
+            + `<span class="dnd-companion-die-label">d${side}</span>`
+            + `<span class="dnd-companion-die-values">${visible}${remainder > 0 ? `<span class="dnd-companion-die-more">+${remainder}</span>` : ''}</span>`
+            + '</span>'];
+    }).join('');
+}
+
 function rollCombatDamageDice() {
     const dice = {};
     for (const s of COMBAT_DAMAGE_SIDES) dice[`d${s}`] = secureRoll(s);
@@ -254,6 +268,7 @@ export function updateDiceDisplay() {
     const $allyContainer = $('#dnd-roll-ally-groups');
     const $companionSection = $('#dnd-companion-roll-section');
     const $companionContainer = $('#dnd-roll-companion-groups');
+    const $companionCount = $('#dnd-companion-roll-count');
     const $enemyContainer = $('#dnd-roll-enemy-groups');
     const $rollBtn = $('#dnd-roll-btn');
 
@@ -282,7 +297,7 @@ export function updateDiceDisplay() {
         let allyHtml = '';
         for (let i = 0; i < allies.length; i++) {
             const a = allies[i];
-            const label = allies.length === 1 ? 'Extra Ally' : `Extra A${i + 1}`;
+            const label = allies.length === 1 ? 'Extra Ally' : `Extra Ally ${i + 1}`;
             const diceTip = a.dmg ? `\nDice: ${formatDiceSetTooltip(a.dmg)}` : '';
             allyHtml += `<div class="dnd-roll-chip dnd-roll-chip-ally" title="${label}: d20 ${a.roll1} / ${a.roll2}${diceTip}">`
                 + `<span class="dnd-roll-chip-val">${a.roll1}</span>`
@@ -295,29 +310,61 @@ export function updateDiceDisplay() {
 
         const companions = Array.isArray(roll.companionRolls) ? roll.companionRolls : [];
         let companionHtml = '';
+        let companionResultCount = 0;
+        const companionColumns = ['', ''];
+        const companionColumnWeights = [0, 0];
         for (const companion of companions) {
             const setCount = companion.sets?.length || 0;
+            const spells = companion.spellDice || [];
+            if (setCount === 0 && spells.length === 0) continue;
+
+            companionResultCount += setCount + spells.length;
+            let companionCardHtml = '<div class="dnd-companion-party">'
+                + `<div class="dnd-companion-identity" aria-label="${escapeHtml(companion.name)}">`
+                + `<span class="dnd-companion-avatar" aria-hidden="true" title="${escapeHtml(companion.name)}">`
+                + escapeHtml(companion.name?.trim()?.charAt(0)?.toUpperCase() || '?')
+                + '</span>'
+                + '</div>'
+                + '<div class="dnd-companion-results">';
+
             for (let i = 0; i < setCount; i++) {
                 const set = companion.sets[i];
                 const label = setCount === 1 ? companion.name : `${companion.name} ${i + 1}/${setCount}`;
                 const diceTip = formatCompanionDiceTooltip(set.dice);
-                companionHtml += `<div class="dnd-roll-chip dnd-roll-chip-companion" title="${escapeHtml(label)}: d20 ${set.roll1} / ${set.roll2}${diceTip ? `&#10;Dice: ${escapeHtml(diceTip)}` : ''}">`
-                    + `<span class="dnd-roll-chip-name">${escapeHtml(label)}</span>`
-                    + `<span class="dnd-roll-chip-val">${set.roll1}</span>`
+                const diceInline = renderCompanionDiceInline(set.dice);
+                const roll1Class = set.roll1 === 20 ? ' is-natural-20' : set.roll1 === 1 ? ' is-natural-1' : '';
+                const roll2Class = set.roll2 === 20 ? ' is-natural-20' : set.roll2 === 1 ? ' is-natural-1' : '';
+                companionCardHtml += `<div class="dnd-companion-result" title="${escapeHtml(label)}: d20 ${set.roll1} / ${set.roll2}${diceTip ? `&#10;Dice: ${escapeHtml(diceTip)}` : ''}">`
+                    + '<span class="dnd-companion-d20">'
+                    + (setCount > 1 ? `<span class="dnd-companion-set">${i + 1}</span>` : '')
+                    + `<span class="dnd-roll-chip-val${roll1Class}">${set.roll1}</span>`
                     + '<span class="dnd-roll-chip-sep">/</span>'
-                    + `<span class="dnd-roll-chip-val">${set.roll2}</span>`
+                    + `<span class="dnd-roll-chip-val${roll2Class}">${set.roll2}</span>`
+                    + '</span>'
+                    + (diceInline ? `<span class="dnd-companion-side-dice">${diceInline}</span>` : '')
                     + '</div>';
             }
-            for (const spell of companion.spellDice || []) {
+            for (const spell of spells) {
                 const diceTip = formatCompanionDiceTooltip(spell.dice);
                 const diceSummary = formatCompanionDiceSummary(spell.dice);
-                companionHtml += `<div class="dnd-roll-chip dnd-roll-chip-spell" title="${escapeHtml(companion.name)} — ${escapeHtml(spell.name)}${diceTip ? `&#10;Dice: ${escapeHtml(diceTip)}` : ''}">`
-                    + `<span class="dnd-roll-chip-name">${escapeHtml(companion.name)} — ${escapeHtml(spell.name)}</span>`
+                const diceInline = renderCompanionDiceInline(spell.dice, 3);
+                companionCardHtml += `<div class="dnd-companion-result dnd-companion-spell" title="${escapeHtml(companion.name)} — ${escapeHtml(spell.name)}${diceTip ? `&#10;Dice: ${escapeHtml(diceTip)}` : ''}">`
+                    + `<span class="dnd-companion-spell-name">${escapeHtml(spell.name)}</span>`
                     + `<span class="dnd-roll-chip-dice">${escapeHtml(diceSummary)}</span>`
+                    + (diceInline ? `<span class="dnd-companion-side-dice">${diceInline}</span>` : '')
                     + '</div>';
             }
+            companionCardHtml += '</div></div>';
+            const columnIndex = companionColumnWeights[0] <= companionColumnWeights[1] ? 0 : 1;
+            companionColumns[columnIndex] += companionCardHtml;
+            companionColumnWeights[columnIndex] += Math.max(1, setCount + spells.length);
         }
+        companionHtml = companionColumns
+            .filter(Boolean)
+            .map(columnHtml => `<div class="dnd-companion-column">${columnHtml}</div>`)
+            .join('');
         $companionContainer.html(companionHtml);
+        $companionCount.text(companionResultCount === 1 ? '1 result' : `${companionResultCount} results`);
         $companionSection.toggle(companionHtml.length > 0);
 
         const enemies = roll.enemyRolls ?? (roll.npcRoll1 != null
