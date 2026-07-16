@@ -35,7 +35,7 @@ Do not automatically include:
 - Disabled sidekicks or companions.
 - Creature actions that have been disabled in the sidekick configuration.
 
-Manual unnamed ally rolls should remain available for other party NPCs. They should be stored separately from roster-derived rolls and presented as `Extra Ally` rolls to avoid confusing them with enabled companions.
+Manual unnamed ally rolls should remain available for other party NPCs. They should be stored separately from roster-derived rolls and presented as `Ally` rolls; enabled companions remain identifiable by name.
 
 ## Proposed roll model
 
@@ -352,9 +352,9 @@ Within the same creature block, append each dice-bearing sidekick spell using it
 
 ## UI changes
 
-Update the expanded display in `src/features/dice.js` and the compact strip in `src/ui/desktop.js`. In the expanded sidebar, named companion and sidekick results appear in a dedicated `Companion Rolls` section directly below the omni modules and above the generic player/Extra Ally/enemy roller. Keep this module shallow and visually aligned with the normal compact roll chips: an inline heading, a four-column roll grid, abbreviated visible values, and full raw values in tooltips. Each turn-roll entry shows the creature name, set ordinal, d20 pair, and compact raw side dice. Swift Quiver's two appended sets use the same display and prompt shape as other creature sets. Spell entries show the creature and spell names plus raw side dice only. Tooltips may expand the raw values but must not classify their purpose.
+Update the expanded display in `src/features/dice.js` and the compact strip in `src/ui/desktop.js`. In the expanded sidebar, named companion and sidekick results appear in a dedicated `Companion Rolls` section directly below the omni modules and above the generic player/Ally/enemy roller. Keep this module shallow and visually aligned with the normal compact roll chips: an inline heading, a four-column roll grid, abbreviated visible values, and full raw values in tooltips. Each turn-roll entry shows the creature name, set ordinal, d20 pair, and compact raw side dice. Swift Quiver's two appended sets use the same display and prompt shape as other creature sets. Spell entries show the creature and spell names plus raw side dice only. Tooltips may expand the raw values but must not classify their purpose.
 
-The existing manual Ally control should be relabeled `Extra Ally`; it continues to create unnamed generic ally sets and does not control roster-derived rolls. No companion count control is needed.
+The existing manual Ally control remains `Ally`; it creates unnamed generic ally sets and does not control roster-derived rolls. No companion count control is needed.
 
 ## Validated CDN pull simulation
 
@@ -474,7 +474,7 @@ No new persistence key or CDN fetch should be required. The added roll data is a
 ### Compatibility
 
 - Manual player count and injected player output are unchanged.
-- Manual Extra Ally and enemy rolls still work.
+- Manual Ally and enemy rolls still work.
 - Old roll snapshots without `companionRolls` render and inject safely.
 - V2 character-bound companions are not duplicated when companion cards are active.
 - Legacy, V1, and V2 modes load without import or syntax errors.
